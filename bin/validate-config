@@ -1,0 +1,400 @@
+#!/usr/bin/env python3
+"""
+NGINX Security Monitor - Configuration Validator
+Validates configuration files and reports issues.
+"""
+
+import os
+import sys
+import argparse
+import yaml
+import json
+from pathlib import Path
+
+# Add the src directory to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
+
+def validate_yaml_syntax(file_path):
+    """Validate YAML file syntax."""
+    try:
+        with open(file_path, 'r') as f:
+            yaml.safe_load(f)
+        return True, None
+    except yaml.YAMLError as e:
+        return False, f"YAML syntax error: {e}"
+    except Exception as e:
+        return False, f"File error: {e}"
+
+def validate_json_syntax(file_path):
+    """Validate JSON file syntax."""
+    try:
+        with open(file_path, 'r') as f:
+            json.load(f)
+        return True, None
+    except json.JSONDecodeError as e:
+        return False, f"JSON syntax error: {e}"
+    except Exception as e:
+        return False, f"File error: {e}"
+
+def validate_required_sections(config, required_sections):
+    """Check if all required configuration sections are present."""
+    missing_sections = []
+    for section in required_sections:
+        if '.' in section:
+            # Nested section like 'email_service.smtp_server'
+            parts = section.split('.')
+            current = config
+            try:
+                for part in parts:
+                    current = current[part]
+            except (KeyError, TypeError):
+                missing_sections.append(section)
+        else:
+            if section not in config:
+                missing_sections.append(section)
+    
+    return missing_sections
+
+def validate_log_paths(config):
+    """Validate that log file paths exist and are accessible."""
+    issues = []
+    
+    log_paths = [
+        config.get('log_file_path'),
+        config.get('error_log_file_path')
+    ]
+    
+    for log_path in log_paths:
+        if log_path:
+            if not os.path.exists(log_path):
+                issues.append(f"Log file not found: {log_path}")
+            elif not os.access(log_path, os.R_OK):
+                issues.append(f"Log file not readable: {log_path}")
+    
+    return issues
+
+def validate_email_config(config):
+    """Validate email service configuration."""
+    issues = []
+    
+    email_config = config.get('email_service', {})
+    if email_config.get('enabled', True):
+        required_fields = ['smtp_server', 'smtp_port', 'from_address', 'to_address']
+        
+        for field in required_fields:
+            if not email_config.get(field):
+                issues.append(f"Email service missing required field: {field}")
+        
+        # Validate port is numeric
+        port = email_config.get('smtp_port')
+        if port and not isinstance(port, int):
+            try:
+                int(port)
+            except ValueError:
+                issues.append(f"Email SMTP port must be numeric: {port}")
+    
+    return issues
+
+def validate_thresholds(config):
+    """Validate alert thresholds are sensible."""
+    issues = []
+    
+    thresholds = config.get('alert_thresholds', {})
+    
+    # Check that thresholds are numeric and make sense
+    for level in ['high', 'medium', 'low']:
+        value = thresholds.get(level)
+        if value is not None:
+            if not isinstance(value, (int, float)) or value < 0:
+                issues.append(f"Threshold '{level}' must be a positive number: {value}")
+    
+    # Check threshold ordering makes sense
+    high = thresholds.get('high', 0)
+    medium = thresholds.get('medium', 0)
+    low = thresholds.get('low', 0)
+    
+    if high and medium and high <= medium:
+        issues.append("High threshold should be greater than medium threshold")
+    if medium and low and medium <= low:
+        issues.append("Medium threshold should be greater than low threshold")
+    
+    return issues
+
+def validate_plugin_directories(config):
+    """Validate plugin directory configuration."""
+    issues = []
+    
+    plugin_config = config.get('plugin_system', {})
+    plugin_dirs = plugin_config.get('plugin_dirs', [])
+    
+    for plugin_dir in plugin_dirs:
+        if plugin_dir.startswith('/') or plugin_dir.startswith('~'):
+            # Absolute path - check if exists
+            expanded_path = os.path.expanduser(plugin_dir)
+            if not os.path.exists(expanded_path):
+                issues.append(f"Plugin directory not found: {plugin_dir}")
+            elif not os.access(expanded_path, os.R_OK):
+                issues.append(f"Plugin directory not readable: {plugin_dir}")
+        else:
+            # Relative path - check from project root
+            if not os.path.exists(plugin_dir):
+                issues.append(f"Plugin directory not found: {plugin_dir}")
+    
+    return issues
+
+def validate_security_integrations(config):
+    """Validate security integration configurations."""
+    issues = []
+    
+    integrations = config.get('security_integrations', {})
+    
+    # Validate fail2ban configuration
+    fail2ban = integrations.get('fail2ban', {})
+    if fail2ban:
+        socket_path = fail2ban.get('socket')
+        if socket_path and not os.path.exists(socket_path):
+            issues.append(f"Fail2ban socket not found: {socket_path}")
+    
+    # Validate OSSEC configuration
+    ossec = integrations.get('ossec', {})
+    if ossec:
+        install_dir = ossec.get('install_dir')
+        if install_dir and not os.path.exists(install_dir):
+            issues.append(f"OSSEC installation directory not found: {install_dir}")
+    
+    return issues
+
+def validate_settings_yaml(file_path):
+    """Validate main settings.yaml configuration."""
+    print(f"🔍 Validating {file_path}...")
+    
+    # Check file exists
+    if not os.path.exists(file_path):
+        print(f"❌ Configuration file not found: {file_path}")
+        return False
+    
+    # Validate syntax
+    valid, error = validate_yaml_syntax(file_path)
+    if not valid:
+        print(f"❌ {error}")
+        return False
+    
+    # Load configuration
+    with open(file_path, 'r') as f:
+        config = yaml.safe_load(f)
+    
+    all_issues = []
+    
+    # Required sections
+    required_sections = [
+        'email_service',
+        'alert_thresholds',
+        'log_file_path'
+    ]
+    
+    missing_sections = validate_required_sections(config, required_sections)
+    if missing_sections:
+        all_issues.extend([f"Missing required section: {section}" for section in missing_sections])
+    
+    # Validate specific configurations
+    all_issues.extend(validate_log_paths(config))
+    all_issues.extend(validate_email_config(config))
+    all_issues.extend(validate_thresholds(config))
+    all_issues.extend(validate_plugin_directories(config))
+    all_issues.extend(validate_security_integrations(config))
+    
+    # Report results
+    if all_issues:
+        print("❌ Configuration issues found:")
+        for issue in all_issues:
+            print(f"   • {issue}")
+        return False
+    else:
+        print("✅ Configuration is valid")
+        return True
+
+def validate_patterns_json(file_path):
+    """Validate patterns.json file."""
+    print(f"🎯 Validating {file_path}...")
+    
+    if not os.path.exists(file_path):
+        print(f"⚠️  Patterns file not found: {file_path} (optional)")
+        return True
+    
+    # Validate syntax
+    valid, error = validate_json_syntax(file_path)
+    if not valid:
+        print(f"❌ {error}")
+        return False
+    
+    # Load and validate structure
+    with open(file_path, 'r') as f:
+        patterns = json.load(f)
+    
+    issues = []
+    
+    # Check expected structure
+    if not isinstance(patterns, dict):
+        issues.append("Patterns file must be a JSON object")
+    
+    # Validate pattern categories
+    expected_categories = ['sql_injection', 'xss_attack', 'ddos_attempt']
+    for category in expected_categories:
+        if category in patterns:
+            if not isinstance(patterns[category], list):
+                issues.append(f"Pattern category '{category}' must be an array")
+    
+    if issues:
+        print("❌ Pattern file issues:")
+        for issue in issues:
+            print(f"   • {issue}")
+        return False
+    else:
+        print("✅ Patterns file is valid")
+        return True
+
+def validate_environment_variables():
+    """Validate required environment variables."""
+    print("🌍 Validating Environment Variables...")
+    
+    # Check for sensitive variables that shouldn't be in config files
+    sensitive_vars = [
+        'SMTP_PASSWORD',
+        'EMAIL_PASSWORD', 
+        'SMS_API_KEY',
+        'NGINX_MONITOR_KEY'
+    ]
+    
+    missing_vars = []
+    for var in sensitive_vars:
+        if not os.environ.get(var):
+            missing_vars.append(var)
+    
+    if missing_vars:
+        print("⚠️  Optional environment variables not set:")
+        for var in missing_vars:
+            print(f"   • {var}")
+        print("   This is OK if you're using config file values instead")
+    else:
+        print("✅ All recommended environment variables are set")
+    
+    return True
+
+def check_file_permissions(file_path):
+    """Check file permissions are secure."""
+    stat = os.stat(file_path)
+    permissions = oct(stat.st_mode)[-3:]
+    
+    # Config files should not be world-readable
+    if permissions.endswith('4') or permissions.endswith('6') or permissions.endswith('7'):
+        return False, f"File {file_path} is world-readable (permissions: {permissions})"
+    
+    return True, None
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Validate NGINX Security Monitor configuration",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s config/settings.yaml              # Validate specific file
+  %(prog)s --all                            # Validate all config files
+  %(prog)s --security-check                 # Include security validation
+        """
+    )
+    
+    parser.add_argument(
+        'config_file',
+        nargs='?',
+        default='config/settings.yaml',
+        help='Configuration file to validate (default: config/settings.yaml)'
+    )
+    
+    parser.add_argument(
+        '--all', '-a',
+        action='store_true',
+        help='Validate all configuration files'
+    )
+    
+    parser.add_argument(
+        '--security-check', '-s',
+        action='store_true',
+        help='Include security-focused validation'
+    )
+    
+    parser.add_argument(
+        '--fix-permissions',
+        action='store_true',
+        help='Attempt to fix file permission issues'
+    )
+    
+    args = parser.parse_args()
+    
+    print("🔍 NGINX Security Monitor Configuration Validator")
+    print("=" * 55)
+    
+    all_valid = True
+    
+    if args.all:
+        # Validate all configuration files
+        config_files = [
+            ('config/settings.yaml', validate_settings_yaml),
+            ('config/service-settings.yaml', validate_settings_yaml),
+            ('config/patterns.json', validate_patterns_json)
+        ]
+        
+        for file_path, validator in config_files:
+            if not validator(file_path):
+                all_valid = False
+            print()
+    else:
+        # Validate specific file
+        if args.config_file.endswith('.yaml'):
+            all_valid = validate_settings_yaml(args.config_file)
+        elif args.config_file.endswith('.json'):
+            all_valid = validate_patterns_json(args.config_file)
+        else:
+            print(f"❌ Unsupported file type: {args.config_file}")
+            all_valid = False
+    
+    # Environment variables check
+    validate_environment_variables()
+    print()
+    
+    # Security checks
+    if args.security_check:
+        print("🔒 Security Validation...")
+        
+        config_files = ['config/settings.yaml', 'config/service-settings.yaml']
+        for config_file in config_files:
+            if os.path.exists(config_file):
+                secure, message = check_file_permissions(config_file)
+                if not secure:
+                    print(f"⚠️  {message}")
+                    if args.fix_permissions:
+                        try:
+                            os.chmod(config_file, 0o600)
+                            print(f"✅ Fixed permissions for {config_file}")
+                        except Exception as e:
+                            print(f"❌ Failed to fix permissions: {e}")
+                else:
+                    print(f"✅ {config_file} has secure permissions")
+        print()
+    
+    # Final report
+    print("=" * 55)
+    if all_valid:
+        print("🎉 All validation checks passed!")
+        print("\nConfiguration is ready for use.")
+        print("Next step: ./bin/nginx-security-monitor start")
+    else:
+        print("❌ Validation failed - please fix the issues above")
+        print("\nCommon fixes:")
+        print("- Check file paths exist and are accessible")
+        print("- Verify required configuration sections are present")  
+        print("- Ensure numeric values are properly formatted")
+    
+    sys.exit(0 if all_valid else 1)
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,1149 @@
+#!/usr/bin/env python3
+"""
+Automated Documentation Generator for Nginx Security Monitor
+
+This script provides comprehensive documentation automation including:
+- API documentation generation from code
+- README updates with current metrics
+- Link validation and fixing
+- Documentation site generation
+- Content freshness checking
+- Cross-reference validation
+"""
+
+import os
+import sys
+import json
+import yaml
+import ast
+import subprocess
+import argparse
+import requests
+import re
+from pathlib import Path
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple, Any
+from dataclasses import dataclass
+import tempfile
+import shutil
+
+@dataclass
+class DocumentationMetrics:
+    """Metrics for documentation quality"""
+    total_files: int = 0
+    word_count: int = 0
+    code_examples: int = 0
+    broken_links: int = 0
+    outdated_files: int = 0
+    missing_descriptions: int = 0
+    test_coverage: float = 0.0
+
+class DocumentationGenerator:
+    def __init__(self, project_root: str):
+        self.project_root = Path(project_root)
+        self.docs_dir = self.project_root / "docs"
+        self.src_dir = self.project_root / "src"
+        self.config = self.load_config()
+        self.metrics = DocumentationMetrics()
+        
+    def load_config(self) -> Dict:
+        """Load documentation generation configuration"""
+        config_file = self.project_root / "docs" / "docgen-config.yaml"
+        
+        if config_file.exists():
+            with open(config_file, 'r') as f:
+                return yaml.safe_load(f)
+        
+        # Default configuration
+        return {
+            'api_docs': {
+                'enabled': True,
+                'output_dir': 'docs/api',
+                'formats': ['markdown', 'html'],
+                'include_private': False
+            },
+            'readme': {
+                'auto_update': True,
+                'include_metrics': True,
+                'include_badges': True
+            },
+            'links': {
+                'check_external': True,
+                'check_internal': True,
+                'timeout': 10
+            },
+            'site': {
+                'generator': 'mkdocs',
+                'theme': 'material',
+                'auto_deploy': False
+            },
+            'content': {
+                'max_age_days': 90,
+                'check_freshness': True,
+                'auto_update_dates': True
+            }
+        }
+    
+    def run_full_generation(self) -> Dict:
+        """Run complete documentation generation pipeline"""
+        print("🚀 Starting automated documentation generation...")
+        
+        results = {}
+        
+        # Generate API documentation
+        if self.config['api_docs']['enabled']:
+            print("\n📚 Generating API documentation...")
+            results['api_docs'] = self.generate_api_docs()
+        
+        # Update README with current metrics
+        if self.config['readme']['auto_update']:
+            print("\n📝 Updating README with metrics...")
+            results['readme'] = self.update_readme()
+        
+        # Validate and fix links
+        print("\n🔗 Validating documentation links...")
+        results['links'] = self.validate_links()
+        
+        # Check content freshness
+        if self.config['content']['check_freshness']:
+            print("\n📅 Checking content freshness...")
+            results['freshness'] = self.check_content_freshness()
+        
+        # Generate documentation site
+        print("\n🌐 Generating documentation site...")
+        results['site'] = self.generate_site()
+        
+        # Generate metrics report
+        print("\n📊 Generating metrics report...")
+        results['metrics'] = self.generate_metrics_report()
+        
+        print("\n✅ Documentation generation complete!")
+        return results
+    
+    def generate_api_docs(self) -> Dict:
+        """Generate API documentation from Python source code"""
+        try:
+            api_docs = {}
+            
+            # Find all Python modules
+            python_files = list(self.src_dir.rglob("*.py"))
+            
+            for py_file in python_files:
+                if py_file.name.startswith('_') and py_file.name != '__init__.py':
+                    continue
+                
+                module_docs = self.extract_module_docs(py_file)
+                if module_docs:
+                    relative_path = py_file.relative_to(self.src_dir)
+                    module_name = str(relative_path).replace('/', '.').replace('.py', '')
+                    api_docs[module_name] = module_docs
+            
+            # Generate markdown documentation
+            self.generate_api_markdown(api_docs)
+            
+            # Generate HTML documentation if requested
+            if 'html' in self.config['api_docs']['formats']:
+                self.generate_api_html(api_docs)
+            
+            return {
+                'status': 'success',
+                'modules_documented': len(api_docs),
+                'output_dir': str(self.docs_dir / 'api')
+            }
+            
+        except Exception as e:
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+    
+    def extract_module_docs(self, py_file: Path) -> Optional[Dict]:
+        """Extract documentation from a Python module"""
+        try:
+            with open(py_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Parse the AST
+            tree = ast.parse(content)
+            
+            module_doc = {
+                'file': str(py_file),
+                'docstring': ast.get_docstring(tree),
+                'classes': [],
+                'functions': [],
+                'constants': []
+            }
+            
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ClassDef):
+                    class_doc = self.extract_class_docs(node)
+                    if class_doc:
+                        module_doc['classes'].append(class_doc)
+                
+                elif isinstance(node, ast.FunctionDef):
+                    # Skip private functions unless configured to include them
+                    if node.name.startswith('_') and not self.config['api_docs']['include_private']:
+                        continue
+                    
+                    func_doc = self.extract_function_docs(node)
+                    if func_doc:
+                        module_doc['functions'].append(func_doc)
+                
+                elif isinstance(node, ast.Assign):
+                    # Extract module-level constants
+                    for target in node.targets:
+                        if isinstance(target, ast.Name) and target.id.isupper():
+                            constant_doc = {
+                                'name': target.id,
+                                'line': node.lineno,
+                                'value': self.get_constant_value(node.value)
+                            }
+                            module_doc['constants'].append(constant_doc)
+            
+            # Only return if there's actual documentation
+            if (module_doc['docstring'] or 
+                module_doc['classes'] or 
+                module_doc['functions'] or 
+                module_doc['constants']):
+                return module_doc
+            
+            return None
+            
+        except Exception as e:
+            print(f"Error processing {py_file}: {e}")
+            return None
+    
+    def extract_class_docs(self, node: ast.ClassDef) -> Dict:
+        """Extract documentation from a class"""
+        class_doc = {
+            'name': node.name,
+            'line': node.lineno,
+            'docstring': ast.get_docstring(node),
+            'methods': [],
+            'attributes': []
+        }
+        
+        for item in node.body:
+            if isinstance(item, ast.FunctionDef):
+                if item.name.startswith('_') and not self.config['api_docs']['include_private']:
+                    continue
+                
+                method_doc = self.extract_function_docs(item, is_method=True)
+                if method_doc:
+                    class_doc['methods'].append(method_doc)
+            
+            elif isinstance(item, ast.Assign):
+                # Extract class attributes
+                for target in item.targets:
+                    if isinstance(target, ast.Name):
+                        attr_doc = {
+                            'name': target.id,
+                            'line': item.lineno,
+                            'type': self.infer_type(item.value)
+                        }
+                        class_doc['attributes'].append(attr_doc)
+        
+        return class_doc
+    
+    def extract_function_docs(self, node: ast.FunctionDef, is_method: bool = False) -> Dict:
+        """Extract documentation from a function"""
+        func_doc = {
+            'name': node.name,
+            'line': node.lineno,
+            'docstring': ast.get_docstring(node),
+            'args': [],
+            'returns': None,
+            'is_method': is_method
+        }
+        
+        # Extract arguments
+        for arg in node.args.args:
+            if arg.arg == 'self' and is_method:
+                continue
+            
+            arg_doc = {
+                'name': arg.arg,
+                'type': self.get_type_annotation(arg.annotation) if arg.annotation else None,
+                'default': None
+            }
+            func_doc['args'].append(arg_doc)
+        
+        # Extract default values
+        defaults = node.args.defaults
+        if defaults:
+            # Map defaults to arguments (defaults align with the last N args)
+            num_args = len(func_doc['args'])
+            num_defaults = len(defaults)
+            
+            for i, default in enumerate(defaults):
+                arg_index = num_args - num_defaults + i
+                if 0 <= arg_index < len(func_doc['args']):
+                    func_doc['args'][arg_index]['default'] = self.get_constant_value(default)
+        
+        # Extract return type
+        if node.returns:
+            func_doc['returns'] = self.get_type_annotation(node.returns)
+        
+        return func_doc
+    
+    def get_type_annotation(self, annotation) -> str:
+        """Get string representation of type annotation"""
+        if isinstance(annotation, ast.Name):
+            return annotation.id
+        elif isinstance(annotation, ast.Constant):
+            return str(annotation.value)
+        elif isinstance(annotation, ast.Attribute):
+            return f"{self.get_type_annotation(annotation.value)}.{annotation.attr}"
+        else:
+            return "Any"
+    
+    def get_constant_value(self, node) -> str:
+        """Get string representation of a constant value"""
+        if isinstance(node, ast.Constant):
+            return repr(node.value)
+        elif isinstance(node, ast.Name):
+            return node.id
+        elif isinstance(node, ast.List):
+            return f"[{', '.join(self.get_constant_value(item) for item in node.elts)}]"
+        elif isinstance(node, ast.Dict):
+            items = []
+            for k, v in zip(node.keys, node.values):
+                items.append(f"{self.get_constant_value(k)}: {self.get_constant_value(v)}")
+            return f"{{{', '.join(items)}}}"
+        else:
+            return "..."
+    
+    def infer_type(self, node) -> str:
+        """Infer the type of a value from AST node"""
+        if isinstance(node, ast.Constant):
+            return type(node.value).__name__
+        elif isinstance(node, ast.List):
+            return "list"
+        elif isinstance(node, ast.Dict):
+            return "dict"
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                return node.func.id
+        return "unknown"
+    
+    def generate_api_markdown(self, api_docs: Dict) -> None:
+        """Generate markdown API documentation"""
+        api_dir = self.docs_dir / 'api'
+        api_dir.mkdir(exist_ok=True)
+        
+        # Generate index file
+        index_content = self.generate_api_index(api_docs)
+        with open(api_dir / 'index.md', 'w') as f:
+            f.write(index_content)
+        
+        # Generate individual module documentation
+        for module_name, module_doc in api_docs.items():
+            module_content = self.generate_module_markdown(module_name, module_doc)
+            
+            # Create subdirectories if needed
+            module_path = api_dir / f"{module_name.replace('.', '/')}.md"
+            module_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            with open(module_path, 'w') as f:
+                f.write(module_content)
+    
+    def generate_api_index(self, api_docs: Dict) -> str:
+        """Generate API documentation index"""
+        content = []
+        content.append("# API Reference")
+        content.append("")
+        content.append("Auto-generated API documentation for Nginx Security Monitor.")
+        content.append("")
+        content.append(f"*Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
+        content.append("")
+        content.append("## Modules")
+        content.append("")
+        
+        for module_name, module_doc in sorted(api_docs.items()):
+            module_link = f"{module_name.replace('.', '/')}.md"
+            description = ""
+            
+            if module_doc['docstring']:
+                # Use first line of docstring as description
+                description = module_doc['docstring'].split('\n')[0]
+            
+            content.append(f"- [{module_name}]({module_link})")
+            if description:
+                content.append(f"  {description}")
+            content.append("")
+        
+        content.append("## Statistics")
+        content.append("")
+        content.append(f"- **Total modules**: {len(api_docs)}")
+        content.append(f"- **Total classes**: {sum(len(doc['classes']) for doc in api_docs.values())}")
+        content.append(f"- **Total functions**: {sum(len(doc['functions']) for doc in api_docs.values())}")
+        content.append("")
+        
+        return '\n'.join(content)
+    
+    def generate_module_markdown(self, module_name: str, module_doc: Dict) -> str:
+        """Generate markdown documentation for a module"""
+        content = []
+        content.append(f"# {module_name}")
+        content.append("")
+        
+        if module_doc['docstring']:
+            content.append(module_doc['docstring'])
+            content.append("")
+        
+        # Constants
+        if module_doc['constants']:
+            content.append("## Constants")
+            content.append("")
+            for const in module_doc['constants']:
+                content.append(f"### {const['name']}")
+                content.append("")
+                content.append(f"**Value**: `{const['value']}`")
+                content.append("")
+        
+        # Classes
+        if module_doc['classes']:
+            content.append("## Classes")
+            content.append("")
+            
+            for class_doc in module_doc['classes']:
+                content.append(f"### {class_doc['name']}")
+                content.append("")
+                
+                if class_doc['docstring']:
+                    content.append(class_doc['docstring'])
+                    content.append("")
+                
+                # Class attributes
+                if class_doc['attributes']:
+                    content.append("#### Attributes")
+                    content.append("")
+                    for attr in class_doc['attributes']:
+                        content.append(f"- **{attr['name']}** ({attr['type']})")
+                    content.append("")
+                
+                # Class methods
+                if class_doc['methods']:
+                    content.append("#### Methods")
+                    content.append("")
+                    for method in class_doc['methods']:
+                        content.extend(self.format_function_docs(method))
+        
+        # Functions
+        if module_doc['functions']:
+            content.append("## Functions")
+            content.append("")
+            
+            for func_doc in module_doc['functions']:
+                content.extend(self.format_function_docs(func_doc))
+        
+        return '\n'.join(content)
+    
+    def format_function_docs(self, func_doc: Dict) -> List[str]:
+        """Format function documentation"""
+        content = []
+        
+        # Function signature
+        args_str = ', '.join(
+            f"{arg['name']}" + (f": {arg['type']}" if arg['type'] else "") +
+            (f" = {arg['default']}" if arg['default'] is not None else "")
+            for arg in func_doc['args']
+        )
+        
+        returns_str = f" -> {func_doc['returns']}" if func_doc['returns'] else ""
+        
+        content.append(f"##### {func_doc['name']}({args_str}){returns_str}")
+        content.append("")
+        
+        if func_doc['docstring']:
+            content.append(func_doc['docstring'])
+            content.append("")
+        
+        # Parameters
+        if func_doc['args']:
+            content.append("**Parameters:**")
+            content.append("")
+            for arg in func_doc['args']:
+                type_info = f" ({arg['type']})" if arg['type'] else ""
+                default_info = f" = {arg['default']}" if arg['default'] is not None else ""
+                content.append(f"- **{arg['name']}**{type_info}{default_info}")
+            content.append("")
+        
+        # Returns
+        if func_doc['returns']:
+            content.append("**Returns:**")
+            content.append("")
+            content.append(f"- {func_doc['returns']}")
+            content.append("")
+        
+        return content
+    
+    def generate_api_html(self, api_docs: Dict) -> None:
+        """Generate HTML API documentation (placeholder for future implementation)"""
+        # This would generate HTML documentation using a template engine
+        # For now, we just create a simple HTML version
+        api_dir = self.docs_dir / 'api'
+        html_dir = api_dir / 'html'
+        html_dir.mkdir(exist_ok=True)
+        
+        # Simple HTML generation - in a real implementation, you'd use a proper template engine
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>API Documentation - Nginx Security Monitor</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 40px; }}
+                h1 {{ color: #2c3e50; }}
+                h2 {{ color: #34495e; }}
+                pre {{ background: #f8f9fa; padding: 10px; border-radius: 4px; }}
+            </style>
+        </head>
+        <body>
+            <h1>API Documentation</h1>
+            <p>Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <p>Total modules documented: {len(api_docs)}</p>
+            <p><a href="../index.md">Back to Markdown Documentation</a></p>
+        </body>
+        </html>
+        """
+        
+        with open(html_dir / 'index.html', 'w') as f:
+            f.write(html_content)
+    
+    def update_readme(self) -> Dict:
+        """Update README.md with current project metrics"""
+        try:
+            readme_path = self.project_root / "README.md"
+            
+            if not readme_path.exists():
+                return {'status': 'error', 'error': 'README.md not found'}
+            
+            # Read current README
+            with open(readme_path, 'r') as f:
+                content = f.read()
+            
+            # Generate metrics
+            metrics = self.collect_project_metrics()
+            
+            # Update badges section
+            if self.config['readme']['include_badges']:
+                content = self.update_badges(content, metrics)
+            
+            # Update metrics section
+            if self.config['readme']['include_metrics']:
+                content = self.update_metrics_section(content, metrics)
+            
+            # Write updated README
+            with open(readme_path, 'w') as f:
+                f.write(content)
+            
+            return {
+                'status': 'success',
+                'metrics_updated': True,
+                'badges_updated': self.config['readme']['include_badges']
+            }
+            
+        except Exception as e:
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+    
+    def collect_project_metrics(self) -> Dict:
+        """Collect current project metrics"""
+        metrics = {
+            'files': {
+                'total': 0,
+                'python': 0,
+                'docs': 0,
+                'tests': 0
+            },
+            'lines': {
+                'total': 0,
+                'code': 0,
+                'comments': 0,
+                'blank': 0
+            },
+            'documentation': {
+                'coverage': 0.0,
+                'files': 0,
+                'words': 0
+            },
+            'tests': {
+                'total': 0,
+                'passing': 0,
+                'coverage': 0.0
+            },
+            'last_updated': datetime.now().isoformat()
+        }
+        
+        # Count files
+        for file_path in self.project_root.rglob('*'):
+            if file_path.is_file():
+                metrics['files']['total'] += 1
+                
+                if file_path.suffix == '.py':
+                    metrics['files']['python'] += 1
+                elif file_path.suffix == '.md':
+                    metrics['files']['docs'] += 1
+                elif 'test' in str(file_path).lower():
+                    metrics['files']['tests'] += 1
+        
+        # Count documentation words
+        for doc_file in self.docs_dir.rglob('*.md'):
+            if doc_file.is_file():
+                with open(doc_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    words = len(content.split())
+                    metrics['documentation']['words'] += words
+                metrics['documentation']['files'] += 1
+        
+        # Try to get test coverage if available
+        try:
+            result = subprocess.run(['python', '-m', 'pytest', '--cov-report=json'], 
+                                  capture_output=True, text=True, cwd=self.project_root)
+            if result.returncode == 0:
+                # Look for coverage.json
+                coverage_file = self.project_root / 'coverage.json'
+                if coverage_file.exists():
+                    with open(coverage_file, 'r') as f:
+                        coverage_data = json.load(f)
+                        metrics['tests']['coverage'] = coverage_data.get('totals', {}).get('percent_covered', 0.0)
+        except:
+            pass
+        
+        return metrics
+    
+    def update_badges(self, content: str, metrics: Dict) -> str:
+        """Update badges in README content"""
+        # Define badge templates
+        badges = [
+            f"![Python](https://img.shields.io/badge/python-3.8%2B-blue)",
+            f"![Documentation](https://img.shields.io/badge/docs-{metrics['documentation']['files']}_files-green)",
+            f"![Test Coverage](https://img.shields.io/badge/coverage-{metrics['tests']['coverage']:.1f}%25-yellow)",
+            f"![Last Updated](https://img.shields.io/badge/updated-{datetime.now().strftime('%Y--%m--%d')}-lightgrey)"
+        ]
+        
+        badge_section = '\n'.join(badges)
+        
+        # Find and replace existing badges or add new section
+        badge_pattern = r'!\[.*?\]\(.*?\)'
+        existing_badges = re.findall(badge_pattern, content)
+        
+        if existing_badges:
+            # Replace first badge with all badges
+            content = re.sub(badge_pattern, badge_section, content, count=1)
+            # Remove remaining badges
+            content = re.sub(badge_pattern, '', content)
+        else:
+            # Add badges after title
+            lines = content.split('\n')
+            title_line = 0
+            for i, line in enumerate(lines):
+                if line.startswith('#'):
+                    title_line = i
+                    break
+            
+            lines.insert(title_line + 1, '')
+            lines.insert(title_line + 2, badge_section)
+            lines.insert(title_line + 3, '')
+            content = '\n'.join(lines)
+        
+        return content
+    
+    def update_metrics_section(self, content: str, metrics: Dict) -> str:
+        """Update or add metrics section to README"""
+        metrics_section = f"""
+## 📊 Project Metrics
+
+*Auto-generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
+
+### 📁 Files
+- **Total files**: {metrics['files']['total']:,}
+- **Python files**: {metrics['files']['python']:,}
+- **Documentation files**: {metrics['files']['docs']:,}
+- **Test files**: {metrics['files']['tests']:,}
+
+### 📚 Documentation
+- **Documentation files**: {metrics['documentation']['files']:,}
+- **Total words**: {metrics['documentation']['words']:,}
+
+### 🧪 Testing
+- **Test coverage**: {metrics['tests']['coverage']:.1f}%
+
+---
+*Metrics updated automatically by documentation generator*
+"""
+        
+        # Find existing metrics section
+        metrics_pattern = r'## 📊 Project Metrics.*?(?=##|\Z)'
+        
+        if re.search(metrics_pattern, content, re.DOTALL):
+            # Replace existing section
+            content = re.sub(metrics_pattern, metrics_section, content, flags=re.DOTALL)
+        else:
+            # Add new section at the end
+            content += metrics_section
+        
+        return content
+    
+    def validate_links(self) -> Dict:
+        """Validate all links in documentation"""
+        results = {
+            'internal_links': {'total': 0, 'broken': 0, 'fixed': 0},
+            'external_links': {'total': 0, 'broken': 0, 'unreachable': 0},
+            'broken_files': []
+        }
+        
+        # Find all markdown files
+        md_files = list(self.docs_dir.rglob('*.md'))
+        md_files.append(self.project_root / 'README.md')
+        
+        for md_file in md_files:
+            if not md_file.exists():
+                continue
+            
+            with open(md_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            file_results = self.validate_file_links(md_file, content)
+            
+            # Aggregate results
+            results['internal_links']['total'] += file_results['internal']['total']
+            results['internal_links']['broken'] += file_results['internal']['broken']
+            results['external_links']['total'] += file_results['external']['total']
+            results['external_links']['broken'] += file_results['external']['broken']
+            
+            if file_results['internal']['broken'] > 0 or file_results['external']['broken'] > 0:
+                results['broken_files'].append({
+                    'file': str(md_file),
+                    'internal_broken': file_results['internal']['broken'],
+                    'external_broken': file_results['external']['broken']
+                })
+        
+        return results
+    
+    def validate_file_links(self, md_file: Path, content: str) -> Dict:
+        """Validate links in a single markdown file"""
+        results = {
+            'internal': {'total': 0, 'broken': 0},
+            'external': {'total': 0, 'broken': 0}
+        }
+        
+        # Find all markdown links
+        link_pattern = r'\[([^\]]*)\]\(([^)]+)\)'
+        links = re.findall(link_pattern, content)
+        
+        for link_text, link_url in links:
+            if link_url.startswith('http'):
+                # External link
+                results['external']['total'] += 1
+                if self.config['links']['check_external']:
+                    if not self.is_external_link_valid(link_url):
+                        results['external']['broken'] += 1
+                        print(f"❌ Broken external link in {md_file}: {link_url}")
+            
+            elif not link_url.startswith('#'):
+                # Internal file link
+                results['internal']['total'] += 1
+                if not self.is_internal_link_valid(md_file, link_url):
+                    results['internal']['broken'] += 1
+                    print(f"❌ Broken internal link in {md_file}: {link_url}")
+        
+        return results
+    
+    def is_external_link_valid(self, url: str) -> bool:
+        """Check if external link is valid"""
+        try:
+            response = requests.head(url, timeout=self.config['links']['timeout'])
+            return response.status_code < 400
+        except:
+            return False
+    
+    def is_internal_link_valid(self, md_file: Path, link_url: str) -> bool:
+        """Check if internal link is valid"""
+        # Resolve relative path
+        if link_url.startswith('/'):
+            # Absolute path from docs root
+            target_path = self.docs_dir / link_url.lstrip('/')
+        else:
+            # Relative path from current file
+            target_path = md_file.parent / link_url
+        
+        # Handle anchors
+        if '#' in link_url:
+            link_url = link_url.split('#')[0]
+            if link_url:
+                target_path = md_file.parent / link_url
+            else:
+                # Anchor in same file
+                return True
+        
+        return target_path.exists()
+    
+    def fix_broken_links(self) -> Dict:
+        """Automatically fix broken internal links by creating missing files"""
+        print("🔧 Fixing broken internal links...")
+        
+        fix_results = {
+            'files_created': [],
+            'links_updated': [],
+            'fix_time': datetime.now().isoformat()
+        }
+        
+        # Find all markdown files and check for broken links
+        md_files = list(self.docs_dir.rglob('*.md'))
+        md_files.append(self.project_root / 'README.md')
+        
+        for md_file in md_files:
+            if not md_file.exists():
+                continue
+            
+            with open(md_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Find all markdown links
+            link_pattern = r'\[([^\]]*)\]\(([^)]+)\)'
+            links = re.findall(link_pattern, content)
+            
+            for link_text, link_url in links:
+                # Skip external links and anchors
+                if link_url.startswith('http') or link_url.startswith('#'):
+                    continue
+                
+                # Check if internal link is broken
+                if not self.is_internal_link_valid(md_file, link_url):
+                    # Only create markdown files
+                    if not link_url.endswith('.md'):
+                        continue
+                    
+                    # Resolve target path - fix the path resolution
+                    if link_url.startswith('/'):
+                        target_path = self.docs_dir / link_url.lstrip('/')
+                    else:
+                        target_path = (md_file.parent / link_url).resolve()
+                    
+                    # Ensure target path is within project directory
+                    try:
+                        target_path.relative_to(self.project_root)
+                    except ValueError:
+                        # Path is outside project, skip
+                        continue
+                    
+                    # Create the missing file with basic content
+                    try:
+                        target_path.parent.mkdir(parents=True, exist_ok=True)
+                        
+                        # Generate basic content based on file name
+                        file_name = target_path.stem.replace('-', ' ').replace('_', ' ').title()
+                        content_template = f"""# {file_name}
+
+> This file was automatically generated to fix broken links.
+
+## Overview
+
+This document is currently under development. Please check back later for content.
+
+## TODO
+
+- [ ] Add content for {file_name}
+- [ ] Review and update documentation
+- [ ] Add cross-references to related documents
+
+## Related Documents
+
+- [Main Documentation](../index.md)
+- [Contributing Guidelines](../CONTRIBUTING.md)
+
+---
+
+*Last updated: {datetime.now().strftime('%Y-%m-%d')}*
+"""
+                        
+                        with open(target_path, 'w', encoding='utf-8') as f:
+                            f.write(content_template)
+                        
+                        fix_results['files_created'].append({
+                            'path': str(target_path.relative_to(self.project_root)),
+                            'referenced_from': str(md_file.relative_to(self.project_root)),
+                            'link_text': link_text
+                        })
+                        
+                        print(f"✅ Created: {target_path.relative_to(self.project_root)}")
+                        
+                    except Exception as e:
+                        print(f"❌ Failed to create {target_path}: {e}")
+        
+        print(f"🔧 Link fixing complete:")
+        print(f"   Files created: {len(fix_results['files_created'])}")
+        
+        return fix_results
+    
+    def check_content_freshness(self) -> Dict:
+        """Check for outdated content"""
+        max_age = timedelta(days=self.config['content']['max_age_days'])
+        now = datetime.now()
+        
+        results = {
+            'total_files': 0,
+            'outdated_files': 0,
+            'outdated_list': []
+        }
+        
+        for md_file in self.docs_dir.rglob('*.md'):
+            results['total_files'] += 1
+            
+            # Check file modification time
+            mtime = datetime.fromtimestamp(md_file.stat().st_mtime)
+            if now - mtime > max_age:
+                results['outdated_files'] += 1
+                results['outdated_list'].append({
+                    'file': str(md_file),
+                    'last_modified': mtime.isoformat(),
+                    'age_days': (now - mtime).days
+                })
+        
+        return results
+    
+    def generate_site(self) -> Dict:
+        """Generate documentation site"""
+        try:
+            generator = self.config['site']['generator']
+            
+            if generator == 'mkdocs':
+                return self.generate_mkdocs_site()
+            else:
+                return {
+                    'status': 'error',
+                    'error': f'Unsupported site generator: {generator}'
+                }
+        except Exception as e:
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+    
+    def generate_mkdocs_site(self) -> Dict:
+        """Generate MkDocs site"""
+        # Create mkdocs.yml if it doesn't exist
+        mkdocs_config = self.project_root / 'mkdocs.yml'
+        
+        if not mkdocs_config.exists():
+            self.create_mkdocs_config()
+        
+        # Build the site
+        try:
+            result = subprocess.run([
+                'mkdocs', 'build'
+            ], cwd=self.project_root, capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                return {
+                    'status': 'success',
+                    'output_dir': 'site',
+                    'message': 'MkDocs site generated successfully'
+                }
+            else:
+                return {
+                    'status': 'error',
+                    'error': result.stderr
+                }
+        except FileNotFoundError:
+            return {
+                'status': 'error',
+                'error': 'MkDocs not installed. Install with: pip install mkdocs mkdocs-material'
+            }
+    
+    def create_mkdocs_config(self) -> None:
+        """Create default MkDocs configuration"""
+        config = {
+            'site_name': 'Nginx Security Monitor Documentation',
+            'site_description': 'Comprehensive documentation for Nginx Security Monitor',
+            'site_url': 'https://nginx-security-monitor.github.io/',
+            'repo_url': 'https://github.com/nginx-security-monitor/nginx-security-monitor',
+            'repo_name': 'nginx-security-monitor/nginx-security-monitor',
+            
+            'theme': {
+                'name': self.config['site']['theme'],
+                'features': [
+                    'navigation.tabs',
+                    'navigation.sections',
+                    'navigation.expand',
+                    'navigation.top',
+                    'search.highlight',
+                    'search.share',
+                    'toc.integrate'
+                ],
+                'palette': [
+                    {
+                        'scheme': 'default',
+                        'primary': 'blue',
+                        'accent': 'blue',
+                        'toggle': {
+                            'icon': 'material/brightness-7',
+                            'name': 'Switch to dark mode'
+                        }
+                    },
+                    {
+                        'scheme': 'slate',
+                        'primary': 'blue',
+                        'accent': 'blue',
+                        'toggle': {
+                            'icon': 'material/brightness-4',
+                            'name': 'Switch to light mode'
+                        }
+                    }
+                ]
+            },
+            
+            'plugins': [
+                'search',
+                'minify',
+                'git-revision-date-localized'
+            ],
+            
+            'markdown_extensions': [
+                'pymdownx.highlight',
+                'pymdownx.superfences',
+                'pymdownx.inlinehilite',
+                'pymdownx.snippets',
+                'pymdownx.tabbed',
+                'admonition',
+                'codehilite',
+                'meta',
+                'toc'
+            ],
+            
+            'nav': self.generate_navigation_structure()
+        }
+        
+        with open(self.project_root / 'mkdocs.yml', 'w') as f:
+            yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+    
+    def generate_navigation_structure(self) -> List:
+        """Generate navigation structure for documentation site"""
+        nav = [
+            {'Home': 'index.md'},
+            {'Getting Started': 'getting-started.md'},
+            {'Installation': 'INSTALLATION.md'},
+            {'Configuration': 'CONFIGURATION.md'},
+            {
+                'User Guide': [
+                    {'Quick Start': 'QUICK_START_TUTORIAL.md'},
+                    {'Use Cases': 'USE_CASES.md'},
+                    {'Security Features': 'SECURITY_FEATURES.md'}
+                ]
+            },
+            {
+                'Operations': [
+                    {'Operations Guide': 'OPERATIONS_GUIDE.md'},
+                    {'Performance Tuning': 'operations/performance-tuning.md'},
+                    {'Monitoring': 'operations/monitoring.md'},
+                    {'Disaster Recovery': 'operations/disaster-recovery.md'}
+                ]
+            },
+            {
+                'Development': [
+                    {'Contributing': 'CONTRIBUTING.md'},
+                    {'Plugin Development': 'PLUGIN_DEVELOPMENT.md'},
+                    {'Testing': 'TESTING.md'},
+                    {'Architecture': 'ARCHITECTURE.md'}
+                ]
+            },
+            {
+                'API Reference': [
+                    {'Overview': 'api/index.md'},
+                    {'Versioning': 'api/versioning.md'}
+                ]
+            },
+            {
+                'Troubleshooting': [
+                    {'Common Issues': 'troubleshooting/common-issues.md'},
+                    {'Installation Issues': 'troubleshooting/installation-issues.md'},
+                    {'Network Issues': 'troubleshooting/network-issues.md'}
+                ]
+            }
+        ]
+        
+        return nav
+    
+    def generate_metrics_report(self) -> Dict:
+        """Generate comprehensive metrics report"""
+        report = {
+            'generation_time': datetime.now().isoformat(),
+            'documentation_metrics': self.metrics.__dict__,
+            'file_counts': {},
+            'quality_score': 0.0
+        }
+        
+        # Count different file types
+        for file_path in self.docs_dir.rglob('*'):
+            if file_path.is_file():
+                ext = file_path.suffix.lower()
+                report['file_counts'][ext] = report['file_counts'].get(ext, 0) + 1
+        
+        # Calculate quality score
+        total_files = sum(report['file_counts'].values())
+        if total_files > 0:
+            md_files = report['file_counts'].get('.md', 0)
+            md_ratio = md_files / total_files
+            
+            # Simple quality scoring based on various factors
+            quality_factors = [
+                md_ratio,  # Proportion of markdown files
+                min(1.0, self.metrics.word_count / 10000),  # Word count factor
+                min(1.0, self.metrics.code_examples / 50),  # Code examples factor
+                max(0.0, 1.0 - self.metrics.broken_links / 10)  # Broken links penalty
+            ]
+            
+            report['quality_score'] = sum(quality_factors) / len(quality_factors) * 100
+        
+        # Save metrics report
+        report_file = self.docs_dir / 'metrics-report.json'
+        with open(report_file, 'w') as f:
+            json.dump(report, f, indent=2)
+        
+        return report
+
+def main():
+    parser = argparse.ArgumentParser(description='Automated Documentation Generator')
+    parser.add_argument('--project-root', default='.', help='Project root directory')
+    parser.add_argument('--api-docs', action='store_true', help='Generate API docs only')
+    parser.add_argument('--update-readme', action='store_true', help='Update README only')
+    parser.add_argument('--validate-links', action='store_true', help='Validate links only')
+    parser.add_argument('--fix-links', action='store_true', help='Fix broken internal links')
+    parser.add_argument('--generate-site', action='store_true', help='Generate site only')
+    parser.add_argument('--config', help='Configuration file path')
+    parser.add_argument('--verbose', action='store_true', help='Enable verbose output')
+    
+    args = parser.parse_args()
+    
+    generator = DocumentationGenerator(args.project_root)
+    
+    if args.config:
+        with open(args.config, 'r') as f:
+            generator.config.update(yaml.safe_load(f))
+    
+    if args.api_docs:
+        result = generator.generate_api_docs()
+        print(json.dumps(result, indent=2))
+    elif args.update_readme:
+        result = generator.update_readme()
+        print(json.dumps(result, indent=2))
+    elif args.validate_links:
+        result = generator.validate_links()
+        print(json.dumps(result, indent=2))
+    elif args.fix_links:
+        result = generator.fix_broken_links()
+        print(json.dumps(result, indent=2))
+    elif args.generate_site:
+        result = generator.generate_site()
+        print(json.dumps(result, indent=2))
+    else:
+        # Run full generation
+        results = generator.run_full_generation()
+        print(json.dumps(results, indent=2))
+
+if __name__ == '__main__':
+    main()

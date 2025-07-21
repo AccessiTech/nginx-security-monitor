@@ -1,0 +1,320 @@
+#!/usr/bin/env python3
+"""
+Configuration Encryption Utility
+Helps create and manage encrypted configuration files for NGINX Security Monitor.
+"""
+
+import os
+import sys
+import json
+import yaml
+import argparse
+from getpass import getpass
+
+# Add the src directory to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
+
+try:
+    from crypto_utils import SecurityConfigManager, generate_master_key
+
+    CRYPTO_AVAILABLE = True
+except ImportError:
+    print(
+        "Error: cryptography library not installed. Install with: pip install cryptography"
+    )
+    CRYPTO_AVAILABLE = False
+    sys.exit(1)
+
+
+def encrypt_patterns_file():
+    """Interactive creation of encrypted patterns file."""
+    print("=== Encrypt Custom Security Patterns ===")
+    print()
+
+    # Get master key
+    master_key = os.environ.get("NGINX_MONITOR_KEY")
+    if not master_key:
+        print("No master key found in environment.")
+        choice = input("Generate new key? (y/n): ").lower()
+        if choice == "y":
+            master_key = generate_master_key()
+            os.environ["NGINX_MONITOR_KEY"] = master_key
+            print(f"Generated master key: {master_key}")
+            print("SAVE THIS KEY! Add to your environment:")
+            print(f"export NGINX_MONITOR_KEY='{master_key}'")
+        else:
+            master_key = getpass("Enter your master key: ")
+            os.environ["NGINX_MONITOR_KEY"] = master_key
+
+    # Get patterns from user
+    patterns = {}
+
+    print("\n=== Custom SQL Injection Patterns ===")
+    print("Enter regex patterns (one per line, empty line to finish):")
+    sql_patterns = []
+    while True:
+        pattern = input("SQL pattern: ").strip()
+        if not pattern:
+            break
+        sql_patterns.append(pattern)
+
+    if sql_patterns:
+        patterns["sql_injection"] = sql_patterns
+
+    print("\n=== Custom XSS Patterns ===")
+    print("Enter regex patterns (one per line, empty line to finish):")
+    xss_patterns = []
+    while True:
+        pattern = input("XSS pattern: ").strip()
+        if not pattern:
+            break
+        xss_patterns.append(pattern)
+
+    if xss_patterns:
+        patterns["xss_patterns"] = xss_patterns
+
+    print("\n=== Custom Detection Rules ===")
+    custom_name = input("Custom rule name (or empty to skip): ").strip()
+    if custom_name:
+        custom_patterns = []
+        print("Enter patterns for this rule:")
+        while True:
+            pattern = input(f"{custom_name} pattern: ").strip()
+            if not pattern:
+                break
+            custom_patterns.append(pattern)
+
+        if custom_patterns:
+            patterns[f"custom_{custom_name}"] = {
+                "patterns": custom_patterns,
+                "severity": input("Severity (HIGH/MEDIUM/LOW): ").upper() or "MEDIUM",
+            }
+
+    print("\n=== Custom Thresholds ===")
+    thresholds = {}
+
+    try:
+        rpm = input("Requests per minute threshold (default 100): ").strip()
+        if rpm:
+            thresholds["requests_per_ip_per_minute"] = int(rpm)
+
+        fpm = input("Failed requests per minute threshold (default 50): ").strip()
+        if fpm:
+            thresholds["failed_requests_per_minute"] = int(fpm)
+
+        if thresholds:
+            patterns["thresholds"] = thresholds
+
+    except ValueError:
+        print("Invalid threshold values, skipping...")
+
+    if not patterns:
+        print("No patterns entered, exiting.")
+        return
+
+    # Save and encrypt
+    output_file = (
+        input("\nOutput file [custom_patterns.enc]: ").strip() or "custom_patterns.enc"
+    )
+
+    try:
+        # Save to temporary file first
+        temp_file = "/tmp/temp_patterns.json"
+        with open(temp_file, "w") as f:
+            json.dump(patterns, f, indent=2)
+
+        # Encrypt
+        manager = SecurityConfigManager()
+        if manager.encrypt_file(temp_file, output_file):
+            print(f"\n✅ Encrypted patterns saved to: {output_file}")
+            print(
+                f"Place this file in: /etc/nginx-security-monitor/custom_patterns.enc"
+            )
+
+            # Clean up
+            os.remove(temp_file)
+        else:
+            print("❌ Encryption failed")
+
+    except Exception as e:
+        print(f"❌ Error: {e}")
+
+
+def encrypt_config_section():
+    """Encrypt a configuration section."""
+    print("=== Encrypt Configuration Section ===")
+    print()
+
+    # Get master key
+    master_key = os.environ.get("NGINX_MONITOR_KEY")
+    if not master_key:
+        master_key = getpass("Enter your master key: ")
+        os.environ["NGINX_MONITOR_KEY"] = master_key
+
+    print("Enter configuration data (JSON format):")
+    print('Example: {"api_key": "secret123", "password": "mysecret"}')
+
+    try:
+        config_data = input("Config JSON: ").strip()
+        config_dict = json.loads(config_data)
+
+        manager = SecurityConfigManager()
+        encrypted = manager.encrypt_data(config_dict)
+
+        if encrypted:
+            print(f"\n✅ Encrypted configuration:")
+            print(encrypted)
+            print("\nAdd this to your YAML config file under 'encrypted_config':")
+            section_name = input("Section name: ").strip() or "encrypted_section"
+            print(
+                f"""
+encrypted_config:
+  {section_name}: "{encrypted}"
+            """
+            )
+        else:
+            print("❌ Encryption failed")
+
+    except json.JSONDecodeError:
+        print("❌ Invalid JSON format")
+    except Exception as e:
+        print(f"❌ Error: {e}")
+
+
+def decrypt_and_view():
+    """Decrypt and view encrypted file or data."""
+    print("=== Decrypt and View ===")
+    print()
+
+    # Get master key
+    master_key = os.environ.get("NGINX_MONITOR_KEY")
+    if not master_key:
+        master_key = getpass("Enter your master key: ")
+        os.environ["NGINX_MONITOR_KEY"] = master_key
+
+    choice = input("Decrypt (f)ile or (d)ata string? ").lower()
+
+    try:
+        manager = SecurityConfigManager()
+
+        if choice == "f":
+            file_path = input("Enter file path: ").strip()
+            decrypted = manager.decrypt_file(file_path)
+        else:
+            encrypted_data = input("Enter encrypted data: ").strip()
+            decrypted = manager.decrypt_data(encrypted_data)
+
+        if decrypted:
+            print("\n✅ Decrypted content:")
+            if isinstance(decrypted, dict):
+                print(json.dumps(decrypted, indent=2))
+            else:
+                print(decrypted)
+        else:
+            print("❌ Decryption failed")
+
+    except Exception as e:
+        print(f"❌ Error: {e}")
+
+
+def create_plugin_template():
+    """Create a custom mitigation plugin template."""
+    print("=== Create Custom Plugin Template ===")
+    print()
+
+    plugin_name = input("Plugin name (e.g., 'firewall_block'): ").strip()
+    if not plugin_name:
+        print("Plugin name required")
+        return
+
+    description = (
+        input("Plugin description: ").strip() or f"Custom {plugin_name} plugin"
+    )
+
+    threat_types = []
+    print("Threat types this plugin handles (empty line to finish):")
+    while True:
+        threat_type = input("Threat type: ").strip()
+        if not threat_type:
+            break
+        threat_types.append(threat_type)
+
+    if not threat_types:
+        threat_types = ["SQL Injection", "XSS Attack"]
+
+    # Import plugin system to create template
+    try:
+        from plugin_system import create_plugin_template
+
+        output_file = f"{plugin_name}_plugin.py"
+        create_plugin_template(plugin_name, output_file)
+
+        print(f"\n✅ Plugin template created: {output_file}")
+        print("\nNext steps:")
+        print("1. Edit the mitigate() method with your custom logic")
+        print("2. Place the file in one of your plugin directories:")
+        print("   - /etc/nginx-security-monitor/plugins/")
+        print("   - /opt/nginx-security-monitor/custom_plugins/")
+        print("3. Restart the service to load the plugin")
+
+    except Exception as e:
+        print(f"❌ Error creating template: {e}")
+
+
+def main():
+    if not CRYPTO_AVAILABLE:
+        return
+
+    parser = argparse.ArgumentParser(
+        description="NGINX Security Monitor Configuration Utility"
+    )
+    parser.add_argument(
+        "action",
+        choices=[
+            "encrypt-patterns",
+            "encrypt-config",
+            "decrypt",
+            "create-plugin",
+            "interactive",
+        ],
+        help="Action to perform",
+    )
+
+    args = parser.parse_args()
+
+    if args.action == "encrypt-patterns":
+        encrypt_patterns_file()
+    elif args.action == "encrypt-config":
+        encrypt_config_section()
+    elif args.action == "decrypt":
+        decrypt_and_view()
+    elif args.action == "create-plugin":
+        create_plugin_template()
+    elif args.action == "interactive":
+        # Interactive mode
+        while True:
+            print("\n=== NGINX Security Monitor Configuration Utility ===")
+            print("1. Encrypt custom patterns")
+            print("2. Encrypt configuration section")
+            print("3. Decrypt and view")
+            print("4. Create plugin template")
+            print("5. Exit")
+
+            choice = input("\nSelect option (1-5): ").strip()
+
+            if choice == "1":
+                encrypt_patterns_file()
+            elif choice == "2":
+                encrypt_config_section()
+            elif choice == "3":
+                decrypt_and_view()
+            elif choice == "4":
+                create_plugin_template()
+            elif choice == "5":
+                break
+            else:
+                print("Invalid choice")
+
+
+if __name__ == "__main__":
+    main()

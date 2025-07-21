@@ -1,0 +1,55 @@
+{
+  "attack_patterns": {
+    "sql_injection": {
+      "description": "Detects SQL injection attempts.",
+      "regex": "(' OR 1=1;|--|\\bSELECT\\b|\\bINSERT\\b|\\bUPDATE\\b|\\bDELETE\\b)",
+      "severity": "high"
+    },
+    "cross_site_scripting": {
+      "description": "Detects cross-site scripting (XSS) attempts.",
+      "regex": "(<script>|%3Cscript%3E|%3Ciframe%3E|<iframe>)",
+      "severity": "medium"
+    },
+    "brute_force": {
+      "description": "Detects brute force login attempts.",
+      "regex": "(failed login|invalid credentials|too many attempts)",
+      "severity": "high"
+    },
+    "ddos": {
+      "description": "Detects potential DDoS attack patterns.",
+      "regex": "(GET|POST|HEAD) .* HTTP/1.1\" 200",
+      "severity": "critical"
+    },
+    "path_traversal": {
+      "description": "Detects path traversal attempts.",
+      "regex": "(\\.+/|%2e%2e/)",
+      "severity": "high"
+    }
+  },
+  "security_integrations": {
+    "threat_severity_mapping": {
+      "sql_injection": "HIGH",
+      "xss_attack": "HIGH", 
+      "brute_force": "MEDIUM",
+      "bot_attack": "MEDIUM",
+      "ddos_attempt": "CRITICAL",
+      "path_traversal": "HIGH",
+      "command_injection": "CRITICAL"
+    },
+    "jail_threat_mapping": {
+      "SQL Injection": "nginx-noscript",
+      "XSS Attack": "nginx-noscript", 
+      "Brute Force": "nginx-http-auth",
+      "Bot Attack": "nginx-badbots",
+      "DDoS Attempt": "nginx-req-limit",
+      "Path Traversal": "nginx-noscript",
+      "Command Injection": "nginx-noscript"
+    },
+    "suricata_severity_levels": {
+      "1": "CRITICAL",
+      "2": "HIGH", 
+      "3": "MEDIUM",
+      "4": "LOW"
+    }
+  }
+}

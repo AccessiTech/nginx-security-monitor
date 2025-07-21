@@ -1,0 +1,577 @@
+#!/usr/bin/env python3
+"""
+NGINX Security Monitor - Deployment Automation
+Automates deployment to different environments.
+"""
+
+import os
+import sys
+import argparse
+import subprocess
+import shutil
+import yaml
+from pathlib import Path
+
+# Add the src directory to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
+
+def print_deployment_header(environment):
+    """Print deployment header."""
+    print(f"🚀 NGINX Security Monitor Deployment")
+    print(f"Environment: {environment.upper()}")
+    print("=" * 50)
+
+def check_prerequisites():
+    """Check deployment prerequisites."""
+    print("🔍 Checking prerequisites...")
+    
+    prerequisites = {
+        'python3': True,
+        'systemctl': True,
+        'nginx': False,  # Optional but recommended
+        'root_access': False
+    }
+    
+    # Check Python 3
+    try:
+        result = subprocess.run(['python3', '--version'], capture_output=True, text=True)
+        if result.returncode == 0:
+            print("  ✅ Python 3 available")
+        else:
+            prerequisites['python3'] = False
+            print("  ❌ Python 3 not found")
+    except FileNotFoundError:
+        prerequisites['python3'] = False
+        print("  ❌ Python 3 not found")
+    
+    # Check systemctl (systemd)
+    try:
+        result = subprocess.run(['systemctl', '--version'], capture_output=True, text=True)
+        if result.returncode == 0:
+            print("  ✅ systemd available")
+        else:
+            prerequisites['systemctl'] = False
+            print("  ❌ systemd not available")
+    except FileNotFoundError:
+        prerequisites['systemctl'] = False
+        print("  ❌ systemd not available")
+    
+    # Check NGINX
+    try:
+        result = subprocess.run(['nginx', '-v'], capture_output=True, text=True)
+        if result.returncode == 0:
+            prerequisites['nginx'] = True
+            print("  ✅ NGINX found")
+        else:
+            print("  ⚠️  NGINX not found (recommended for monitoring)")
+    except FileNotFoundError:
+        print("  ⚠️  NGINX not found (recommended for monitoring)")
+    
+    # Check root access
+    if os.geteuid() == 0:
+        prerequisites['root_access'] = True
+        print("  ✅ Running with root privileges")
+    else:
+        print("  ⚠️  Not running as root (may need sudo for system integration)")
+    
+    return prerequisites
+
+def create_system_user():
+    """Create dedicated system user for the service."""
+    print("\n👤 Creating system user...")
+    
+    username = 'nginx-monitor'
+    
+    # Check if user already exists
+    try:
+        result = subprocess.run(['id', username], capture_output=True, text=True)
+        if result.returncode == 0:
+            print(f"  ✅ User {username} already exists")
+            return True
+    except:
+        pass
+    
+    # Create user
+    try:
+        subprocess.run([
+            'useradd',
+            '--system',
+            '--no-create-home',
+            '--shell', '/bin/false',
+            '--comment', 'NGINX Security Monitor Service',
+            username
+        ], check=True)
+        
+        print(f"  ✅ Created system user: {username}")
+        return True
+        
+    except subprocess.CalledProcessError as e:
+        print(f"  ❌ Failed to create user: {e}")
+        return False
+
+def setup_directories(environment):
+    """Set up system directories for deployment."""
+    print(f"\n📁 Setting up directories for {environment}...")
+    
+    if environment == 'production':
+        base_dir = '/opt/nginx-security-monitor'
+        config_dir = '/etc/nginx-security-monitor'
+        log_dir = '/var/log/nginx-security-monitor'
+        run_dir = '/var/run/nginx-security-monitor'
+    else:
+        base_dir = f'/opt/nginx-security-monitor-{environment}'
+        config_dir = f'/etc/nginx-security-monitor-{environment}'
+        log_dir = f'/var/log/nginx-security-monitor-{environment}'
+        run_dir = f'/var/run/nginx-security-monitor-{environment}'
+    
+    directories = {
+        'base': base_dir,
+        'config': config_dir,
+        'log': log_dir,
+        'run': run_dir,
+        'keys': os.path.join(config_dir, 'keys'),
+        'plugins': os.path.join(config_dir, 'plugins')
+    }
+    
+    for name, path in directories.items():
+        try:
+            os.makedirs(path, exist_ok=True)
+            
+            # Set appropriate permissions
+            if name in ['keys']:
+                os.chmod(path, 0o700)
+            elif name in ['config', 'plugins']:
+                os.chmod(path, 0o755)
+            elif name in ['log', 'run']:
+                os.chmod(path, 0o755)
+                # Change ownership to nginx-monitor user if it exists
+                try:
+                    shutil.chown(path, user='nginx-monitor', group='nginx-monitor')
+                except:
+                    pass
+            
+            print(f"  ✅ Created directory: {path}")
+            
+        except Exception as e:
+            print(f"  ❌ Failed to create {path}: {e}")
+            return None
+    
+    return directories
+
+def install_application(directories):
+    """Install application files to system directories."""
+    print("\n📦 Installing application files...")
+    
+    base_dir = directories['base']
+    
+    # Copy source files
+    src_files = [
+        'src/',
+        'bin/',
+        'requirements.txt',
+        'README.md',
+        'LICENSE'
+    ]
+    
+    for src_file in src_files:
+        if os.path.exists(src_file):
+            dest_path = os.path.join(base_dir, src_file)
+            
+            try:
+                if os.path.isdir(src_file):
+                    if os.path.exists(dest_path):
+                        shutil.rmtree(dest_path)
+                    shutil.copytree(src_file, dest_path)
+                else:
+                    shutil.copy2(src_file, dest_path)
+                
+                print(f"  ✅ Installed: {src_file}")
+                
+            except Exception as e:
+                print(f"  ❌ Failed to install {src_file}: {e}")
+                return False
+    
+    # Make bin scripts executable
+    bin_dir = os.path.join(base_dir, 'bin')
+    if os.path.exists(bin_dir):
+        for script in os.listdir(bin_dir):
+            script_path = os.path.join(bin_dir, script)
+            if os.path.isfile(script_path):
+                os.chmod(script_path, 0o755)
+    
+    return True
+
+def setup_python_environment(directories):
+    """Set up Python virtual environment."""
+    print("\n🐍 Setting up Python environment...")
+    
+    base_dir = directories['base']
+    venv_dir = os.path.join(base_dir, 'venv')
+    
+    # Create virtual environment
+    try:
+        subprocess.run([
+            'python3', '-m', 'venv', venv_dir
+        ], check=True)
+        
+        print(f"  ✅ Created virtual environment: {venv_dir}")
+        
+    except subprocess.CalledProcessError as e:
+        print(f"  ❌ Failed to create virtual environment: {e}")
+        return False
+    
+    # Install dependencies
+    pip_path = os.path.join(venv_dir, 'bin', 'pip')
+    requirements_path = os.path.join(base_dir, 'requirements.txt')
+    
+    try:
+        subprocess.run([
+            pip_path, 'install', '--upgrade', 'pip'
+        ], check=True)
+        
+        subprocess.run([
+            pip_path, 'install', '-r', requirements_path
+        ], check=True)
+        
+        print("  ✅ Installed Python dependencies")
+        
+    except subprocess.CalledProcessError as e:
+        print(f"  ❌ Failed to install dependencies: {e}")
+        return False
+    
+    return True
+
+def setup_configuration(directories, environment):
+    """Set up configuration files."""
+    print(f"\n⚙️  Setting up configuration for {environment}...")
+    
+    config_dir = directories['config']
+    
+    # Copy configuration templates
+    config_files = [
+        'config/service-settings.yaml',
+        'config/patterns.json'
+    ]
+    
+    for config_file in config_files:
+        if os.path.exists(config_file):
+            dest_path = os.path.join(config_dir, os.path.basename(config_file))
+            
+            try:
+                shutil.copy2(config_file, dest_path)
+                os.chmod(dest_path, 0o600)
+                
+                # Change ownership to nginx-monitor user
+                try:
+                    shutil.chown(dest_path, user='nginx-monitor', group='nginx-monitor')
+                except:
+                    pass
+                
+                print(f"  ✅ Installed config: {os.path.basename(config_file)}")
+                
+            except Exception as e:
+                print(f"  ❌ Failed to install {config_file}: {e}")
+    
+    # Create environment-specific configuration
+    main_config_path = os.path.join(config_dir, 'settings.yaml')
+    
+    if environment == 'production':
+        # Use service-settings.yaml for production
+        service_config = os.path.join(config_dir, 'service-settings.yaml')
+        if os.path.exists(service_config):
+            shutil.copy2(service_config, main_config_path)
+    else:
+        # Copy regular settings for staging/testing
+        if os.path.exists('config/settings.yaml'):
+            shutil.copy2('config/settings.yaml', main_config_path)
+    
+    # Update paths in configuration for the environment
+    try:
+        with open(main_config_path, 'r') as f:
+            config = yaml.safe_load(f)
+        
+        # Update log paths
+        if environment == 'production':
+            config['log_file_path'] = '/var/log/nginx/access.log'
+            config['error_log_file_path'] = '/var/log/nginx/error.log'
+        
+        # Update plugin directories
+        if 'plugin_system' in config:
+            config['plugin_system']['plugin_dirs'] = [
+                directories['plugins'],
+                f"{directories['base']}/plugins"
+            ]
+        
+        with open(main_config_path, 'w') as f:
+            yaml.dump(config, f, default_flow_style=False, indent=2)
+        
+        print(f"  ✅ Updated configuration for {environment}")
+        
+    except Exception as e:
+        print(f"  ⚠️  Could not update configuration paths: {e}")
+    
+    return True
+
+def create_systemd_service(directories, environment):
+    """Create systemd service file."""
+    print(f"\n🔧 Creating systemd service for {environment}...")
+    
+    if environment == 'production':
+        service_name = 'nginx-security-monitor'
+    else:
+        service_name = f'nginx-security-monitor-{environment}'
+    
+    service_content = f"""[Unit]
+Description=NGINX Security Monitor ({environment})
+After=network.target nginx.service
+Wants=nginx.service
+
+[Service]
+Type=simple
+User=nginx-monitor
+Group=nginx-monitor
+WorkingDirectory={directories['base']}
+Environment=PATH={directories['base']}/venv/bin
+ExecStart={directories['base']}/venv/bin/python -m src.monitor_service {directories['config']}/settings.yaml
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier={service_name}
+
+# Security settings
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths={directories['log']} {directories['run']} {directories['config']}
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=multi-user.target
+"""
+    
+    service_file_path = f'/etc/systemd/system/{service_name}.service'
+    
+    try:
+        with open(service_file_path, 'w') as f:
+            f.write(service_content)
+        
+        os.chmod(service_file_path, 0o644)
+        
+        # Reload systemd
+        subprocess.run(['systemctl', 'daemon-reload'], check=True)
+        
+        print(f"  ✅ Created systemd service: {service_name}")
+        print(f"  📁 Service file: {service_file_path}")
+        
+        return service_name
+        
+    except Exception as e:
+        print(f"  ❌ Failed to create systemd service: {e}")
+        return None
+
+def run_post_deployment_tests(directories, service_name):
+    """Run tests after deployment."""
+    print("\n🧪 Running post-deployment tests...")
+    
+    # Test configuration
+    config_path = os.path.join(directories['config'], 'settings.yaml')
+    
+    try:
+        # Use the installed validate-config script
+        validate_script = os.path.join(directories['base'], 'bin', 'validate-config')
+        result = subprocess.run([
+            'python3', validate_script, config_path
+        ], capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            print("  ✅ Configuration validation passed")
+        else:
+            print("  ⚠️  Configuration validation warnings")
+            
+    except Exception as e:
+        print(f"  ❌ Configuration validation failed: {e}")
+    
+    # Test service file
+    try:
+        result = subprocess.run([
+            'systemctl', 'is-enabled', service_name
+        ], capture_output=True, text=True)
+        
+        print(f"  ℹ️  Service status: {result.stdout.strip()}")
+        
+    except Exception as e:
+        print(f"  ❌ Service check failed: {e}")
+
+def show_deployment_summary(directories, service_name, environment):
+    """Show deployment summary and next steps."""
+    print("\n" + "="*60)
+    print("🎉 DEPLOYMENT COMPLETE!")
+    print("="*60)
+    
+    print(f"\n📦 Deployed to {environment} environment:")
+    print(f"  • Application: {directories['base']}")
+    print(f"  • Configuration: {directories['config']}")
+    print(f"  • Logs: {directories['log']}")
+    print(f"  • Service: {service_name}")
+    
+    print("\n🚀 Next Steps:")
+    
+    print("\n1. Configure your settings:")
+    print(f"   sudo nano {directories['config']}/settings.yaml")
+    
+    print("\n2. Set up environment variables:")
+    print("   Create /etc/environment or use systemd environment files")
+    print("   Required variables: NGINX_MONITOR_KEY, SMTP_PASSWORD, etc.")
+    
+    print("\n3. Enable and start the service:")
+    print(f"   sudo systemctl enable {service_name}")
+    print(f"   sudo systemctl start {service_name}")
+    
+    print("\n4. Check service status:")
+    print(f"   sudo systemctl status {service_name}")
+    print(f"   sudo journalctl -u {service_name} -f")
+    
+    print("\n5. Monitor health:")
+    print(f"   {directories['base']}/bin/health-check")
+    print(f"   {directories['base']}/bin/security-check")
+    
+    print("\n📋 Important Files:")
+    print(f"  • Main config: {directories['config']}/settings.yaml")
+    print(f"  • Service file: /etc/systemd/system/{service_name}.service")
+    print(f"  • Log directory: {directories['log']}")
+    print(f"  • Application: {directories['base']}")
+    
+    if environment == 'production':
+        print("\n🔒 Production Security Reminders:")
+        print("  • Use encrypted configuration files")
+        print("  • Set secure file permissions")
+        print("  • Configure firewall rules")
+        print("  • Set up log rotation")
+        print("  • Enable system monitoring")
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Deploy NGINX Security Monitor",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Deployment Environments:
+  production  - Full production deployment with security hardening
+  staging     - Production-like environment for testing
+  testing     - Development testing environment
+
+Examples:
+  %(prog)s production     # Deploy to production
+  %(prog)s staging        # Deploy to staging environment
+  %(prog)s testing --user # Deploy for current user only
+        """
+    )
+    
+    parser.add_argument(
+        'environment',
+        choices=['production', 'staging', 'testing'],
+        help='Deployment environment'
+    )
+    
+    parser.add_argument(
+        '--user',
+        action='store_true',
+        help='Deploy for current user instead of system-wide'
+    )
+    
+    parser.add_argument(
+        '--skip-service',
+        action='store_true',
+        help='Skip systemd service creation'
+    )
+    
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Show what would be done without making changes'
+    )
+    
+    args = parser.parse_args()
+    
+    if args.dry_run:
+        print("🔍 DRY RUN MODE - No changes will be made")
+        print()
+    
+    # Check if we need root privileges
+    if not args.user and os.geteuid() != 0:
+        print("❌ System-wide deployment requires root privileges")
+        print("   Run with sudo or use --user flag for user deployment")
+        sys.exit(1)
+    
+    print_deployment_header(args.environment)
+    
+    if args.dry_run:
+        print("Would perform these steps:")
+        print("1. Check prerequisites")
+        print("2. Create system user (if system-wide)")
+        print("3. Set up directories")
+        print("4. Install application files")
+        print("5. Set up Python environment")
+        print("6. Configure settings")
+        if not args.skip_service:
+            print("7. Create systemd service")
+        print("8. Run post-deployment tests")
+        return
+    
+    # Check prerequisites
+    prereqs = check_prerequisites()
+    if not prereqs['python3']:
+        print("❌ Python 3 is required for deployment")
+        sys.exit(1)
+    
+    success = True
+    
+    # Create system user (system-wide deployment only)
+    if not args.user:
+        if not create_system_user():
+            print("⚠️  Continuing without dedicated user")
+    
+    # Set up directories
+    directories = setup_directories(args.environment)
+    if not directories:
+        print("❌ Failed to set up directories")
+        sys.exit(1)
+    
+    # Install application
+    if not install_application(directories):
+        success = False
+    
+    # Set up Python environment
+    if not setup_python_environment(directories):
+        success = False
+    
+    # Set up configuration
+    if not setup_configuration(directories, args.environment):
+        success = False
+    
+    # Create systemd service
+    service_name = None
+    if not args.skip_service and prereqs['systemctl']:
+        service_name = create_systemd_service(directories, args.environment)
+        if not service_name:
+            success = False
+    
+    # Run tests
+    if service_name:
+        run_post_deployment_tests(directories, service_name)
+    
+    # Show summary
+    show_deployment_summary(directories, service_name, args.environment)
+    
+    if success:
+        print("\n🎉 Deployment completed successfully!")
+    else:
+        print("\n⚠️  Deployment completed with some issues - check output above")
+    
+    sys.exit(0 if success else 1)
+
+if __name__ == "__main__":
+    main()

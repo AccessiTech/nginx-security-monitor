@@ -1,0 +1,622 @@
+#!/usr/bin/env python3
+"""
+NGINX Security Monitor - Auto-Update Tool
+
+Automated system updates, rule database updates, security patch management,
+and version management for NGINX Security Monitor.
+"""
+
+import argparse
+import os
+import sys
+import json
+import subprocess
+import requests
+from pathlib import Path
+from datetime import datetime, timedelta
+import hashlib
+import tempfile
+import shutil
+import time
+import fcntl
+
+def setup_paths():
+    """Setup and validate required paths."""
+    script_dir = Path(__file__).parent
+    project_root = script_dir.parent
+    config_dir = project_root / "config"
+    
+    return {
+        'script_dir': script_dir,
+        'project_root': project_root,
+        'config_dir': config_dir,
+        'updates_dir': project_root / "updates",
+        'lock_file': project_root / ".update_lock",
+        'update_log': project_root / "update.log"
+    }
+
+class UpdateManager:
+    def __init__(self, paths):
+        self.paths = paths
+        self.updates_dir = paths['updates_dir']
+        self.lock_file = paths['lock_file']
+        self.update_log = paths['update_log']
+        
+        self.updates_dir.mkdir(exist_ok=True)
+        
+        # Update sources configuration
+        self.update_sources = {
+            'patterns': {
+                'url': 'https://raw.githubusercontent.com/nginx-security-monitor/patterns/main/patterns.json',
+                'local_file': paths['config_dir'] / 'patterns.json',
+                'backup_dir': self.updates_dir / 'pattern_backups',
+                'check_interval': 24  # hours
+            },
+            'rules': {
+                'url': 'https://raw.githubusercontent.com/nginx-security-monitor/rules/main/rules.json',
+                'local_file': paths['config_dir'] / 'rules.json',
+                'backup_dir': self.updates_dir / 'rule_backups',
+                'check_interval': 24  # hours
+            },
+            'system': {
+                'check_interval': 168,  # 1 week
+                'auto_apply': False
+            }
+        }
+    
+    def acquire_lock(self):
+        """Acquire update lock to prevent concurrent updates."""
+        try:
+            self.lock_fd = open(self.lock_file, 'w')
+            fcntl.flock(self.lock_fd.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self.lock_fd.write(f"{os.getpid()}\n{datetime.now().isoformat()}\n")
+            self.lock_fd.flush()
+            return True
+        except (IOError, BlockingIOError):
+            return False
+    
+    def release_lock(self):
+        """Release update lock."""
+        try:
+            if hasattr(self, 'lock_fd'):
+                fcntl.flock(self.lock_fd.fileno(), fcntl.LOCK_UN)
+                self.lock_fd.close()
+            if self.lock_file.exists():
+                self.lock_file.unlink()
+        except:
+            pass
+    
+    def log_update(self, message, level='INFO'):
+        """Log update activities."""
+        timestamp = datetime.now().isoformat()
+        log_entry = f"[{timestamp}] {level}: {message}\n"
+        
+        with open(self.update_log, 'a') as f:
+            f.write(log_entry)
+        
+        if level in ['ERROR', 'WARNING']:
+            print(f"⚠️  {message}")
+        else:
+            print(f"ℹ️  {message}")
+    
+    def get_current_version(self):
+        """Get current system version."""
+        try:
+            # Try to get version from pyproject.toml
+            pyproject_file = self.paths['project_root'] / 'pyproject.toml'
+            if pyproject_file.exists():
+                with open(pyproject_file, 'r') as f:
+                    content = f.read()
+                    for line in content.split('\n'):
+                        if line.strip().startswith('version'):
+                            version = line.split('=')[1].strip().strip('"\'')
+                            return version
+            
+            # Fallback to git if available
+            try:
+                result = subprocess.run(
+                    ['git', 'describe', '--tags', '--always'],
+                    cwd=self.paths['project_root'],
+                    capture_output=True, text=True
+                )
+                if result.returncode == 0:
+                    return result.stdout.strip()
+            except:
+                pass
+            
+            return "unknown"
+            
+        except Exception as e:
+            self.log_update(f"Failed to get current version: {e}", 'WARNING')
+            return "unknown"
+    
+    def check_for_updates(self, component='all'):
+        """Check for available updates."""
+        updates_available = {}
+        
+        if component in ['all', 'patterns']:
+            pattern_update = self.check_pattern_updates()
+            if pattern_update:
+                updates_available['patterns'] = pattern_update
+        
+        if component in ['all', 'rules']:
+            rule_update = self.check_rule_updates()
+            if rule_update:
+                updates_available['rules'] = rule_update
+        
+        if component in ['all', 'system']:
+            system_update = self.check_system_updates()
+            if system_update:
+                updates_available['system'] = system_update
+        
+        return updates_available
+    
+    def check_pattern_updates(self):
+        """Check for pattern database updates."""
+        try:
+            source = self.update_sources['patterns']
+            response = requests.get(source['url'], timeout=30)
+            response.raise_for_status()
+            
+            remote_content = response.text
+            remote_hash = hashlib.sha256(remote_content.encode()).hexdigest()
+            
+            # Get local file hash
+            local_hash = None
+            if source['local_file'].exists():
+                with open(source['local_file'], 'r') as f:
+                    local_content = f.read()
+                    local_hash = hashlib.sha256(local_content.encode()).hexdigest()
+            
+            if remote_hash != local_hash:
+                try:
+                    remote_data = json.loads(remote_content)
+                    return {
+                        'type': 'patterns',
+                        'remote_hash': remote_hash,
+                        'local_hash': local_hash,
+                        'remote_version': remote_data.get('version', 'unknown'),
+                        'content': remote_content,
+                        'url': source['url']
+                    }
+                except json.JSONDecodeError:
+                    self.log_update("Remote pattern file is not valid JSON", 'WARNING')
+            
+            return None
+            
+        except Exception as e:
+            self.log_update(f"Failed to check pattern updates: {e}", 'WARNING')
+            return None
+    
+    def check_rule_updates(self):
+        """Check for rule database updates."""
+        try:
+            source = self.update_sources['rules']
+            response = requests.get(source['url'], timeout=30)
+            response.raise_for_status()
+            
+            remote_content = response.text
+            remote_hash = hashlib.sha256(remote_content.encode()).hexdigest()
+            
+            # Get local file hash
+            local_hash = None
+            if source['local_file'].exists():
+                with open(source['local_file'], 'r') as f:
+                    local_content = f.read()
+                    local_hash = hashlib.sha256(local_content.encode()).hexdigest()
+            
+            if remote_hash != local_hash:
+                try:
+                    remote_data = json.loads(remote_content)
+                    return {
+                        'type': 'rules',
+                        'remote_hash': remote_hash,
+                        'local_hash': local_hash,
+                        'remote_version': remote_data.get('version', 'unknown'),
+                        'content': remote_content,
+                        'url': source['url']
+                    }
+                except json.JSONDecodeError:
+                    self.log_update("Remote rule file is not valid JSON", 'WARNING')
+            
+            return None
+            
+        except Exception as e:
+            self.log_update(f"Failed to check rule updates: {e}", 'WARNING')
+            return None
+    
+    def check_system_updates(self):
+        """Check for system package updates."""
+        updates = []
+        
+        try:
+            # Check for Python package updates
+            result = subprocess.run(
+                [sys.executable, '-m', 'pip', 'list', '--outdated', '--format=json'],
+                capture_output=True, text=True
+            )
+            
+            if result.returncode == 0:
+                outdated_packages = json.loads(result.stdout)
+                for package in outdated_packages:
+                    updates.append({
+                        'type': 'python_package',
+                        'name': package['name'],
+                        'current_version': package['version'],
+                        'latest_version': package['latest_version']
+                    })
+        except Exception as e:
+            self.log_update(f"Failed to check Python package updates: {e}", 'WARNING')
+        
+        # Check for system security updates (Linux)
+        if sys.platform.startswith('linux'):
+            try:
+                # Check for security updates on apt-based systems
+                result = subprocess.run(
+                    ['apt', 'list', '--upgradable', '-a'],
+                    capture_output=True, text=True
+                )
+                if result.returncode == 0:
+                    lines = result.stdout.split('\n')
+                    security_updates = [line for line in lines if 'security' in line.lower()]
+                    if security_updates:
+                        updates.append({
+                            'type': 'system_security',
+                            'count': len(security_updates),
+                            'details': security_updates[:5]  # First 5 only
+                        })
+            except Exception:
+                pass
+        
+        return updates if updates else None
+    
+    def apply_pattern_update(self, update_info):
+        """Apply pattern database update."""
+        source = self.update_sources['patterns']
+        backup_dir = source['backup_dir']
+        backup_dir.mkdir(exist_ok=True)
+        
+        # Create backup
+        if source['local_file'].exists():
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            backup_file = backup_dir / f"patterns_backup_{timestamp}.json"
+            shutil.copy2(source['local_file'], backup_file)
+            self.log_update(f"Pattern backup created: {backup_file}")
+        
+        # Apply update
+        with open(source['local_file'], 'w') as f:
+            f.write(update_info['content'])
+        
+        self.log_update(f"Pattern database updated from {update_info['url']}")
+        return True
+    
+    def apply_rule_update(self, update_info):
+        """Apply rule database update."""
+        source = self.update_sources['rules']
+        backup_dir = source['backup_dir']
+        backup_dir.mkdir(exist_ok=True)
+        
+        # Create backup
+        if source['local_file'].exists():
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            backup_file = backup_dir / f"rules_backup_{timestamp}.json"
+            shutil.copy2(source['local_file'], backup_file)
+            self.log_update(f"Rule backup created: {backup_file}")
+        
+        # Apply update
+        with open(source['local_file'], 'w') as f:
+            f.write(update_info['content'])
+        
+        self.log_update(f"Rule database updated from {update_info['url']}")
+        return True
+    
+    def apply_system_updates(self, updates, auto_apply=False):
+        """Apply system updates."""
+        if not auto_apply:
+            print("⚠️  System updates require manual approval")
+            return False
+        
+        success_count = 0
+        
+        for update in updates:
+            if update['type'] == 'python_package':
+                try:
+                    self.log_update(f"Updating Python package: {update['name']}")
+                    result = subprocess.run(
+                        [sys.executable, '-m', 'pip', 'install', '--upgrade', update['name']],
+                        capture_output=True, text=True
+                    )
+                    
+                    if result.returncode == 0:
+                        self.log_update(f"Successfully updated {update['name']}")
+                        success_count += 1
+                    else:
+                        self.log_update(f"Failed to update {update['name']}: {result.stderr}", 'ERROR')
+                
+                except Exception as e:
+                    self.log_update(f"Error updating {update['name']}: {e}", 'ERROR')
+        
+        return success_count > 0
+    
+    def rollback_update(self, component, backup_file=None):
+        """Rollback a previous update."""
+        if component == 'patterns':
+            source = self.update_sources['patterns']
+            backup_dir = source['backup_dir']
+            
+            if backup_file:
+                backup_path = backup_dir / backup_file
+            else:
+                # Find most recent backup
+                backups = sorted(backup_dir.glob('patterns_backup_*.json'), reverse=True)
+                if not backups:
+                    self.log_update("No pattern backups found", 'ERROR')
+                    return False
+                backup_path = backups[0]
+            
+            if backup_path.exists():
+                shutil.copy2(backup_path, source['local_file'])
+                self.log_update(f"Patterns rolled back to {backup_path}")
+                return True
+            else:
+                self.log_update(f"Backup file not found: {backup_path}", 'ERROR')
+                return False
+        
+        # Similar logic for other components...
+        return False
+    
+    def schedule_update(self, component, interval_hours=24):
+        """Schedule automatic updates."""
+        schedule_file = self.updates_dir / f"schedule_{component}.json"
+        
+        schedule_data = {
+            'component': component,
+            'interval_hours': interval_hours,
+            'next_check': (datetime.now() + timedelta(hours=interval_hours)).isoformat(),
+            'enabled': True
+        }
+        
+        with open(schedule_file, 'w') as f:
+            json.dump(schedule_data, f, indent=2)
+        
+        self.log_update(f"Scheduled updates for {component} every {interval_hours} hours")
+        return True
+    
+    def get_update_status(self):
+        """Get current update status and history."""
+        status = {
+            'current_version': self.get_current_version(),
+            'last_check': None,
+            'scheduled_updates': [],
+            'recent_updates': []
+        }
+        
+        # Check for scheduled updates
+        for schedule_file in self.updates_dir.glob('schedule_*.json'):
+            try:
+                with open(schedule_file, 'r') as f:
+                    schedule_data = json.load(f)
+                    status['scheduled_updates'].append(schedule_data)
+            except:
+                continue
+        
+        # Get recent updates from log
+        if self.update_log.exists():
+            try:
+                with open(self.update_log, 'r') as f:
+                    lines = f.readlines()[-20:]  # Last 20 entries
+                    status['recent_updates'] = [line.strip() for line in lines]
+            except:
+                pass
+        
+        return status
+
+def update_command(args):
+    """Run update operations."""
+    paths = setup_paths()
+    manager = UpdateManager(paths)
+    
+    # Acquire lock
+    if not manager.acquire_lock():
+        print("❌ Another update process is already running")
+        return False
+    
+    try:
+        print("🔄 Checking for updates...")
+        
+        # Check for updates
+        updates = manager.check_for_updates(args.component)
+        
+        if not updates:
+            print("✅ No updates available")
+            return True
+        
+        print(f"📦 Found {len(updates)} update(s) available:")
+        
+        for component, update_info in updates.items():
+            print(f"  📌 {component}: {update_info.get('remote_version', 'unknown version')}")
+        
+        # Apply updates
+        if args.apply or args.auto:
+            for component, update_info in updates.items():
+                print(f"🔧 Applying {component} update...")
+                
+                if component == 'patterns':
+                    success = manager.apply_pattern_update(update_info)
+                elif component == 'rules':
+                    success = manager.apply_rule_update(update_info)
+                elif component == 'system':
+                    success = manager.apply_system_updates(update_info, args.auto)
+                else:
+                    success = False
+                
+                if success:
+                    print(f"  ✅ {component} updated successfully")
+                else:
+                    print(f"  ❌ {component} update failed")
+        
+        else:
+            print("\nUse --apply to install updates, or --auto for automatic updates")
+        
+        return True
+        
+    finally:
+        manager.release_lock()
+
+def status_command(args):
+    """Show update status."""
+    paths = setup_paths()
+    manager = UpdateManager(paths)
+    
+    print("📊 NGINX Security Monitor Update Status")
+    print("=" * 50)
+    
+    status = manager.get_update_status()
+    
+    print(f"📋 Current Version: {status['current_version']}")
+    
+    # Show scheduled updates
+    if status['scheduled_updates']:
+        print(f"\n⏰ Scheduled Updates:")
+        for schedule in status['scheduled_updates']:
+            component = schedule['component']
+            interval = schedule['interval_hours']
+            next_check = schedule['next_check']
+            enabled = "✅" if schedule['enabled'] else "❌"
+            print(f"  {enabled} {component}: every {interval}h (next: {next_check[:16]})")
+    else:
+        print(f"\n⏰ No scheduled updates")
+    
+    # Show recent activity
+    if status['recent_updates']:
+        print(f"\n📝 Recent Update Activity:")
+        for entry in status['recent_updates'][-5:]:
+            print(f"  {entry}")
+    
+    return True
+
+def schedule_command(args):
+    """Schedule automatic updates."""
+    paths = setup_paths()
+    manager = UpdateManager(paths)
+    
+    print(f"⏰ Scheduling automatic updates for {args.component}")
+    
+    success = manager.schedule_update(args.component, args.interval)
+    
+    if success:
+        print(f"✅ Updates scheduled every {args.interval} hours")
+    else:
+        print(f"❌ Failed to schedule updates")
+    
+    return success
+
+def rollback_command(args):
+    """Rollback previous updates."""
+    paths = setup_paths()
+    manager = UpdateManager(paths)
+    
+    print(f"🔄 Rolling back {args.component} to previous version...")
+    
+    success = manager.rollback_update(args.component, args.backup_file)
+    
+    if success:
+        print(f"✅ {args.component} rolled back successfully")
+    else:
+        print(f"❌ Rollback failed")
+    
+    return success
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Automated update management for NGINX Security Monitor",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s check                          # Check for all updates
+  %(prog)s check --component patterns     # Check pattern updates only
+  %(prog)s update --apply                 # Apply available updates
+  %(prog)s status                         # Show update status
+  %(prog)s schedule --component rules --interval 24   # Schedule rule updates
+  %(prog)s rollback --component patterns  # Rollback pattern updates
+        """
+    )
+    
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+    
+    # Update/check command (default)
+    update_parser = subparsers.add_parser('update', help='Check and apply updates')
+    update_parser.add_argument('--component', choices=['all', 'patterns', 'rules', 'system'],
+                              default='all', help='Component to update (default: all)')
+    update_parser.add_argument('--apply', action='store_true',
+                              help='Apply available updates')
+    update_parser.add_argument('--auto', action='store_true',
+                              help='Apply updates automatically without prompts')
+    
+    # Check command (alias for update without --apply)
+    check_parser = subparsers.add_parser('check', help='Check for available updates')
+    check_parser.add_argument('--component', choices=['all', 'patterns', 'rules', 'system'],
+                             default='all', help='Component to check (default: all)')
+    
+    # Status command
+    status_parser = subparsers.add_parser('status', help='Show update status')
+    
+    # Schedule command
+    schedule_parser = subparsers.add_parser('schedule', help='Schedule automatic updates')
+    schedule_parser.add_argument('--component', required=True,
+                                choices=['patterns', 'rules', 'system'],
+                                help='Component to schedule updates for')
+    schedule_parser.add_argument('--interval', type=int, default=24,
+                                help='Update interval in hours (default: 24)')
+    
+    # Rollback command
+    rollback_parser = subparsers.add_parser('rollback', help='Rollback previous updates')
+    rollback_parser.add_argument('--component', required=True,
+                                choices=['patterns', 'rules'],
+                                help='Component to rollback')
+    rollback_parser.add_argument('--backup-file',
+                                help='Specific backup file to restore (optional)')
+    
+    # For backward compatibility, also accept some flags directly
+    parser.add_argument('--check', action='store_true',
+                       help='Check for updates')
+    parser.add_argument('--apply', action='store_true',
+                       help='Apply available updates')
+    parser.add_argument('--component', choices=['all', 'patterns', 'rules', 'system'],
+                       default='all', help='Component to update (default: all)')
+    
+    args = parser.parse_args()
+    
+    try:
+        # Handle subcommands
+        if args.command == 'update' or (args.apply and not args.command):
+            return update_command(args)
+        elif args.command == 'check' or (args.check and not args.command):
+            # For check command, don't apply updates
+            args.apply = False
+            return update_command(args)
+        elif args.command == 'status':
+            return status_command(args)
+        elif args.command == 'schedule':
+            return schedule_command(args)
+        elif args.command == 'rollback':
+            return rollback_command(args)
+        elif not args.command:
+            # Default behavior: check for updates
+            args.apply = False
+            return update_command(args)
+        else:
+            # No specific command, show help
+            parser.print_help()
+            return True
+            
+    except KeyboardInterrupt:
+        print("\n❌ Operation cancelled by user")
+        return False
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        return False
+
+if __name__ == "__main__":
+    success = main()
+    sys.exit(0 if success else 1)

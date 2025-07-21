@@ -1,0 +1,461 @@
+#!/usr/bin/env python3
+"""
+NGINX Security Monitor - Quick Start Wizard
+Interactive setup guide for new users.
+"""
+
+import os
+import sys
+import argparse
+import yaml
+import subprocess
+import shutil
+from pathlib import Path
+
+# Add the src directory to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
+
+def print_welcome():
+    """Display welcome message and overview."""
+    print("🚀 Welcome to NGINX Security Monitor!")
+    print("=" * 50)
+    print()
+    print("This wizard will help you:")
+    print("• Set up your development or production environment")
+    print("• Configure email and SMS alerts")
+    print("• Test your installation")
+    print("• Get your first security detection running")
+    print()
+    print("⏱️  Estimated time: 10-15 minutes")
+    print()
+
+def get_user_input(prompt, default=None, options=None, required=True):
+    """Get user input with validation."""
+    while True:
+        if default:
+            full_prompt = f"{prompt} [{default}]: "
+        else:
+            full_prompt = f"{prompt}: "
+        
+        if options:
+            full_prompt = f"{prompt} ({'/'.join(options)}): "
+        
+        response = input(full_prompt).strip()
+        
+        if not response and default:
+            return default
+        
+        if not response and required:
+            print("❌ This field is required. Please enter a value.")
+            continue
+        
+        if options and response.lower() not in [opt.lower() for opt in options]:
+            print(f"❌ Please enter one of: {', '.join(options)}")
+            continue
+        
+        return response
+
+def get_yes_no(prompt, default='n'):
+    """Get yes/no input from user."""
+    response = get_user_input(f"{prompt} (y/n)", default)
+    return response.lower() in ['y', 'yes', 'true', '1']
+
+def detect_environment():
+    """Detect the user's environment and setup requirements."""
+    print("🔍 Detecting your environment...")
+    
+    env_info = {
+        'has_nginx': False,
+        'has_python_venv': False,
+        'has_git': False,
+        'log_paths': [],
+        'recommended_setup': 'development'
+    }
+    
+    # Check for NGINX
+    nginx_logs = ['/var/log/nginx/access.log', '/var/log/nginx/error.log']
+    for log_path in nginx_logs:
+        if os.path.exists(log_path):
+            env_info['has_nginx'] = True
+            env_info['log_paths'].append(log_path)
+    
+    # Check for virtual environment
+    if os.path.exists('.venv'):
+        env_info['has_python_venv'] = True
+    
+    # Check for Git
+    try:
+        subprocess.run(['git', '--version'], capture_output=True, check=True)
+        env_info['has_git'] = True
+    except:
+        pass
+    
+    # Determine recommended setup
+    if env_info['has_nginx'] and os.geteuid() == 0:
+        env_info['recommended_setup'] = 'production'
+    elif env_info['has_nginx']:
+        env_info['recommended_setup'] = 'testing'
+    
+    print(f"  • NGINX detected: {'✅' if env_info['has_nginx'] else '❌'}")
+    print(f"  • Python venv: {'✅' if env_info['has_python_venv'] else '❌'}")
+    print(f"  • Git available: {'✅' if env_info['has_git'] else '❌'}")
+    print(f"  • Recommended setup: {env_info['recommended_setup']}")
+    
+    return env_info
+
+def setup_environment(env_info):
+    """Set up the development/production environment."""
+    print("\n🛠️  Setting up your environment...")
+    
+    setup_type = get_user_input(
+        "Setup type", 
+        env_info['recommended_setup'],
+        ['development', 'testing', 'production']
+    )
+    
+    print(f"\n📦 Setting up {setup_type} environment...")
+    
+    if setup_type == 'development':
+        # Run dev-setup
+        print("Running development setup...")
+        try:
+            result = subprocess.run(['./bin/dev-setup'], check=True)
+            print("✅ Development environment set up successfully")
+        except subprocess.CalledProcessError:
+            print("❌ Development setup failed")
+            return False
+    
+    elif setup_type in ['testing', 'production']:
+        # Create virtual environment if it doesn't exist
+        if not env_info['has_python_venv']:
+            print("Creating virtual environment...")
+            try:
+                subprocess.run([sys.executable, '-m', 'venv', '.venv'], check=True)
+                print("✅ Virtual environment created")
+            except subprocess.CalledProcessError:
+                print("❌ Failed to create virtual environment")
+                return False
+        
+        # Install dependencies
+        pip_path = '.venv/bin/pip' if os.name != 'nt' else '.venv\\Scripts\\pip'
+        try:
+            subprocess.run([pip_path, 'install', '-r', 'requirements.txt'], check=True)
+            print("✅ Dependencies installed")
+        except subprocess.CalledProcessError:
+            print("❌ Failed to install dependencies")
+            return False
+    
+    return True
+
+def configure_basic_settings(env_info):
+    """Configure basic monitoring settings."""
+    print("\n⚙️  Configuring basic settings...")
+    
+    # Determine config file to use
+    if os.path.exists('config/dev-settings.yaml'):
+        config_file = 'config/dev-settings.yaml'
+    elif os.path.exists('config/settings.yaml'):
+        config_file = 'config/my-settings.yaml'
+        # Copy template
+        shutil.copy2('config/settings.yaml', config_file)
+    else:
+        print("❌ No configuration template found")
+        return False, None
+    
+    print(f"Using configuration file: {config_file}")
+    
+    # Load existing configuration
+    try:
+        with open(config_file, 'r') as f:
+            config = yaml.safe_load(f)
+    except Exception as e:
+        print(f"❌ Failed to load configuration: {e}")
+        return False, None
+    
+    # Configure log paths
+    if env_info['log_paths']:
+        print("\n📄 Configuring log file paths...")
+        config['log_file_path'] = env_info['log_paths'][0]
+        if len(env_info['log_paths']) > 1:
+            config['error_log_file_path'] = env_info['log_paths'][1]
+        print(f"  • Access log: {config['log_file_path']}")
+        print(f"  • Error log: {config.get('error_log_file_path', 'Not configured')}")
+    else:
+        # Ask user for log paths
+        print("\n📄 NGINX log files not found. Please provide paths:")
+        access_log = get_user_input("Access log path", "/var/log/nginx/access.log")
+        error_log = get_user_input("Error log path", "/var/log/nginx/error.log")
+        
+        config['log_file_path'] = access_log
+        config['error_log_file_path'] = error_log
+    
+    # Configure alert thresholds
+    print("\n🚨 Configuring alert thresholds...")
+    print("Current thresholds:")
+    print(f"  • High: {config.get('alert_thresholds', {}).get('high', 10)}")
+    print(f"  • Medium: {config.get('alert_thresholds', {}).get('medium', 5)}")
+    print(f"  • Low: {config.get('alert_thresholds', {}).get('low', 1)}")
+    
+    if get_yes_no("Customize alert thresholds?", 'n'):
+        high_threshold = int(get_user_input("High severity threshold", "10"))
+        medium_threshold = int(get_user_input("Medium severity threshold", "5"))
+        low_threshold = int(get_user_input("Low severity threshold", "1"))
+        
+        config['alert_thresholds'] = {
+            'high': high_threshold,
+            'medium': medium_threshold,
+            'low': low_threshold
+        }
+    
+    # Save configuration
+    try:
+        with open(config_file, 'w') as f:
+            yaml.dump(config, f, default_flow_style=False, indent=2)
+        print(f"✅ Configuration saved to {config_file}")
+    except Exception as e:
+        print(f"❌ Failed to save configuration: {e}")
+        return False, None
+    
+    return True, config_file
+
+def configure_alerts():
+    """Configure email and SMS alerts."""
+    print("\n📧 Configuring Alert System...")
+    
+    email_enabled = get_yes_no("Enable email alerts?", 'y')
+    sms_enabled = get_yes_no("Enable SMS alerts?", 'n')
+    
+    alert_config = {}
+    
+    if email_enabled:
+        print("\n📧 Email Configuration:")
+        print("💡 For Gmail, use your app password, not your regular password")
+        print("💡 For other providers, check their SMTP settings")
+        
+        alert_config['email'] = {
+            'smtp_server': get_user_input("SMTP server", "smtp.gmail.com"),
+            'smtp_port': int(get_user_input("SMTP port", "587")),
+            'from_address': get_user_input("From email address"),
+            'to_address': get_user_input("To email address"),
+            'use_tls': True
+        }
+        
+        print("\n🔐 Email credentials will be stored as environment variables")
+        print("Add these to your .env file:")
+        print(f"SMTP_USERNAME={alert_config['email']['from_address']}")
+        print("SMTP_PASSWORD=your_email_password_or_app_password")
+    
+    if sms_enabled:
+        print("\n📱 SMS Configuration:")
+        provider = get_user_input("SMS provider", "twilio", ["twilio", "nexmo", "other"])
+        
+        alert_config['sms'] = {
+            'provider': provider,
+            'from_number': get_user_input("From phone number (with country code)"),
+            'to_number': get_user_input("To phone number (with country code)")
+        }
+        
+        print("\n🔐 SMS credentials will be stored as environment variables")
+        print("Add these to your .env file:")
+        print("SMS_API_KEY=your_sms_api_key")
+        print("SMS_API_SECRET=your_sms_api_secret")
+    
+    return alert_config
+
+def run_initial_tests():
+    """Run tests to verify the setup."""
+    print("\n🧪 Running initial tests...")
+    
+    # Test installation
+    print("Testing installation...")
+    try:
+        result = subprocess.run(['./bin/test-installation', '--quick'], 
+                              capture_output=True, text=True)
+        if result.returncode == 0:
+            print("✅ Installation test passed")
+        else:
+            print("⚠️  Installation test had warnings")
+            print("   Run './bin/test-installation' for details")
+    except Exception as e:
+        print(f"❌ Installation test failed: {e}")
+    
+    # Test configuration
+    print("Testing configuration...")
+    try:
+        result = subprocess.run(['./bin/validate-config', '--all'], 
+                              capture_output=True, text=True)
+        if result.returncode == 0:
+            print("✅ Configuration validation passed")
+        else:
+            print("⚠️  Configuration validation had issues")
+            print("   Run './bin/validate-config --all' for details")
+    except Exception as e:
+        print(f"❌ Configuration validation failed: {e}")
+
+def create_test_scenario(config_file):
+    """Create a test scenario to demonstrate threat detection."""
+    print("\n🎯 Creating test scenario...")
+    
+    if get_yes_no("Generate test attack logs to see detection in action?", 'y'):
+        # Create test log directory
+        test_dir = 'test-logs'
+        os.makedirs(test_dir, exist_ok=True)
+        
+        # Generate test log with attacks
+        test_log_content = """127.0.0.1 - - [21/Jul/2025:10:00:00 +0000] "GET / HTTP/1.1" 200 1234 "-" "Mozilla/5.0"
+127.0.0.1 - - [21/Jul/2025:10:01:00 +0000] "GET /test?id=1' OR '1'='1 HTTP/1.1" 200 1234 "-" "curl/7.68.0"
+127.0.0.1 - - [21/Jul/2025:10:02:00 +0000] "GET /search?q=<script>alert('xss')</script> HTTP/1.1" 200 1234 "-" "Mozilla/5.0"
+192.168.1.100 - - [21/Jul/2025:10:03:00 +0000] "GET /admin/login HTTP/1.1" 401 1234 "-" "sqlmap/1.0"
+"""
+        
+        test_log_file = os.path.join(test_dir, 'test_access.log')
+        with open(test_log_file, 'w') as f:
+            f.write(test_log_content)
+        
+        print(f"✅ Test log created: {test_log_file}")
+        print("This log contains:")
+        print("  • SQL injection attempt")
+        print("  • XSS attack")
+        print("  • Suspicious user agent (sqlmap)")
+        
+        # Update config to use test log
+        try:
+            with open(config_file, 'r') as f:
+                config = yaml.safe_load(f)
+            
+            config['log_file_path'] = test_log_file
+            
+            with open(config_file, 'w') as f:
+                yaml.dump(config, f, default_flow_style=False, indent=2)
+            
+            print(f"✅ Configuration updated to use test log")
+        except Exception as e:
+            print(f"⚠️  Could not update config: {e}")
+        
+        return test_log_file
+    
+    return None
+
+def show_next_steps(config_file, test_log_file):
+    """Show the user what to do next."""
+    print("\n" + "="*60)
+    print("🎉 Quick Start Complete!")
+    print("="*60)
+    
+    print("\n📋 What we've set up:")
+    print("✅ Environment configured")
+    print("✅ Basic monitoring settings")
+    print("✅ Alert system configured")
+    print("✅ Initial tests completed")
+    if test_log_file:
+        print("✅ Test scenario created")
+    
+    print("\n🚀 Next Steps:")
+    
+    print("\n1. Start monitoring:")
+    print(f"   ./bin/nginx-security-monitor start {config_file}")
+    
+    if test_log_file:
+        print("\n2. Test threat detection:")
+        print("   The monitor will detect the attacks in the test log file")
+        print("   Watch for email alerts (if configured)")
+    
+    print("\n3. Monitor in real-time:")
+    print("   ./bin/health-check")
+    print("   ./bin/nginx-security-monitor status")
+    
+    print("\n4. Customize your setup:")
+    print(f"   • Edit {config_file} for advanced settings")
+    print("   • Add custom patterns in config/patterns.json")
+    print("   • Create custom plugins in plugins/")
+    
+    print("\n5. Security and maintenance:")
+    print("   ./bin/security-check")
+    print("   ./bin/validate-config --all")
+    
+    print("\n📚 Documentation:")
+    print("   • Quick Start Tutorial: docs/QUICK_START_TUTORIAL.md")
+    print("   • Configuration Guide: docs/CONFIGURATION.md")
+    print("   • Security Features: docs/SECURITY_FEATURES.md")
+    
+    print("\n💡 Tips:")
+    print("   • Run './bin/test-installation' if you encounter issues")
+    print("   • Use './bin/encrypt-config' to secure sensitive settings")
+    print("   • Check logs in the 'logs/' directory for troubleshooting")
+    
+    print("\n🎯 Ready to protect your NGINX server!")
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Interactive setup wizard for NGINX Security Monitor",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+This wizard will guide you through:
+• Environment setup (development/testing/production)
+• Basic configuration
+• Alert system setup
+• Initial testing
+• Test scenario creation
+
+Run without arguments for interactive mode.
+        """
+    )
+    
+    parser.add_argument(
+        '--minimal',
+        action='store_true',
+        help='Minimal setup (skip optional components)'
+    )
+    
+    parser.add_argument(
+        '--production',
+        action='store_true',
+        help='Production setup mode'
+    )
+    
+    args = parser.parse_args()
+    
+    # Welcome
+    print_welcome()
+    
+    if not get_yes_no("Ready to start the setup?", 'y'):
+        print("👋 Setup cancelled. Run again when you're ready!")
+        sys.exit(0)
+    
+    # Detect environment
+    env_info = detect_environment()
+    
+    # Override recommendation for production flag
+    if args.production:
+        env_info['recommended_setup'] = 'production'
+    
+    # Setup environment
+    if not setup_environment(env_info):
+        print("❌ Environment setup failed. Please check the errors above.")
+        sys.exit(1)
+    
+    # Configure basic settings
+    success, config_file = configure_basic_settings(env_info)
+    if not success:
+        print("❌ Configuration failed. Please check the errors above.")
+        sys.exit(1)
+    
+    # Configure alerts (unless minimal)
+    if not args.minimal:
+        alert_config = configure_alerts()
+        
+        # Run initial tests
+        run_initial_tests()
+        
+        # Create test scenario
+        test_log_file = create_test_scenario(config_file)
+    else:
+        test_log_file = None
+    
+    # Show next steps
+    show_next_steps(config_file, test_log_file)
+    
+    print("\n🎉 Welcome to NGINX Security Monitor!")
+
+if __name__ == "__main__":
+    main()

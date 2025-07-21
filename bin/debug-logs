@@ -1,0 +1,572 @@
+#!/usr/bin/env python3
+"""
+NGINX Security Monitor - Debug Log Analysis Tool
+Advanced log analysis, filtering, and debugging support.
+"""
+
+import os
+import sys
+import argparse
+import re
+import json
+import gzip
+import time
+from datetime import datetime, timedelta
+from collections import defaultdict, Counter
+from pathlib import Path
+
+# Add the src directory to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
+
+def print_debug_header():
+    """Print debugging header."""
+    print("🔍 NGINX Security Monitor - Debug Log Analysis")
+    print("=" * 50)
+
+def parse_nginx_log_line(line):
+    """Parse a single NGINX log line into components."""
+    # Standard NGINX log format: IP - - [timestamp] "request" status size "referer" "user_agent"
+    pattern = r'(\S+) - - \[([^\]]+)\] "([^"]*)" (\d+) (\d+) "([^"]*)" "([^"]*)"'
+    
+    match = re.match(pattern, line.strip())
+    if match:
+        return {
+            'ip': match.group(1),
+            'timestamp': match.group(2),
+            'request': match.group(3),
+            'status': int(match.group(4)),
+            'size': int(match.group(5)),
+            'referer': match.group(6),
+            'user_agent': match.group(7),
+            'raw_line': line.strip()
+        }
+    return None
+
+def load_log_file(file_path, max_lines=None):
+    """Load and parse log file."""
+    print(f"📂 Loading log file: {file_path}")
+    
+    entries = []
+    line_count = 0
+    
+    try:
+        # Handle gzipped files
+        if file_path.endswith('.gz'):
+            opener = gzip.open
+            mode = 'rt'
+        else:
+            opener = open
+            mode = 'r'
+        
+        with opener(file_path, mode) as f:
+            for line in f:
+                if max_lines and line_count >= max_lines:
+                    break
+                
+                parsed = parse_nginx_log_line(line)
+                if parsed:
+                    entries.append(parsed)
+                
+                line_count += 1
+                
+                if line_count % 10000 == 0:
+                    print(f"   📊 Processed {line_count} lines...")
+        
+        print(f"   ✅ Loaded {len(entries)} valid log entries from {line_count} lines")
+        return entries
+        
+    except FileNotFoundError:
+        print(f"   ❌ Log file not found: {file_path}")
+        return None
+    except Exception as e:
+        print(f"   ❌ Error reading log file: {e}")
+        return None
+
+def filter_logs_by_time(entries, start_time=None, end_time=None):
+    """Filter log entries by time range."""
+    if not start_time and not end_time:
+        return entries
+    
+    filtered = []
+    
+    for entry in entries:
+        try:
+            # Parse NGINX timestamp format: 21/Jul/2025:10:15:30 +0000
+            timestamp_str = entry['timestamp']
+            entry_time = datetime.strptime(timestamp_str.split()[0], '%d/%b/%Y:%H:%M:%S')
+            
+            if start_time and entry_time < start_time:
+                continue
+            if end_time and entry_time > end_time:
+                continue
+                
+            filtered.append(entry)
+            
+        except ValueError:
+            # Skip entries with unparseable timestamps
+            continue
+    
+    print(f"⏰ Time filter: {len(filtered)} entries (from {len(entries)})")
+    return filtered
+
+def filter_logs_by_ip(entries, ip_addresses):
+    """Filter log entries by IP addresses."""
+    if not ip_addresses:
+        return entries
+    
+    ip_set = set(ip_addresses)
+    filtered = [entry for entry in entries if entry['ip'] in ip_set]
+    
+    print(f"🌐 IP filter: {len(filtered)} entries (from {len(entries)})")
+    return filtered
+
+def filter_logs_by_status(entries, status_codes):
+    """Filter log entries by HTTP status codes."""
+    if not status_codes:
+        return entries
+    
+    status_set = set(status_codes)
+    filtered = [entry for entry in entries if entry['status'] in status_set]
+    
+    print(f"📊 Status filter: {len(filtered)} entries (from {len(entries)})")
+    return filtered
+
+def filter_logs_by_pattern(entries, pattern, field='request'):
+    """Filter log entries by regex pattern in specific field."""
+    if not pattern:
+        return entries
+    
+    try:
+        regex = re.compile(pattern, re.IGNORECASE)
+        filtered = []
+        
+        for entry in entries:
+            field_value = entry.get(field, '')
+            if regex.search(field_value):
+                filtered.append(entry)
+        
+        print(f"🔍 Pattern filter ({field}): {len(filtered)} entries (from {len(entries)})")
+        return filtered
+        
+    except re.error as e:
+        print(f"❌ Invalid regex pattern: {e}")
+        return entries
+
+def analyze_attack_patterns(entries, patterns_file=None):
+    """Analyze entries for attack patterns."""
+    print("\n🎯 Analyzing attack patterns...")
+    
+    # Load patterns if file provided
+    patterns = {}
+    if patterns_file and os.path.exists(patterns_file):
+        try:
+            with open(patterns_file, 'r') as f:
+                pattern_config = json.load(f)
+                patterns = pattern_config.get('attack_patterns', {})
+            print(f"   📋 Loaded {len(patterns)} patterns from {patterns_file}")
+        except Exception as e:
+            print(f"   ⚠️  Could not load patterns: {e}")
+    
+    # Default basic patterns
+    if not patterns:
+        patterns = {
+            'sql_injection': {
+                'pattern': r'(union\s+select|or\s+1\s*=\s*1|drop\s+table|insert\s+into)',
+                'severity': 'high'
+            },
+            'xss': {
+                'pattern': r'(<script|javascript:|on\w+\s*=)',
+                'severity': 'medium'
+            },
+            'path_traversal': {
+                'pattern': r'(\.\./|\.\.\\|%2e%2e)',
+                'severity': 'medium'
+            },
+            'command_injection': {
+                'pattern': r'(;\s*(cat|ls|whoami|id|uname)|`.*`|\$\(.*\))',
+                'severity': 'high'
+            }
+        }
+    
+    # Analyze entries
+    pattern_matches = defaultdict(list)
+    
+    for entry in entries:
+        request = entry.get('request', '').lower()
+        user_agent = entry.get('user_agent', '').lower()
+        
+        for pattern_name, pattern_config in patterns.items():
+            pattern_regex = pattern_config.get('pattern', '')
+            
+            try:
+                if re.search(pattern_regex, request, re.IGNORECASE):
+                    pattern_matches[pattern_name].append({
+                        'entry': entry,
+                        'matched_field': 'request',
+                        'severity': pattern_config.get('severity', 'unknown')
+                    })
+                elif re.search(pattern_regex, user_agent, re.IGNORECASE):
+                    pattern_matches[pattern_name].append({
+                        'entry': entry,
+                        'matched_field': 'user_agent',
+                        'severity': pattern_config.get('severity', 'unknown')
+                    })
+            except re.error:
+                continue
+    
+    # Display results
+    if pattern_matches:
+        for pattern_name, matches in pattern_matches.items():
+            severity = matches[0]['severity'] if matches else 'unknown'
+            print(f"   🚨 {pattern_name.upper()}: {len(matches)} matches (severity: {severity})")
+    else:
+        print("   ✅ No attack patterns detected")
+    
+    return pattern_matches
+
+def analyze_traffic_statistics(entries):
+    """Analyze traffic statistics and patterns."""
+    print("\n📊 Traffic Statistics Analysis...")
+    
+    if not entries:
+        print("   ❌ No entries to analyze")
+        return
+    
+    # IP address analysis
+    ip_counter = Counter(entry['ip'] for entry in entries)
+    print(f"\n   🌐 Top 10 IP Addresses:")
+    for ip, count in ip_counter.most_common(10):
+        print(f"      {ip}: {count} requests")
+    
+    # Status code analysis
+    status_counter = Counter(entry['status'] for entry in entries)
+    print(f"\n   📊 HTTP Status Codes:")
+    for status, count in sorted(status_counter.items()):
+        print(f"      {status}: {count} requests")
+    
+    # User agent analysis
+    user_agent_counter = Counter(entry['user_agent'] for entry in entries)
+    print(f"\n   🔍 Top 10 User Agents:")
+    for ua, count in user_agent_counter.most_common(10):
+        ua_short = ua[:80] + "..." if len(ua) > 80 else ua
+        print(f"      {ua_short}: {count} requests")
+    
+    # Request analysis
+    request_counter = Counter(entry['request'] for entry in entries)
+    print(f"\n   📝 Top 10 Requests:")
+    for request, count in request_counter.most_common(10):
+        request_short = request[:80] + "..." if len(request) > 80 else request
+        print(f"      {request_short}: {count} times")
+    
+    # Error analysis (4xx and 5xx status codes)
+    error_entries = [entry for entry in entries if entry['status'] >= 400]
+    if error_entries:
+        print(f"\n   ❌ Error Analysis ({len(error_entries)} errors):")
+        error_ip_counter = Counter(entry['ip'] for entry in error_entries)
+        for ip, count in error_ip_counter.most_common(5):
+            print(f"      {ip}: {count} errors")
+
+def detect_suspicious_activity(entries):
+    """Detect suspicious activity patterns."""
+    print("\n🕵️ Suspicious Activity Detection...")
+    
+    suspicious_findings = []
+    
+    # High request rate from single IP
+    ip_counter = Counter(entry['ip'] for entry in entries)
+    for ip, count in ip_counter.items():
+        if count > 100:  # Threshold for suspicious activity
+            suspicious_findings.append({
+                'type': 'high_request_rate',
+                'ip': ip,
+                'count': count,
+                'severity': 'medium'
+            })
+    
+    # Multiple 404 errors from same IP (scanning)
+    error_404_by_ip = defaultdict(int)
+    for entry in entries:
+        if entry['status'] == 404:
+            error_404_by_ip[entry['ip']] += 1
+    
+    for ip, count in error_404_by_ip.items():
+        if count > 20:
+            suspicious_findings.append({
+                'type': 'scanning_activity',
+                'ip': ip,
+                'count': count,
+                'severity': 'high'
+            })
+    
+    # Suspicious user agents
+    suspicious_ua_patterns = [
+        r'nikto', r'sqlmap', r'nmap', r'dirb', r'gobuster',
+        r'burp', r'zap', r'scanner', r'bot.*scan'
+    ]
+    
+    for entry in entries:
+        user_agent = entry['user_agent'].lower()
+        for pattern in suspicious_ua_patterns:
+            if re.search(pattern, user_agent, re.IGNORECASE):
+                suspicious_findings.append({
+                    'type': 'suspicious_user_agent',
+                    'ip': entry['ip'],
+                    'user_agent': entry['user_agent'],
+                    'severity': 'medium'
+                })
+                break
+    
+    # Display findings
+    if suspicious_findings:
+        severity_counts = Counter(finding['severity'] for finding in suspicious_findings)
+        print(f"   🚨 Found {len(suspicious_findings)} suspicious activities:")
+        for severity, count in severity_counts.items():
+            print(f"      {severity.upper()}: {count}")
+        
+        # Group by type
+        by_type = defaultdict(list)
+        for finding in suspicious_findings:
+            by_type[finding['type']].append(finding)
+        
+        for activity_type, findings in by_type.items():
+            print(f"\n   🔍 {activity_type.replace('_', ' ').title()}: {len(findings)} instances")
+            for finding in findings[:5]:  # Show first 5
+                if 'count' in finding:
+                    print(f"      {finding['ip']}: {finding['count']} occurrences")
+                else:
+                    print(f"      {finding['ip']}: {finding.get('user_agent', 'N/A')}")
+    else:
+        print("   ✅ No suspicious activity detected")
+    
+    return suspicious_findings
+
+def export_filtered_logs(entries, output_file, format='text'):
+    """Export filtered log entries to file."""
+    print(f"\n📁 Exporting {len(entries)} entries to {output_file}...")
+    
+    try:
+        with open(output_file, 'w') as f:
+            if format == 'json':
+                json.dump(entries, f, indent=2, default=str)
+            elif format == 'csv':
+                # CSV header
+                f.write("ip,timestamp,request,status,size,referer,user_agent\n")
+                for entry in entries:
+                    f.write(f'"{entry["ip"]}","{entry["timestamp"]}","{entry["request"]}",{entry["status"]},{entry["size"]},"{entry["referer"]}","{entry["user_agent"]}"\n')
+            else:  # text format
+                for entry in entries:
+                    f.write(entry['raw_line'] + '\n')
+        
+        print(f"   ✅ Export complete: {output_file}")
+        
+    except Exception as e:
+        print(f"   ❌ Export failed: {e}")
+
+def monitor_logs_realtime(log_file, patterns_file=None):
+    """Monitor log file in real-time for security events."""
+    print(f"\n👁️ Real-time monitoring: {log_file}")
+    print("   Press Ctrl+C to stop monitoring")
+    
+    # Load patterns
+    patterns = {}
+    if patterns_file and os.path.exists(patterns_file):
+        try:
+            with open(patterns_file, 'r') as f:
+                pattern_config = json.load(f)
+                patterns = pattern_config.get('attack_patterns', {})
+        except:
+            pass
+    
+    try:
+        with open(log_file, 'r') as f:
+            # Go to end of file
+            f.seek(0, 2)
+            
+            while True:
+                line = f.readline()
+                if line:
+                    parsed = parse_nginx_log_line(line)
+                    if parsed:
+                        # Check for attack patterns
+                        for pattern_name, pattern_config in patterns.items():
+                            pattern_regex = pattern_config.get('pattern', '')
+                            if re.search(pattern_regex, parsed['request'], re.IGNORECASE):
+                                timestamp = datetime.now().strftime('%H:%M:%S')
+                                print(f"\n🚨 [{timestamp}] ALERT: {pattern_name.upper()}")
+                                print(f"   IP: {parsed['ip']}")
+                                print(f"   Request: {parsed['request']}")
+                                print(f"   Severity: {pattern_config.get('severity', 'unknown')}")
+                else:
+                    time.sleep(1)
+                    
+    except KeyboardInterrupt:
+        print("\n👋 Monitoring stopped")
+    except Exception as e:
+        print(f"\n❌ Monitoring error: {e}")
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Debug and analyze NGINX Security Monitor logs",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s /var/log/nginx/access.log              # Basic log analysis
+  %(prog)s access.log --ip 192.168.1.100 --verbose
+  %(prog)s access.log --status 404 403 --export filtered.log
+  %(prog)s access.log --pattern "admin|login" --field request
+  %(prog)s access.log --time-start "2025-07-21 10:00"
+  %(prog)s access.log --monitor --patterns config/patterns.json
+        """
+    )
+    
+    parser.add_argument(
+        'log_file',
+        help='Path to NGINX log file'
+    )
+    
+    parser.add_argument(
+        '--patterns',
+        help='Path to patterns configuration file'
+    )
+    
+    parser.add_argument(
+        '--ip',
+        nargs='+',
+        help='Filter by IP address(es)'
+    )
+    
+    parser.add_argument(
+        '--status',
+        nargs='+',
+        type=int,
+        help='Filter by HTTP status code(s)'
+    )
+    
+    parser.add_argument(
+        '--pattern',
+        help='Filter by regex pattern'
+    )
+    
+    parser.add_argument(
+        '--field',
+        default='request',
+        choices=['request', 'user_agent', 'referer'],
+        help='Field to apply pattern filter to'
+    )
+    
+    parser.add_argument(
+        '--time-start',
+        help='Start time for filtering (YYYY-MM-DD HH:MM)'
+    )
+    
+    parser.add_argument(
+        '--time-end',
+        help='End time for filtering (YYYY-MM-DD HH:MM)'
+    )
+    
+    parser.add_argument(
+        '--max-lines',
+        type=int,
+        help='Maximum number of lines to process'
+    )
+    
+    parser.add_argument(
+        '--export',
+        help='Export filtered results to file'
+    )
+    
+    parser.add_argument(
+        '--format',
+        choices=['text', 'json', 'csv'],
+        default='text',
+        help='Export format'
+    )
+    
+    parser.add_argument(
+        '--monitor',
+        action='store_true',
+        help='Monitor log file in real-time'
+    )
+    
+    parser.add_argument(
+        '--verbose', '-v',
+        action='store_true',
+        help='Show detailed analysis'
+    )
+    
+    args = parser.parse_args()
+    
+    print_debug_header()
+    
+    # Real-time monitoring mode
+    if args.monitor:
+        monitor_logs_realtime(args.log_file, args.patterns)
+        return
+    
+    # Load and parse log file
+    entries = load_log_file(args.log_file, args.max_lines)
+    if not entries:
+        sys.exit(1)
+    
+    # Apply filters
+    if args.time_start or args.time_end:
+        start_time = None
+        end_time = None
+        
+        try:
+            if args.time_start:
+                start_time = datetime.strptime(args.time_start, '%Y-%m-%d %H:%M')
+            if args.time_end:
+                end_time = datetime.strptime(args.time_end, '%Y-%m-%d %H:%M')
+        except ValueError as e:
+            print(f"❌ Invalid time format: {e}")
+            sys.exit(1)
+        
+        entries = filter_logs_by_time(entries, start_time, end_time)
+    
+    if args.ip:
+        entries = filter_logs_by_ip(entries, args.ip)
+    
+    if args.status:
+        entries = filter_logs_by_status(entries, args.status)
+    
+    if args.pattern:
+        entries = filter_logs_by_pattern(entries, args.pattern, args.field)
+    
+    if not entries:
+        print("❌ No entries match the specified filters")
+        sys.exit(1)
+    
+    # Analysis
+    print(f"\n📊 Analyzing {len(entries)} log entries...")
+    
+    # Attack pattern analysis
+    pattern_matches = analyze_attack_patterns(entries, args.patterns)
+    
+    # Traffic statistics
+    analyze_traffic_statistics(entries)
+    
+    # Suspicious activity detection
+    suspicious_activities = detect_suspicious_activity(entries)
+    
+    # Export if requested
+    if args.export:
+        export_filtered_logs(entries, args.export, args.format)
+    
+    # Summary
+    print(f"\n" + "="*60)
+    print(f"📊 DEBUG ANALYSIS SUMMARY")
+    print(f"="*60)
+    print(f"📝 Total entries analyzed: {len(entries)}")
+    print(f"🎯 Attack patterns detected: {len(pattern_matches)}")
+    print(f"🕵️ Suspicious activities: {len(suspicious_activities)}")
+    
+    if pattern_matches or suspicious_activities:
+        print(f"\n⚠️  Security concerns detected - review analysis above")
+    else:
+        print(f"\n✅ No security issues detected in analyzed logs")
+    
+    print(f"\n🎉 Log analysis complete!")
+
+if __name__ == "__main__":
+    main()

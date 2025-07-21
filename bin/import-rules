@@ -1,0 +1,611 @@
+#!/usr/bin/env python3
+"""
+NGINX Security Monitor - Rules Import Tool
+
+Import security rules from external sources, perform rule format conversion,
+bulk rule management, and community rule sharing.
+"""
+
+import argparse
+import os
+import sys
+import json
+import yaml
+import re
+import requests
+from pathlib import Path
+from datetime import datetime
+import tempfile
+import hashlib
+import subprocess
+
+def setup_paths():
+    """Setup and validate required paths."""
+    script_dir = Path(__file__).parent
+    project_root = script_dir.parent
+    config_dir = project_root / "config"
+    
+    return {
+        'script_dir': script_dir,
+        'project_root': project_root,
+        'config_dir': config_dir,
+        'patterns_file': config_dir / "patterns.json",
+        'rules_dir': config_dir / "rules",
+        'imports_dir': config_dir / "imported_rules"
+    }
+
+class RuleImporter:
+    def __init__(self, paths):
+        self.paths = paths
+        self.rules_dir = paths['rules_dir']
+        self.imports_dir = paths['imports_dir']
+        self.rules_dir.mkdir(exist_ok=True)
+        self.imports_dir.mkdir(exist_ok=True)
+        
+        # Community rule sources
+        self.community_sources = {
+            'owasp': {
+                'name': 'OWASP Core Rule Set',
+                'url': 'https://raw.githubusercontent.com/coreruleset/coreruleset/v3.3/dev/rules',
+                'format': 'modsecurity'
+            },
+            'nginx_ultimate_bad_bot_blocker': {
+                'name': 'NGINX Ultimate Bad Bot Blocker',
+                'url': 'https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/master',
+                'format': 'nginx_conf'
+            },
+            'fail2ban_community': {
+                'name': 'Fail2Ban Community Filters',
+                'url': 'https://raw.githubusercontent.com/fail2ban/fail2ban/master/config/filter.d',
+                'format': 'fail2ban'
+            }
+        }
+    
+    def load_existing_patterns(self):
+        """Load existing patterns from configuration."""
+        patterns_file = self.paths['patterns_file']
+        if patterns_file.exists():
+            try:
+                with open(patterns_file, 'r') as f:
+                    data = json.load(f)
+                    return data.get('patterns', {})
+            except Exception as e:
+                print(f"⚠️  Error loading existing patterns: {e}")
+        
+        return {}
+    
+    def save_patterns(self, patterns, backup=True):
+        """Save patterns to configuration file."""
+        patterns_file = self.paths['patterns_file']
+        
+        # Create backup if requested
+        if backup and patterns_file.exists():
+            backup_file = patterns_file.with_suffix(f'.backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json')
+            patterns_file.rename(backup_file)
+            print(f"📦 Backup created: {backup_file}")
+        
+        # Save new patterns
+        config_data = {
+            'updated_at': datetime.now().isoformat(),
+            'patterns': patterns
+        }
+        
+        with open(patterns_file, 'w') as f:
+            json.dump(config_data, f, indent=2)
+        
+        print(f"💾 Patterns saved to: {patterns_file}")
+    
+    def import_from_file(self, file_path, format_type='auto'):
+        """Import rules from a local file."""
+        file_path = Path(file_path)
+        
+        if not file_path.exists():
+            raise FileNotFoundError(f"File not found: {file_path}")
+        
+        print(f"📁 Importing from: {file_path}")
+        
+        # Auto-detect format if not specified
+        if format_type == 'auto':
+            format_type = self.detect_format(file_path)
+            print(f"🔍 Detected format: {format_type}")
+        
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            content = f.read()
+        
+        return self.parse_rules(content, format_type)
+    
+    def import_from_url(self, url, format_type='auto'):
+        """Import rules from a URL."""
+        print(f"🌐 Downloading from: {url}")
+        
+        try:
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
+            content = response.text
+        except Exception as e:
+            raise Exception(f"Failed to download from {url}: {e}")
+        
+        # Auto-detect format if not specified
+        if format_type == 'auto':
+            format_type = self.detect_format_from_content(content, url)
+            print(f"🔍 Detected format: {format_type}")
+        
+        return self.parse_rules(content, format_type)
+    
+    def detect_format(self, file_path):
+        """Detect rule format from file extension and content."""
+        extension = file_path.suffix.lower()
+        
+        if extension in ['.json']:
+            return 'json'
+        elif extension in ['.yaml', '.yml']:
+            return 'yaml'
+        elif extension in ['.conf', '.rules']:
+            # Check content to distinguish between formats
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read(500)  # Read first 500 chars
+                return self.detect_format_from_content(content)
+        
+        return 'unknown'
+    
+    def detect_format_from_content(self, content, url=''):
+        """Detect format from content analysis."""
+        content_lower = content.lower()
+        
+        # Check for JSON
+        try:
+            json.loads(content[:1000])
+            return 'json'
+        except:
+            pass
+        
+        # Check for YAML
+        try:
+            yaml.safe_load(content[:1000])
+            return 'yaml'
+        except:
+            pass
+        
+        # Check for ModSecurity rules
+        if 'secrule' in content_lower or 'secaction' in content_lower:
+            return 'modsecurity'
+        
+        # Check for Fail2Ban filters
+        if '[definition]' in content_lower and 'failregex' in content_lower:
+            return 'fail2ban'
+        
+        # Check for NGINX configuration
+        if any(keyword in content_lower for keyword in ['server', 'location', 'deny', 'allow']):
+            return 'nginx_conf'
+        
+        # Check for Snort rules
+        if 'alert' in content_lower and 'sid:' in content_lower:
+            return 'snort'
+        
+        return 'unknown'
+    
+    def parse_rules(self, content, format_type):
+        """Parse rules based on format type."""
+        if format_type == 'json':
+            return self.parse_json_rules(content)
+        elif format_type == 'yaml':
+            return self.parse_yaml_rules(content)
+        elif format_type == 'modsecurity':
+            return self.parse_modsecurity_rules(content)
+        elif format_type == 'fail2ban':
+            return self.parse_fail2ban_rules(content)
+        elif format_type == 'nginx_conf':
+            return self.parse_nginx_conf_rules(content)
+        elif format_type == 'snort':
+            return self.parse_snort_rules(content)
+        else:
+            raise ValueError(f"Unsupported format: {format_type}")
+    
+    def parse_json_rules(self, content):
+        """Parse JSON format rules."""
+        data = json.loads(content)
+        
+        # Handle different JSON structures
+        if 'patterns' in data:
+            return data['patterns']
+        elif 'rules' in data:
+            return data['rules']
+        elif isinstance(data, dict):
+            return data
+        else:
+            raise ValueError("Invalid JSON structure for rules")
+    
+    def parse_yaml_rules(self, content):
+        """Parse YAML format rules."""
+        data = yaml.safe_load(content)
+        
+        if 'patterns' in data:
+            return data['patterns']
+        elif 'rules' in data:
+            return data['rules']
+        elif isinstance(data, dict):
+            return data
+        else:
+            raise ValueError("Invalid YAML structure for rules")
+    
+    def parse_modsecurity_rules(self, content):
+        """Parse ModSecurity rules and convert to patterns."""
+        patterns = {}
+        
+        # Basic ModSecurity rule parsing
+        for line in content.split('\n'):
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            
+            # Look for SecRule directives
+            if line.startswith('SecRule'):
+                try:
+                    # Extract pattern from SecRule
+                    # SecRule ARGS "@rx pattern" "id:xxx,msg:description"
+                    parts = line.split('"')
+                    if len(parts) >= 4:
+                        pattern = parts[1]
+                        msg_part = parts[3]
+                        
+                        # Extract rule ID and message
+                        rule_id = None
+                        msg = None
+                        
+                        for part in msg_part.split(','):
+                            part = part.strip()
+                            if part.startswith('id:'):
+                                rule_id = part[3:]
+                            elif part.startswith('msg:'):
+                                msg = part[4:]
+                        
+                        # Create pattern name
+                        pattern_name = f"modsec_{rule_id}" if rule_id else f"modsec_rule_{len(patterns)}"
+                        if msg:
+                            pattern_name = f"{pattern_name}_{msg.lower().replace(' ', '_')}"
+                        
+                        patterns[pattern_name] = pattern
+                
+                except Exception:
+                    continue
+        
+        return patterns
+    
+    def parse_fail2ban_rules(self, content):
+        """Parse Fail2Ban filter rules."""
+        patterns = {}
+        
+        lines = content.split('\n')
+        in_definition = False
+        
+        for line in lines:
+            line = line.strip()
+            
+            if line == '[Definition]':
+                in_definition = True
+                continue
+            elif line.startswith('[') and line.endswith(']'):
+                in_definition = False
+                continue
+            
+            if in_definition and line.startswith('failregex'):
+                # Extract regex pattern
+                if '=' in line:
+                    pattern = line.split('=', 1)[1].strip()
+                    pattern_name = f"fail2ban_pattern_{len(patterns)}"
+                    patterns[pattern_name] = pattern
+        
+        return patterns
+    
+    def parse_nginx_conf_rules(self, content):
+        """Parse NGINX configuration rules."""
+        patterns = {}
+        
+        # Extract deny directives and convert to patterns
+        for line in content.split('\n'):
+            line = line.strip()
+            if line.startswith('deny') or 'deny' in line:
+                # Extract IP patterns, user agent blocks, etc.
+                # This is a simplified parser
+                pattern_name = f"nginx_deny_{len(patterns)}"
+                patterns[pattern_name] = line
+        
+        return patterns
+    
+    def parse_snort_rules(self, content):
+        """Parse Snort rules and convert to patterns."""
+        patterns = {}
+        
+        for line in content.split('\n'):
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            
+            if line.startswith('alert'):
+                try:
+                    # Extract content from Snort rule
+                    # alert tcp any any -> any any (msg:"description"; content:"pattern"; sid:xxx;)
+                    if 'content:' in line:
+                        content_match = re.search(r'content:"([^"]+)"', line)
+                        if content_match:
+                            pattern = content_match.group(1)
+                            
+                            # Extract SID
+                            sid_match = re.search(r'sid:(\d+)', line)
+                            sid = sid_match.group(1) if sid_match else len(patterns)
+                            
+                            pattern_name = f"snort_{sid}"
+                            patterns[pattern_name] = pattern
+                
+                except Exception:
+                    continue
+        
+        return patterns
+    
+    def validate_patterns(self, patterns):
+        """Validate imported patterns."""
+        valid_patterns = {}
+        invalid_patterns = []
+        
+        for name, pattern in patterns.items():
+            try:
+                # Test if pattern is a valid regex
+                re.compile(pattern)
+                valid_patterns[name] = pattern
+            except re.error as e:
+                invalid_patterns.append((name, pattern, str(e)))
+        
+        if invalid_patterns:
+            print(f"⚠️  Found {len(invalid_patterns)} invalid patterns:")
+            for name, pattern, error in invalid_patterns[:5]:  # Show first 5
+                print(f"  ❌ {name}: {error}")
+            if len(invalid_patterns) > 5:
+                print(f"  ... and {len(invalid_patterns) - 5} more")
+        
+        return valid_patterns, invalid_patterns
+    
+    def merge_patterns(self, existing_patterns, new_patterns, strategy='merge'):
+        """Merge new patterns with existing ones."""
+        if strategy == 'replace':
+            return new_patterns
+        elif strategy == 'merge':
+            merged = existing_patterns.copy()
+            merged.update(new_patterns)
+            return merged
+        elif strategy == 'skip_existing':
+            merged = existing_patterns.copy()
+            for name, pattern in new_patterns.items():
+                if name not in merged:
+                    merged[name] = pattern
+            return merged
+        else:
+            raise ValueError(f"Unknown merge strategy: {strategy}")
+    
+    def download_community_rules(self, source_name):
+        """Download rules from community sources."""
+        if source_name not in self.community_sources:
+            available = ', '.join(self.community_sources.keys())
+            raise ValueError(f"Unknown source: {source_name}. Available: {available}")
+        
+        source = self.community_sources[source_name]
+        print(f"📥 Downloading {source['name']}...")
+        
+        # This is a simplified implementation
+        # In practice, you'd need more specific logic for each source
+        url = source['url']
+        format_type = source['format']
+        
+        return self.import_from_url(url, format_type)
+    
+    def save_import_metadata(self, source, patterns_count, format_type):
+        """Save metadata about the import."""
+        metadata = {
+            'timestamp': datetime.now().isoformat(),
+            'source': source,
+            'format': format_type,
+            'patterns_imported': patterns_count,
+            'checksum': hashlib.md5(str(patterns_count).encode()).hexdigest()
+        }
+        
+        metadata_file = self.imports_dir / f"import_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        
+        with open(metadata_file, 'w') as f:
+            json.dump(metadata, f, indent=2)
+        
+        return metadata_file
+
+def import_command(args):
+    """Import rules from various sources."""
+    paths = setup_paths()
+    importer = RuleImporter(paths)
+    
+    print("📥 Starting rule import process...")
+    
+    try:
+        # Import rules based on source type
+        if args.file:
+            patterns = importer.import_from_file(args.file, args.format)
+            source = str(args.file)
+        elif args.url:
+            patterns = importer.import_from_url(args.url, args.format)
+            source = args.url
+        elif args.community:
+            patterns = importer.download_community_rules(args.community)
+            source = f"community:{args.community}"
+        else:
+            print("❌ No import source specified")
+            return False
+        
+        print(f"📋 Imported {len(patterns)} rules")
+        
+        # Validate patterns
+        if args.validate:
+            print("🔍 Validating patterns...")
+            valid_patterns, invalid_patterns = importer.validate_patterns(patterns)
+            
+            if invalid_patterns:
+                print(f"❌ {len(invalid_patterns)} invalid patterns found")
+                if not args.force:
+                    print("Use --force to import anyway")
+                    return False
+            
+            patterns = valid_patterns
+            print(f"✅ {len(patterns)} valid patterns")
+        
+        # Load existing patterns and merge
+        existing_patterns = importer.load_existing_patterns()
+        print(f"📚 Found {len(existing_patterns)} existing patterns")
+        
+        merged_patterns = importer.merge_patterns(existing_patterns, patterns, args.strategy)
+        
+        new_count = len(merged_patterns) - len(existing_patterns)
+        print(f"🔄 Merge strategy: {args.strategy}")
+        print(f"📊 Result: {len(merged_patterns)} total patterns ({new_count:+d} change)")
+        
+        # Save patterns
+        if not args.dry_run:
+            importer.save_patterns(merged_patterns, backup=True)
+            
+            # Save import metadata
+            metadata_file = importer.save_import_metadata(source, len(patterns), args.format)
+            print(f"📝 Import metadata: {metadata_file}")
+            
+            print("✅ Rules imported successfully!")
+        else:
+            print("🔍 Dry run - no changes made")
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ Import failed: {e}")
+        return False
+
+def list_sources_command(args):
+    """List available community sources."""
+    paths = setup_paths()
+    importer = RuleImporter(paths)
+    
+    print("🌐 Available community rule sources:")
+    
+    for name, source in importer.community_sources.items():
+        print(f"\n📦 {name}:")
+        print(f"   Name: {source['name']}")
+        print(f"   Format: {source['format']}")
+        print(f"   URL: {source['url']}")
+    
+    print(f"\nUsage: {sys.argv[0]} import --community <source_name>")
+    
+    return True
+
+def convert_command(args):
+    """Convert rules between different formats."""
+    paths = setup_paths()
+    importer = RuleImporter(paths)
+    
+    print(f"🔄 Converting rules from {args.input_format} to {args.output_format}")
+    
+    try:
+        # Load input file
+        with open(args.input_file, 'r') as f:
+            content = f.read()
+        
+        # Parse input format
+        patterns = importer.parse_rules(content, args.input_format)
+        print(f"📋 Parsed {len(patterns)} patterns")
+        
+        # Convert to output format
+        if args.output_format == 'json':
+            output_content = json.dumps({'patterns': patterns}, indent=2)
+        elif args.output_format == 'yaml':
+            output_content = yaml.dump({'patterns': patterns}, default_flow_style=False)
+        else:
+            raise ValueError(f"Output format {args.output_format} not supported")
+        
+        # Save output
+        with open(args.output_file, 'w') as f:
+            f.write(output_content)
+        
+        print(f"✅ Converted rules saved to: {args.output_file}")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Conversion failed: {e}")
+        return False
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Import and manage security rules for NGINX Security Monitor",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s import --file rules.json --format json
+  %(prog)s import --url https://example.com/rules.conf --format modsecurity
+  %(prog)s import --community owasp --validate
+  %(prog)s list-sources
+  %(prog)s convert --input rules.conf --input-format modsecurity --output rules.json --output-format json
+        """
+    )
+    
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+    
+    # Import command
+    import_parser = subparsers.add_parser('import', help='Import rules from various sources')
+    import_group = import_parser.add_mutually_exclusive_group(required=True)
+    import_group.add_argument('--file', help='Import from local file')
+    import_group.add_argument('--url', help='Import from URL')
+    import_group.add_argument('--community', help='Import from community source')
+    
+    import_parser.add_argument('--format', choices=['auto', 'json', 'yaml', 'modsecurity', 'fail2ban', 'nginx_conf', 'snort'],
+                              default='auto', help='Input format (default: auto)')
+    import_parser.add_argument('--strategy', choices=['merge', 'replace', 'skip_existing'],
+                              default='merge', help='Merge strategy (default: merge)')
+    import_parser.add_argument('--validate', action='store_true',
+                              help='Validate patterns before importing')
+    import_parser.add_argument('--force', action='store_true',
+                              help='Force import even with invalid patterns')
+    import_parser.add_argument('--dry-run', action='store_true',
+                              help='Show what would be imported without making changes')
+    
+    # List sources command
+    list_parser = subparsers.add_parser('list-sources', help='List available community sources')
+    
+    # Convert command
+    convert_parser = subparsers.add_parser('convert', help='Convert rules between formats')
+    convert_parser.add_argument('--input', dest='input_file', required=True,
+                               help='Input file path')
+    convert_parser.add_argument('--input-format', required=True,
+                               choices=['json', 'yaml', 'modsecurity', 'fail2ban', 'nginx_conf', 'snort'],
+                               help='Input format')
+    convert_parser.add_argument('--output', dest='output_file', required=True,
+                               help='Output file path')
+    convert_parser.add_argument('--output-format', required=True,
+                               choices=['json', 'yaml'],
+                               help='Output format')
+    
+    args = parser.parse_args()
+    
+    if not args.command:
+        parser.print_help()
+        return True
+    
+    try:
+        if args.command == 'import':
+            return import_command(args)
+        elif args.command == 'list-sources':
+            return list_sources_command(args)
+        elif args.command == 'convert':
+            return convert_command(args)
+        else:
+            parser.print_help()
+            return True
+            
+    except KeyboardInterrupt:
+        print("\n❌ Operation cancelled by user")
+        return False
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        return False
+
+if __name__ == "__main__":
+    success = main()
+    sys.exit(0 if success else 1)

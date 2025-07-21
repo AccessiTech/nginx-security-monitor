@@ -1,0 +1,461 @@
+#!/usr/bin/env python3
+"""
+NGINX Security Monitor - Key Generation Tool
+
+Generates encryption keys, certificates, and other security credentials
+for secure operation of the monitoring system.
+"""
+
+import argparse
+import os
+import sys
+import secrets
+import base64
+import json
+from pathlib import Path
+from datetime import datetime, timedelta
+import subprocess
+import tempfile
+
+def setup_paths():
+    """Setup and validate required paths."""
+    script_dir = Path(__file__).parent
+    project_root = script_dir.parent
+    config_dir = project_root / "config"
+    
+    return {
+        'script_dir': script_dir,
+        'project_root': project_root,
+        'config_dir': config_dir,
+        'keys_dir': config_dir / "keys",
+        'certs_dir': config_dir / "certs"
+    }
+
+def generate_encryption_key(length=32):
+    """Generate a secure encryption key."""
+    return base64.b64encode(secrets.token_bytes(length)).decode('utf-8')
+
+def generate_api_key(length=32):
+    """Generate a secure API key."""
+    return secrets.token_urlsafe(length)
+
+def generate_session_secret(length=64):
+    """Generate a secure session secret."""
+    return secrets.token_hex(length)
+
+def generate_self_signed_cert(paths, domain="localhost", days=365):
+    """Generate a self-signed SSL certificate."""
+    certs_dir = paths['certs_dir']
+    certs_dir.mkdir(exist_ok=True)
+    
+    key_file = certs_dir / f"{domain}.key"
+    cert_file = certs_dir / f"{domain}.crt"
+    
+    # Generate private key
+    cmd_key = [
+        "openssl", "genrsa",
+        "-out", str(key_file),
+        "2048"
+    ]
+    
+    # Generate certificate
+    cmd_cert = [
+        "openssl", "req", "-new", "-x509",
+        "-key", str(key_file),
+        "-out", str(cert_file),
+        "-days", str(days),
+        "-subj", f"/C=US/ST=State/L=City/O=Organization/CN={domain}"
+    ]
+    
+    try:
+        subprocess.run(cmd_key, check=True, capture_output=True)
+        subprocess.run(cmd_cert, check=True, capture_output=True)
+        
+        # Set secure permissions
+        os.chmod(key_file, 0o600)
+        os.chmod(cert_file, 0o644)
+        
+        return {
+            'key_file': str(key_file),
+            'cert_file': str(cert_file),
+            'domain': domain,
+            'expires': (datetime.now() + timedelta(days=days)).isoformat()
+        }
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"Failed to generate certificate: {e}")
+
+def generate_ssh_keypair(paths, name="nginx-monitor"):
+    """Generate SSH key pair for secure communications."""
+    keys_dir = paths['keys_dir']
+    keys_dir.mkdir(exist_ok=True)
+    
+    private_key = keys_dir / f"{name}_rsa"
+    public_key = keys_dir / f"{name}_rsa.pub"
+    
+    cmd = [
+        "ssh-keygen", "-t", "rsa", "-b", "4096",
+        "-f", str(private_key),
+        "-N", "",  # No passphrase
+        "-C", f"{name}@nginx-security-monitor"
+    ]
+    
+    try:
+        subprocess.run(cmd, check=True, capture_output=True)
+        
+        # Set secure permissions
+        os.chmod(private_key, 0o600)
+        os.chmod(public_key, 0o644)
+        
+        return {
+            'private_key': str(private_key),
+            'public_key': str(public_key),
+            'name': name
+        }
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"Failed to generate SSH keys: {e}")
+
+def save_key_metadata(paths, metadata):
+    """Save key generation metadata."""
+    keys_dir = paths['keys_dir']
+    keys_dir.mkdir(exist_ok=True)
+    
+    metadata_file = keys_dir / "key_metadata.json"
+    
+    # Load existing metadata if it exists
+    existing_metadata = {}
+    if metadata_file.exists():
+        try:
+            with open(metadata_file, 'r') as f:
+                existing_metadata = json.load(f)
+        except:
+            pass
+    
+    # Update with new metadata
+    existing_metadata.update({
+        'last_generation': datetime.now().isoformat(),
+        'generated_keys': metadata
+    })
+    
+    with open(metadata_file, 'w') as f:
+        json.dump(existing_metadata, f, indent=2)
+    
+    os.chmod(metadata_file, 0o600)
+
+def create_env_file(paths, keys):
+    """Create environment file with generated keys."""
+    env_file = paths['config_dir'] / ".env.keys"
+    
+    env_content = f"""# Generated encryption keys for NGINX Security Monitor
+# Generated on: {datetime.now().isoformat()}
+# DO NOT COMMIT THIS FILE TO VERSION CONTROL
+
+# Encryption key for sensitive configuration data
+ENCRYPTION_KEY={keys['encryption_key']}
+
+# API key for external integrations
+API_KEY={keys['api_key']}
+
+# Session secret for web interface
+SESSION_SECRET={keys['session_secret']}
+
+# JWT secret for token authentication
+JWT_SECRET={keys['jwt_secret']}
+"""
+    
+    with open(env_file, 'w') as f:
+        f.write(env_content)
+    
+    os.chmod(env_file, 0o600)
+    return str(env_file)
+
+def generate_keys_command(args):
+    """Generate various types of security keys."""
+    paths = setup_paths()
+    
+    print("🔐 Generating security keys for NGINX Security Monitor...")
+    
+    generated_keys = {}
+    
+    # Generate basic encryption keys
+    if args.encryption or args.all:
+        print("  📝 Generating encryption key...")
+        generated_keys['encryption_key'] = generate_encryption_key()
+    
+    if args.api or args.all:
+        print("  🔑 Generating API key...")
+        generated_keys['api_key'] = generate_api_key()
+    
+    if args.session or args.all:
+        print("  🎫 Generating session secret...")
+        generated_keys['session_secret'] = generate_session_secret()
+    
+    if args.jwt or args.all:
+        print("  🏷️  Generating JWT secret...")
+        generated_keys['jwt_secret'] = generate_session_secret(32)
+    
+    # Generate SSL certificates
+    if args.ssl or args.all:
+        print("  🔒 Generating SSL certificate...")
+        domain = args.domain or "localhost"
+        cert_info = generate_self_signed_cert(paths, domain, args.days)
+        generated_keys['ssl_certificate'] = cert_info
+    
+    # Generate SSH keys
+    if args.ssh or args.all:
+        print("  🗝️  Generating SSH key pair...")
+        ssh_info = generate_ssh_keypair(paths, args.ssh_name)
+        generated_keys['ssh_keys'] = ssh_info
+    
+    if not generated_keys:
+        print("❌ No key types specified. Use --all or specify individual key types.")
+        return False
+    
+    # Save metadata
+    save_key_metadata(paths, generated_keys)
+    
+    # Create environment file for application keys
+    app_keys = {k: v for k, v in generated_keys.items() 
+                if k in ['encryption_key', 'api_key', 'session_secret', 'jwt_secret']}
+    if app_keys:
+        env_file = create_env_file(paths, app_keys)
+        print(f"  📄 Created environment file: {env_file}")
+    
+    print("\n✅ Key generation completed successfully!")
+    
+    # Display summary
+    print("\n📋 Generated Keys Summary:")
+    for key_type, key_data in generated_keys.items():
+        if isinstance(key_data, dict):
+            if 'cert_file' in key_data:
+                print(f"  🔒 SSL Certificate: {key_data['cert_file']}")
+                print(f"     Private Key: {key_data['key_file']}")
+                print(f"     Domain: {key_data['domain']}")
+                print(f"     Expires: {key_data['expires']}")
+            elif 'private_key' in key_data:
+                print(f"  🗝️  SSH Keys: {key_data['name']}")
+                print(f"     Private: {key_data['private_key']}")
+                print(f"     Public: {key_data['public_key']}")
+        else:
+            print(f"  🔑 {key_type}: Generated ({len(key_data)} characters)")
+    
+    print(f"\n📁 Keys stored in: {paths['keys_dir']}")
+    print(f"📁 Certificates stored in: {paths['certs_dir']}")
+    
+    if args.show_env and app_keys:
+        print(f"\n🔧 To use these keys in your application:")
+        print(f"   source {env_file}")
+        print(f"   # Or load the .env.keys file in your application")
+    
+    return True
+
+def list_keys_command(args):
+    """List existing keys and their metadata."""
+    paths = setup_paths()
+    
+    print("🔍 Listing existing security keys...")
+    
+    # Check for metadata file
+    metadata_file = paths['keys_dir'] / "key_metadata.json"
+    if not metadata_file.exists():
+        print("❌ No key metadata found. Run 'generate-keys --all' to create keys.")
+        return False
+    
+    try:
+        with open(metadata_file, 'r') as f:
+            metadata = json.load(f)
+    except Exception as e:
+        print(f"❌ Failed to read key metadata: {e}")
+        return False
+    
+    print(f"📅 Last generation: {metadata.get('last_generation', 'Unknown')}")
+    print(f"📁 Keys directory: {paths['keys_dir']}")
+    print(f"📁 Certificates directory: {paths['certs_dir']}")
+    
+    generated_keys = metadata.get('generated_keys', {})
+    if not generated_keys:
+        print("❌ No keys found in metadata.")
+        return False
+    
+    print(f"\n📋 Found {len(generated_keys)} key types:")
+    
+    for key_type, key_data in generated_keys.items():
+        if isinstance(key_data, dict):
+            if 'cert_file' in key_data:
+                cert_file = Path(key_data['cert_file'])
+                key_file = Path(key_data['key_file'])
+                status = "✅" if cert_file.exists() and key_file.exists() else "❌"
+                print(f"  {status} SSL Certificate ({key_data['domain']})")
+                print(f"     Expires: {key_data['expires']}")
+                print(f"     Files: {cert_file.name}, {key_file.name}")
+            elif 'private_key' in key_data:
+                private_key = Path(key_data['private_key'])
+                public_key = Path(key_data['public_key'])
+                status = "✅" if private_key.exists() and public_key.exists() else "❌"
+                print(f"  {status} SSH Keys ({key_data['name']})")
+                print(f"     Files: {private_key.name}, {public_key.name}")
+        else:
+            print(f"  🔑 {key_type}: Available")
+    
+    # Check for environment file
+    env_file = paths['config_dir'] / ".env.keys"
+    if env_file.exists():
+        print(f"\n📄 Environment file: {env_file}")
+    
+    return True
+
+def rotate_keys_command(args):
+    """Rotate (regenerate) existing keys."""
+    paths = setup_paths()
+    
+    print("🔄 Rotating security keys...")
+    
+    # Backup existing keys first
+    backup_dir = paths['keys_dir'] / f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    backup_dir.mkdir(exist_ok=True)
+    
+    # Copy existing keys to backup
+    keys_dir = paths['keys_dir']
+    if keys_dir.exists():
+        for item in keys_dir.iterdir():
+            if item.is_file() and item.name != f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}":
+                backup_file = backup_dir / item.name
+                backup_file.write_bytes(item.read_bytes())
+        print(f"📦 Backed up existing keys to: {backup_dir}")
+    
+    # Generate new keys using the same logic as generate_keys_command
+    # but with --all flag enabled
+    class RotateArgs:
+        all = True
+        encryption = True
+        api = True
+        session = True
+        jwt = True
+        ssl = True
+        ssh = True
+        domain = args.domain or "localhost"
+        days = args.days
+        ssh_name = args.ssh_name
+        show_env = args.show_env
+    
+    rotate_args = RotateArgs()
+    
+    print("🔧 Generating new keys...")
+    success = generate_keys_command(rotate_args)
+    
+    if success:
+        print(f"\n✅ Key rotation completed successfully!")
+        print(f"📦 Previous keys backed up to: {backup_dir}")
+    else:
+        print("❌ Key rotation failed!")
+    
+    return success
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Generate encryption keys and certificates for NGINX Security Monitor",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s --all                          # Generate all key types
+  %(prog)s --encryption --api             # Generate specific key types
+  %(prog)s --ssl --domain example.com     # Generate SSL cert for domain
+  %(prog)s --rotate                       # Rotate all existing keys
+  %(prog)s --list                         # List existing keys
+        """
+    )
+    
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+    
+    # Generate command (default)
+    generate_parser = subparsers.add_parser('generate', help='Generate new keys')
+    generate_parser.add_argument('--all', action='store_true',
+                               help='Generate all key types')
+    generate_parser.add_argument('--encryption', action='store_true',
+                               help='Generate encryption key')
+    generate_parser.add_argument('--api', action='store_true',
+                               help='Generate API key')
+    generate_parser.add_argument('--session', action='store_true',
+                               help='Generate session secret')
+    generate_parser.add_argument('--jwt', action='store_true',
+                               help='Generate JWT secret')
+    generate_parser.add_argument('--ssl', action='store_true',
+                               help='Generate SSL certificate')
+    generate_parser.add_argument('--ssh', action='store_true',
+                               help='Generate SSH key pair')
+    generate_parser.add_argument('--domain', default='localhost',
+                               help='Domain for SSL certificate (default: localhost)')
+    generate_parser.add_argument('--days', type=int, default=365,
+                               help='Certificate validity in days (default: 365)')
+    generate_parser.add_argument('--ssh-name', default='nginx-monitor',
+                               help='Name for SSH key pair (default: nginx-monitor)')
+    generate_parser.add_argument('--show-env', action='store_true',
+                               help='Show environment file usage instructions')
+    
+    # List command
+    list_parser = subparsers.add_parser('list', help='List existing keys')
+    
+    # Rotate command
+    rotate_parser = subparsers.add_parser('rotate', help='Rotate (regenerate) all keys')
+    rotate_parser.add_argument('--domain', default='localhost',
+                             help='Domain for SSL certificate (default: localhost)')
+    rotate_parser.add_argument('--days', type=int, default=365,
+                             help='Certificate validity in days (default: 365)')
+    rotate_parser.add_argument('--ssh-name', default='nginx-monitor',
+                             help='Name for SSH key pair (default: nginx-monitor)')
+    rotate_parser.add_argument('--show-env', action='store_true',
+                             help='Show environment file usage instructions')
+    
+    # For backward compatibility, also accept flags directly
+    parser.add_argument('--all', action='store_true',
+                       help='Generate all key types')
+    parser.add_argument('--encryption', action='store_true',
+                       help='Generate encryption key')
+    parser.add_argument('--api', action='store_true',
+                       help='Generate API key')
+    parser.add_argument('--session', action='store_true',
+                       help='Generate session secret')
+    parser.add_argument('--jwt', action='store_true',
+                       help='Generate JWT secret')
+    parser.add_argument('--ssl', action='store_true',
+                       help='Generate SSL certificate')
+    parser.add_argument('--ssh', action='store_true',
+                       help='Generate SSH key pair')
+    parser.add_argument('--domain', default='localhost',
+                       help='Domain for SSL certificate (default: localhost)')
+    parser.add_argument('--days', type=int, default=365,
+                       help='Certificate validity in days (default: 365)')
+    parser.add_argument('--ssh-name', default='nginx-monitor',
+                       help='Name for SSH key pair (default: nginx-monitor)')
+    parser.add_argument('--show-env', action='store_true',
+                       help='Show environment file usage instructions')
+    parser.add_argument('--list', action='store_true',
+                       help='List existing keys')
+    parser.add_argument('--rotate', action='store_true',
+                       help='Rotate (regenerate) all existing keys')
+    
+    args = parser.parse_args()
+    
+    try:
+        # Handle subcommands
+        if args.command == 'list' or args.list:
+            return list_keys_command(args)
+        elif args.command == 'rotate' or args.rotate:
+            return rotate_keys_command(args)
+        elif args.command == 'generate' or any([args.all, args.encryption, args.api, 
+                                               args.session, args.jwt, args.ssl, args.ssh]):
+            return generate_keys_command(args)
+        else:
+            # No specific command or flags, show help
+            parser.print_help()
+            return True
+            
+    except KeyboardInterrupt:
+        print("\n❌ Operation cancelled by user")
+        return False
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        return False
+
+if __name__ == "__main__":
+    success = main()
+    sys.exit(0 if success else 1)

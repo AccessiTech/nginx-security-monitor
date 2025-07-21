@@ -1,0 +1,20 @@
+{
+  "generation_time": "2025-07-20T15:44:35.688986",
+  "documentation_metrics": {
+    "total_files": 0,
+    "word_count": 0,
+    "code_examples": 0,
+    "broken_links": 0,
+    "outdated_files": 0,
+    "missing_descriptions": 0,
+    "test_coverage": 0.0
+  },
+  "file_counts": {
+    ".md": 73,
+    ".yaml": 1,
+    ".json": 1,
+    ".svg": 1,
+    ".html": 1
+  },
+  "quality_score": 48.701298701298704
+}

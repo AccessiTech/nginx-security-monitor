@@ -1,0 +1,571 @@
+#!/usr/bin/env python3
+"""
+NGINX Security Monitor - Data Export Tool
+
+Export logs, alerts, and monitoring data to various formats for
+compliance reporting, analysis, and integration with external systems.
+"""
+
+import argparse
+import os
+import sys
+import json
+import csv
+import xml.etree.ElementTree as ET
+from pathlib import Path
+from datetime import datetime, timedelta
+import gzip
+import sqlite3
+import tempfile
+import subprocess
+
+def setup_paths():
+    """Setup and validate required paths."""
+    script_dir = Path(__file__).parent
+    project_root = script_dir.parent
+    config_dir = project_root / "config"
+    
+    return {
+        'script_dir': script_dir,
+        'project_root': project_root,
+        'config_dir': config_dir,
+        'logs_dir': project_root / "logs",
+        'exports_dir': project_root / "exports"
+    }
+
+class DataExporter:
+    def __init__(self, paths):
+        self.paths = paths
+        self.exports_dir = paths['exports_dir']
+        self.exports_dir.mkdir(exist_ok=True)
+    
+    def find_log_files(self, days_back=30):
+        """Find available log files within the specified date range."""
+        log_files = []
+        cutoff_date = datetime.now() - timedelta(days=days_back)
+        
+        # Check project logs directory
+        logs_dir = self.paths['logs_dir']
+        if logs_dir.exists():
+            for pattern in ['*.log', '*.log.*', 'access.log*', 'error.log*']:
+                for log_file in logs_dir.glob(f"**/{pattern}"):
+                    if log_file.is_file():
+                        file_time = datetime.fromtimestamp(log_file.stat().st_mtime)
+                        if file_time >= cutoff_date:
+                            log_files.append(log_file)
+        
+        # Check common NGINX log locations
+        common_locations = [
+            Path('/var/log/nginx'),
+            Path('/usr/local/var/log/nginx'),
+            Path('/var/log/apache2'),
+            Path('/var/log/httpd')
+        ]
+        
+        for location in common_locations:
+            if location.exists():
+                for pattern in ['access.log*', 'error.log*', '*.log']:
+                    for log_file in location.glob(pattern):
+                        if log_file.is_file():
+                            try:
+                                file_time = datetime.fromtimestamp(log_file.stat().st_mtime)
+                                if file_time >= cutoff_date:
+                                    log_files.append(log_file)
+                            except:
+                                continue
+        
+        return sorted(set(log_files))
+    
+    def parse_nginx_log_line(self, line):
+        """Parse an NGINX log line into structured data."""
+        import re
+        
+        # Common NGINX log format pattern
+        # IP - - [timestamp] "method path protocol" status size "referer" "user-agent"
+        pattern = r'^(\S+) \S+ \S+ \[([^\]]+)\] "(\S+) (\S+) (\S+)" (\d+) (\d+|-) "([^"]*)" "([^"]*)"'
+        
+        match = re.match(pattern, line)
+        if match:
+            return {
+                'ip': match.group(1),
+                'timestamp': match.group(2),
+                'method': match.group(3),
+                'path': match.group(4),
+                'protocol': match.group(5),
+                'status': int(match.group(6)),
+                'size': int(match.group(7)) if match.group(7) != '-' else 0,
+                'referer': match.group(8),
+                'user_agent': match.group(9),
+                'raw_line': line
+            }
+        else:
+            # Fallback for non-standard formats
+            return {
+                'raw_line': line,
+                'timestamp': datetime.now().isoformat(),
+                'parsed': False
+            }
+    
+    def analyze_security_events(self, log_entries):
+        """Analyze log entries for security events."""
+        import re
+        
+        # Load patterns
+        patterns_file = self.paths['config_dir'] / "patterns.json"
+        if patterns_file.exists():
+            try:
+                with open(patterns_file, 'r') as f:
+                    data = json.load(f)
+                    patterns = data.get('patterns', {})
+            except:
+                patterns = {}
+        else:
+            patterns = {
+                'sql_injection': r'(?i)(union|select|insert|update|delete|drop|create|alter)',
+                'xss': r'(?i)(<script|javascript:|onload=|onerror=)',
+                'directory_traversal': r'(\.\.\/|\.\.\\)',
+                'admin_access': r'(?i)/(admin|administrator|wp-admin)',
+                'brute_force': r'40[13].*(?i)(login|password|auth)',
+                'scanner': r'(?i)(nikto|nmap|sqlmap|gobuster|dirbuster)'
+            }
+        
+        security_events = []
+        
+        for entry in log_entries:
+            threats = []
+            for pattern_name, pattern in patterns.items():
+                try:
+                    if re.search(pattern, entry.get('raw_line', '')):
+                        threats.append(pattern_name)
+                except re.error:
+                    continue
+            
+            if threats:
+                security_event = entry.copy()
+                security_event['threats'] = threats
+                security_event['severity'] = self.calculate_severity(threats)
+                security_events.append(security_event)
+        
+        return security_events
+    
+    def calculate_severity(self, threats):
+        """Calculate severity score based on threat types."""
+        severity_scores = {
+            'sql_injection': 9,
+            'xss': 7,
+            'directory_traversal': 8,
+            'admin_access': 6,
+            'brute_force': 5,
+            'scanner': 4
+        }
+        
+        max_score = max([severity_scores.get(threat, 3) for threat in threats], default=1)
+        
+        if max_score >= 8:
+            return 'critical'
+        elif max_score >= 6:
+            return 'high'
+        elif max_score >= 4:
+            return 'medium'
+        else:
+            return 'low'
+    
+    def export_to_json(self, data, filename):
+        """Export data to JSON format."""
+        output_file = self.exports_dir / filename
+        
+        with open(output_file, 'w') as f:
+            json.dump(data, f, indent=2, default=str)
+        
+        return output_file
+    
+    def export_to_csv(self, data, filename):
+        """Export data to CSV format."""
+        output_file = self.exports_dir / filename
+        
+        if not data:
+            return output_file
+        
+        # Get all possible field names
+        all_fields = set()
+        for item in data:
+            all_fields.update(item.keys())
+        
+        # Handle nested fields
+        flattened_data = []
+        for item in data:
+            flat_item = {}
+            for key, value in item.items():
+                if isinstance(value, (list, dict)):
+                    flat_item[key] = json.dumps(value, default=str)
+                else:
+                    flat_item[key] = value
+            flattened_data.append(flat_item)
+        
+        with open(output_file, 'w', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=sorted(all_fields))
+            writer.writeheader()
+            writer.writerows(flattened_data)
+        
+        return output_file
+    
+    def export_to_xml(self, data, filename, root_name="security_monitor_export"):
+        """Export data to XML format."""
+        output_file = self.exports_dir / filename
+        
+        root = ET.Element(root_name)
+        root.set('timestamp', datetime.now().isoformat())
+        root.set('count', str(len(data)))
+        
+        for i, item in enumerate(data):
+            entry = ET.SubElement(root, 'entry')
+            entry.set('id', str(i))
+            
+            for key, value in item.items():
+                elem = ET.SubElement(entry, key)
+                if isinstance(value, (list, dict)):
+                    elem.text = json.dumps(value, default=str)
+                else:
+                    elem.text = str(value)
+        
+        tree = ET.ElementTree(root)
+        tree.write(output_file, encoding='utf-8', xml_declaration=True)
+        
+        return output_file
+    
+    def export_to_syslog(self, data, filename):
+        """Export data in syslog format."""
+        output_file = self.exports_dir / filename
+        
+        with open(output_file, 'w') as f:
+            for item in data:
+                # RFC 3164 syslog format
+                timestamp = item.get('timestamp', datetime.now().isoformat())
+                severity = item.get('severity', 'info')
+                ip = item.get('ip', 'unknown')
+                threats = item.get('threats', [])
+                
+                priority = 16  # local0.info
+                if severity == 'critical':
+                    priority = 18  # local0.crit
+                elif severity == 'high':
+                    priority = 19  # local0.err
+                elif severity == 'medium':
+                    priority = 20  # local0.warning
+                
+                message = f"nginx_security_monitor: IP={ip} threats={','.join(threats)} severity={severity}"
+                syslog_line = f"<{priority}>{timestamp} localhost {message}\n"
+                f.write(syslog_line)
+        
+        return output_file
+    
+    def export_to_sqlite(self, data, filename):
+        """Export data to SQLite database."""
+        output_file = self.exports_dir / filename
+        
+        conn = sqlite3.connect(output_file)
+        cursor = conn.cursor()
+        
+        # Create tables
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS security_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT,
+                ip TEXT,
+                method TEXT,
+                path TEXT,
+                status INTEGER,
+                size INTEGER,
+                threats TEXT,
+                severity TEXT,
+                raw_line TEXT
+            )
+        ''')
+        
+        # Insert data
+        for item in data:
+            cursor.execute('''
+                INSERT INTO security_events 
+                (timestamp, ip, method, path, status, size, threats, severity, raw_line)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                item.get('timestamp'),
+                item.get('ip'),
+                item.get('method'),
+                item.get('path'),
+                item.get('status'),
+                item.get('size'),
+                json.dumps(item.get('threats', [])),
+                item.get('severity'),
+                item.get('raw_line')
+            ))
+        
+        conn.commit()
+        conn.close()
+        
+        return output_file
+    
+    def generate_compliance_report(self, security_events, report_type='pci_dss'):
+        """Generate compliance reports."""
+        report = {
+            'report_type': report_type,
+            'generated_at': datetime.now().isoformat(),
+            'summary': {},
+            'details': security_events
+        }
+        
+        # Calculate summary statistics
+        total_events = len(security_events)
+        severity_counts = {}
+        threat_counts = {}
+        
+        for event in security_events:
+            severity = event.get('severity', 'unknown')
+            severity_counts[severity] = severity_counts.get(severity, 0) + 1
+            
+            for threat in event.get('threats', []):
+                threat_counts[threat] = threat_counts.get(threat, 0) + 1
+        
+        report['summary'] = {
+            'total_events': total_events,
+            'severity_breakdown': severity_counts,
+            'threat_breakdown': threat_counts,
+            'high_risk_events': sum(severity_counts.get(s, 0) for s in ['critical', 'high']),
+            'reporting_period': {
+                'start': min([e.get('timestamp', '') for e in security_events], default=''),
+                'end': max([e.get('timestamp', '') for e in security_events], default='')
+            }
+        }
+        
+        if report_type == 'pci_dss':
+            report['compliance_notes'] = {
+                'requirement_10_2_1': f"Failed login attempts: {threat_counts.get('brute_force', 0)}",
+                'requirement_10_2_4': f"Invalid access attempts: {threat_counts.get('admin_access', 0)}",
+                'requirement_10_2_5': f"System security events: {total_events}",
+                'recommendation': "Review high-severity events and implement additional controls if needed"
+            }
+        
+        return report
+
+def export_logs_command(args):
+    """Export log data."""
+    paths = setup_paths()
+    exporter = DataExporter(paths)
+    
+    print(f"📤 Exporting log data...")
+    print(f"📅 Date range: Last {args.days} days")
+    
+    # Find log files
+    log_files = exporter.find_log_files(args.days)
+    
+    if not log_files:
+        print("❌ No log files found in the specified date range")
+        return False
+    
+    print(f"📁 Found {len(log_files)} log files")
+    
+    # Process log files
+    all_entries = []
+    security_events = []
+    
+    for log_file in log_files:
+        print(f"  📄 Processing: {log_file.name}")
+        
+        try:
+            # Handle compressed files
+            if log_file.suffix == '.gz':
+                with gzip.open(log_file, 'rt', encoding='utf-8', errors='ignore') as f:
+                    lines = f.readlines()
+            else:
+                with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
+                    lines = f.readlines()
+            
+            for line in lines:
+                line = line.strip()
+                if line:
+                    entry = exporter.parse_nginx_log_line(line)
+                    all_entries.append(entry)
+            
+        except Exception as e:
+            print(f"    ⚠️  Error processing {log_file}: {e}")
+            continue
+    
+    print(f"✅ Processed {len(all_entries):,} log entries")
+    
+    # Analyze security events
+    if args.security_only or args.all:
+        print("🔍 Analyzing security events...")
+        security_events = exporter.analyze_security_events(all_entries)
+        print(f"🚨 Found {len(security_events):,} security events")
+        
+        # Use security events for export if we're only exporting security data
+        if args.security_only:
+            export_data = security_events
+        else:
+            export_data = all_entries
+    else:
+        export_data = all_entries
+    
+    if not export_data:
+        print("❌ No data to export")
+        return False
+    
+    # Generate exports
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    exports = []
+    
+    if args.format in ['json', 'all']:
+        filename = f"nginx_logs_{timestamp}.json"
+        output_file = exporter.export_to_json(export_data, filename)
+        exports.append(output_file)
+        print(f"📄 JSON export: {output_file}")
+    
+    if args.format in ['csv', 'all']:
+        filename = f"nginx_logs_{timestamp}.csv"
+        output_file = exporter.export_to_csv(export_data, filename)
+        exports.append(output_file)
+        print(f"📊 CSV export: {output_file}")
+    
+    if args.format in ['xml', 'all']:
+        filename = f"nginx_logs_{timestamp}.xml"
+        output_file = exporter.export_to_xml(export_data, filename)
+        exports.append(output_file)
+        print(f"📋 XML export: {output_file}")
+    
+    if args.format in ['syslog', 'all']:
+        filename = f"nginx_logs_{timestamp}.syslog"
+        output_file = exporter.export_to_syslog(security_events or export_data, filename)
+        exports.append(output_file)
+        print(f"📡 Syslog export: {output_file}")
+    
+    if args.format in ['sqlite', 'all']:
+        filename = f"nginx_logs_{timestamp}.db"
+        output_file = exporter.export_to_sqlite(export_data, filename)
+        exports.append(output_file)
+        print(f"🗃️  SQLite export: {output_file}")
+    
+    # Generate compliance report
+    if args.compliance and security_events:
+        print(f"📋 Generating {args.compliance} compliance report...")
+        report = exporter.generate_compliance_report(security_events, args.compliance)
+        
+        report_filename = f"compliance_report_{args.compliance}_{timestamp}.json"
+        report_file = exporter.export_to_json(report, report_filename)
+        exports.append(report_file)
+        print(f"📑 Compliance report: {report_file}")
+    
+    # Compress exports if requested
+    if args.compress and exports:
+        print("🗜️  Compressing exports...")
+        archive_name = f"nginx_export_{timestamp}.tar.gz"
+        archive_path = exporter.exports_dir / archive_name
+        
+        try:
+            cmd = ['tar', '-czf', str(archive_path)] + [str(f) for f in exports]
+            subprocess.run(cmd, check=True, cwd=exporter.exports_dir)
+            
+            # Remove individual files
+            for export_file in exports:
+                export_file.unlink()
+            
+            print(f"📦 Compressed archive: {archive_path}")
+        except Exception as e:
+            print(f"⚠️  Compression failed: {e}")
+    
+    print(f"\n✅ Export completed!")
+    print(f"📁 Exports saved to: {exporter.exports_dir}")
+    
+    return True
+
+def list_exports_command(args):
+    """List existing exports."""
+    paths = setup_paths()
+    exports_dir = paths['exports_dir']
+    
+    if not exports_dir.exists():
+        print("📁 No exports directory found")
+        return True
+    
+    exports = list(exports_dir.glob('*'))
+    
+    if not exports:
+        print("📁 No exports found")
+        return True
+    
+    print(f"📋 Found {len(exports)} exports:")
+    
+    for export_file in sorted(exports, key=lambda x: x.stat().st_mtime, reverse=True):
+        size = export_file.stat().st_size
+        size_human = f"{size/1024/1024:.1f}MB" if size > 1024*1024 else f"{size/1024:.1f}KB"
+        mtime = datetime.fromtimestamp(export_file.stat().st_mtime)
+        
+        print(f"  📄 {export_file.name:40} {size_human:>8} {mtime.strftime('%Y-%m-%d %H:%M')}")
+    
+    return True
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Export logs and monitoring data from NGINX Security Monitor",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s logs --format json --days 7           # Export last 7 days as JSON
+  %(prog)s logs --format all --security-only     # Export security events in all formats
+  %(prog)s logs --compliance pci_dss --compress  # PCI DSS compliance report
+  %(prog)s list                                  # List existing exports
+        """
+    )
+    
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+    
+    # Logs export command
+    logs_parser = subparsers.add_parser('logs', help='Export log data')
+    logs_parser.add_argument('--format', choices=['json', 'csv', 'xml', 'syslog', 'sqlite', 'all'],
+                            default='json', help='Export format (default: json)')
+    logs_parser.add_argument('--days', type=int, default=30,
+                            help='Number of days to include (default: 30)')
+    logs_parser.add_argument('--security-only', action='store_true',
+                            help='Export only security events')
+    logs_parser.add_argument('--compliance', choices=['pci_dss', 'iso27001', 'nist'],
+                            help='Generate compliance report')
+    logs_parser.add_argument('--compress', action='store_true',
+                            help='Compress exports into archive')
+    
+    # List command
+    list_parser = subparsers.add_parser('list', help='List existing exports')
+    
+    # For backward compatibility, also accept some flags directly
+    parser.add_argument('--format', choices=['json', 'csv', 'xml', 'syslog', 'sqlite', 'all'],
+                       default='json', help='Export format (default: json)')
+    parser.add_argument('--days', type=int, default=30,
+                       help='Number of days to include (default: 30)')
+    parser.add_argument('--security-only', action='store_true',
+                       help='Export only security events')
+    parser.add_argument('--all', action='store_true',
+                       help='Export all data types')
+    parser.add_argument('--list', action='store_true',
+                       help='List existing exports')
+    
+    args = parser.parse_args()
+    
+    try:
+        # Handle subcommands
+        if args.command == 'logs' or (not args.command and not args.list):
+            return export_logs_command(args)
+        elif args.command == 'list' or args.list:
+            return list_exports_command(args)
+        else:
+            # No specific command, show help
+            parser.print_help()
+            return True
+            
+    except KeyboardInterrupt:
+        print("\n❌ Operation cancelled by user")
+        return False
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        return False
+
+if __name__ == "__main__":
+    success = main()
+    sys.exit(0 if success else 1)

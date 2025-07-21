@@ -1,0 +1,538 @@
+#!/usr/bin/env python3
+"""
+NGINX Security Monitor - Benchmark Tool
+
+Performance benchmarking suite for testing system performance,
+load testing capabilities, and optimization recommendations.
+"""
+
+import argparse
+import os
+import sys
+import json
+import subprocess
+import time
+import threading
+import statistics
+from pathlib import Path
+from datetime import datetime, timedelta
+import tempfile
+import psutil
+import requests
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+def setup_paths():
+    """Setup and validate required paths."""
+    script_dir = Path(__file__).parent
+    project_root = script_dir.parent
+    config_dir = project_root / "config"
+    
+    return {
+        'script_dir': script_dir,
+        'project_root': project_root,
+        'config_dir': config_dir,
+        'logs_dir': project_root / "logs",
+        'results_dir': project_root / "benchmark_results"
+    }
+
+def get_system_info():
+    """Collect system information for benchmarking context."""
+    return {
+        'cpu_count': psutil.cpu_count(),
+        'cpu_freq': psutil.cpu_freq()._asdict() if psutil.cpu_freq() else None,
+        'memory_total': psutil.virtual_memory().total,
+        'memory_available': psutil.virtual_memory().available,
+        'disk_usage': psutil.disk_usage('/'),
+        'boot_time': psutil.boot_time(),
+        'python_version': sys.version,
+        'platform': sys.platform
+    }
+
+def monitor_resources(duration, interval=1):
+    """Monitor system resources during benchmark."""
+    resources = {
+        'cpu_percent': [],
+        'memory_percent': [],
+        'disk_io': [],
+        'timestamps': []
+    }
+    
+    start_time = time.time()
+    while time.time() - start_time < duration:
+        timestamp = time.time()
+        cpu = psutil.cpu_percent(interval=0.1)
+        memory = psutil.virtual_memory().percent
+        
+        try:
+            disk_io = psutil.disk_io_counters()
+            disk_usage = disk_io.read_bytes + disk_io.write_bytes if disk_io else 0
+        except:
+            disk_usage = 0
+        
+        resources['cpu_percent'].append(cpu)
+        resources['memory_percent'].append(memory)
+        resources['disk_io'].append(disk_usage)
+        resources['timestamps'].append(timestamp)
+        
+        time.sleep(interval)
+    
+    return resources
+
+def benchmark_pattern_matching(paths, test_duration=60):
+    """Benchmark pattern matching performance."""
+    print("🔍 Benchmarking pattern matching performance...")
+    
+    # Generate test log entries
+    test_logs = [
+        '192.168.1.100 - - [21/Jul/2025:10:30:45 +0000] "GET /admin HTTP/1.1" 403 564',
+        '10.0.0.50 - - [21/Jul/2025:10:30:46 +0000] "POST /login HTTP/1.1" 401 128',
+        '203.0.113.45 - - [21/Jul/2025:10:30:47 +0000] "GET /../../../etc/passwd HTTP/1.1" 404 208',
+        '198.51.100.33 - - [21/Jul/2025:10:30:48 +0000] "GET /wp-admin/ HTTP/1.1" 200 1024',
+        '192.0.2.77 - - [21/Jul/2025:10:30:49 +0000] "POST /xmlrpc.php HTTP/1.1" 200 674'
+    ] * 1000  # Multiply for more test data
+    
+    patterns_file = paths['config_dir'] / "patterns.json"
+    if not patterns_file.exists():
+        print("  ⚠️  No patterns.json file found, using basic patterns")
+        patterns = {
+            "sql_injection": "(?i)(union|select|insert|update|delete|drop|create|alter)",
+            "xss": "(?i)(<script|javascript:|onload=|onerror=)",
+            "directory_traversal": "(\\.\\./|\\.\\.\\\\)",
+            "admin_access": "(?i)/admin|/administrator|/wp-admin"
+        }
+    else:
+        try:
+            with open(patterns_file, 'r') as f:
+                patterns_data = json.load(f)
+                patterns = patterns_data.get('patterns', {})
+        except:
+            patterns = {}
+    
+    if not patterns:
+        print("  ❌ No patterns to test")
+        return {}
+    
+    # Start resource monitoring
+    monitor_thread = threading.Thread(
+        target=lambda: monitor_resources(test_duration),
+        daemon=True
+    )
+    monitor_thread.start()
+    
+    # Benchmark pattern matching
+    start_time = time.time()
+    matches_found = 0
+    lines_processed = 0
+    
+    import re
+    compiled_patterns = {name: re.compile(pattern) for name, pattern in patterns.items()}
+    
+    while time.time() - start_time < test_duration:
+        for log_line in test_logs:
+            for pattern_name, compiled_pattern in compiled_patterns.items():
+                if compiled_pattern.search(log_line):
+                    matches_found += 1
+            lines_processed += 1
+        
+        if time.time() - start_time >= test_duration:
+            break
+    
+    end_time = time.time()
+    duration = end_time - start_time
+    
+    results = {
+        'duration': duration,
+        'lines_processed': lines_processed,
+        'matches_found': matches_found,
+        'lines_per_second': lines_processed / duration,
+        'patterns_tested': len(patterns),
+        'pattern_names': list(patterns.keys())
+    }
+    
+    print(f"  ✅ Processed {lines_processed:,} log lines in {duration:.2f}s")
+    print(f"  📊 Performance: {results['lines_per_second']:.0f} lines/second")
+    print(f"  🎯 Found {matches_found:,} pattern matches")
+    
+    return results
+
+def benchmark_file_processing(paths, test_duration=30):
+    """Benchmark file I/O performance."""
+    print("📁 Benchmarking file I/O performance...")
+    
+    test_dir = tempfile.mkdtemp(prefix="nginx_benchmark_")
+    
+    try:
+        # Test file creation
+        start_time = time.time()
+        files_created = 0
+        
+        while time.time() - start_time < test_duration / 3:
+            test_file = Path(test_dir) / f"test_{files_created}.log"
+            with open(test_file, 'w') as f:
+                f.write("Test log entry " * 100 + "\n")
+            files_created += 1
+        
+        creation_duration = time.time() - start_time
+        
+        # Test file reading
+        start_time = time.time()
+        files_read = 0
+        bytes_read = 0
+        
+        while time.time() - start_time < test_duration / 3:
+            for i in range(min(files_created, 100)):  # Read up to 100 files
+                test_file = Path(test_dir) / f"test_{i}.log"
+                if test_file.exists():
+                    content = test_file.read_text()
+                    bytes_read += len(content)
+                    files_read += 1
+        
+        read_duration = time.time() - start_time
+        
+        # Test file deletion
+        start_time = time.time()
+        files_deleted = 0
+        
+        for i in range(files_created):
+            test_file = Path(test_dir) / f"test_{i}.log"
+            if test_file.exists():
+                test_file.unlink()
+                files_deleted += 1
+        
+        delete_duration = time.time() - start_time
+        
+        results = {
+            'files_created': files_created,
+            'creation_rate': files_created / creation_duration,
+            'files_read': files_read,
+            'bytes_read': bytes_read,
+            'read_rate': bytes_read / read_duration if read_duration > 0 else 0,
+            'files_deleted': files_deleted,
+            'deletion_rate': files_deleted / delete_duration if delete_duration > 0 else 0
+        }
+        
+        print(f"  ✅ Created {files_created} files ({results['creation_rate']:.0f} files/sec)")
+        print(f"  📖 Read {bytes_read:,} bytes ({results['read_rate']/1024:.0f} KB/sec)")
+        print(f"  🗑️  Deleted {files_deleted} files ({results['deletion_rate']:.0f} files/sec)")
+        
+        return results
+        
+    finally:
+        # Cleanup
+        import shutil
+        shutil.rmtree(test_dir, ignore_errors=True)
+
+def benchmark_network_requests(target_url="http://localhost", num_requests=100, concurrency=10):
+    """Benchmark network request performance."""
+    print(f"🌐 Benchmarking network requests to {target_url}...")
+    
+    results = {
+        'total_requests': num_requests,
+        'concurrency': concurrency,
+        'response_times': [],
+        'status_codes': {},
+        'errors': 0
+    }
+    
+    def make_request():
+        try:
+            start_time = time.time()
+            response = requests.get(target_url, timeout=10)
+            end_time = time.time()
+            
+            response_time = (end_time - start_time) * 1000  # Convert to milliseconds
+            status_code = response.status_code
+            
+            return {
+                'response_time': response_time,
+                'status_code': status_code,
+                'success': True
+            }
+        except Exception as e:
+            return {
+                'response_time': None,
+                'status_code': None,
+                'success': False,
+                'error': str(e)
+            }
+    
+    # Execute requests with concurrency
+    with ThreadPoolExecutor(max_workers=concurrency) as executor:
+        futures = [executor.submit(make_request) for _ in range(num_requests)]
+        
+        for future in as_completed(futures):
+            result = future.result()
+            
+            if result['success']:
+                results['response_times'].append(result['response_time'])
+                status = result['status_code']
+                results['status_codes'][status] = results['status_codes'].get(status, 0) + 1
+            else:
+                results['errors'] += 1
+    
+    if results['response_times']:
+        results['avg_response_time'] = statistics.mean(results['response_times'])
+        results['min_response_time'] = min(results['response_times'])
+        results['max_response_time'] = max(results['response_times'])
+        results['median_response_time'] = statistics.median(results['response_times'])
+        
+        print(f"  ✅ Completed {len(results['response_times'])}/{num_requests} requests")
+        print(f"  📊 Avg response time: {results['avg_response_time']:.1f}ms")
+        print(f"  📊 Min/Max: {results['min_response_time']:.1f}ms / {results['max_response_time']:.1f}ms")
+        print(f"  ❌ Errors: {results['errors']}")
+    else:
+        print(f"  ❌ All {num_requests} requests failed")
+    
+    return results
+
+def generate_load_test_data(paths, num_entries=10000):
+    """Generate test data for load testing."""
+    print(f"📝 Generating {num_entries:,} test log entries...")
+    
+    import random
+    import ipaddress
+    
+    # Sample attack patterns
+    attack_patterns = [
+        "GET /../../../etc/passwd HTTP/1.1",
+        "POST /login.php HTTP/1.1",
+        "GET /admin/config.php HTTP/1.1", 
+        "GET /wp-admin/admin-ajax.php HTTP/1.1",
+        "POST /xmlrpc.php HTTP/1.1",
+        "GET /phpmyadmin/ HTTP/1.1",
+        "GET /?id=1' OR '1'='1 HTTP/1.1",
+        "GET /<script>alert('xss')</script> HTTP/1.1"
+    ]
+    
+    normal_patterns = [
+        "GET / HTTP/1.1",
+        "GET /index.html HTTP/1.1",
+        "GET /about.html HTTP/1.1",
+        "POST /contact HTTP/1.1",
+        "GET /assets/style.css HTTP/1.1",
+        "GET /images/logo.png HTTP/1.1"
+    ]
+    
+    status_codes = [200, 200, 200, 404, 403, 401, 500]  # Weighted towards 200
+    
+    test_data = []
+    
+    for i in range(num_entries):
+        # Generate random IP
+        ip = str(ipaddress.IPv4Address(random.randint(0, 2**32 - 1)))
+        
+        # Choose pattern (10% attacks, 90% normal)
+        if random.random() < 0.1:
+            request = random.choice(attack_patterns)
+        else:
+            request = random.choice(normal_patterns)
+        
+        status = random.choice(status_codes)
+        size = random.randint(100, 5000)
+        
+        # Generate timestamp
+        timestamp = datetime.now().strftime("%d/%b/%Y:%H:%M:%S +0000")
+        
+        log_entry = f'{ip} - - [{timestamp}] "{request}" {status} {size}'
+        test_data.append(log_entry)
+    
+    # Save to file
+    test_file = paths['project_root'] / "test_load_data.log"
+    with open(test_file, 'w') as f:
+        f.write('\n'.join(test_data))
+    
+    print(f"  ✅ Generated test data: {test_file}")
+    return test_file
+
+def save_benchmark_results(paths, results):
+    """Save benchmark results to file."""
+    results_dir = paths['results_dir']
+    results_dir.mkdir(exist_ok=True)
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    results_file = results_dir / f"benchmark_results_{timestamp}.json"
+    
+    # Add metadata
+    full_results = {
+        'timestamp': datetime.now().isoformat(),
+        'system_info': get_system_info(),
+        'benchmark_results': results
+    }
+    
+    with open(results_file, 'w') as f:
+        json.dump(full_results, f, indent=2, default=str)
+    
+    print(f"📊 Results saved: {results_file}")
+    return results_file
+
+def benchmark_command(args):
+    """Run benchmark tests."""
+    paths = setup_paths()
+    
+    print("🏃‍♂️ Starting NGINX Security Monitor performance benchmark...")
+    print(f"📅 Test started: {datetime.now().isoformat()}")
+    
+    results = {}
+    
+    # System info
+    system_info = get_system_info()
+    print(f"💻 System: {system_info['cpu_count']} CPUs, {system_info['memory_total']//1024//1024//1024}GB RAM")
+    
+    # Pattern matching benchmark
+    if args.patterns or args.all:
+        results['pattern_matching'] = benchmark_pattern_matching(paths, args.duration)
+    
+    # File I/O benchmark
+    if args.file_io or args.all:
+        results['file_io'] = benchmark_file_processing(paths, args.duration)
+    
+    # Network benchmark
+    if args.network or args.all:
+        if args.url:
+            results['network'] = benchmark_network_requests(args.url, args.requests, args.concurrency)
+        else:
+            print("⚠️  Skipping network benchmark (no --url specified)")
+    
+    # Load test data generation
+    if args.generate_data:
+        test_file = generate_load_test_data(paths, args.data_size)
+        results['test_data_generated'] = str(test_file)
+    
+    # Save results
+    if results:
+        results_file = save_benchmark_results(paths, results)
+        
+        print(f"\n🎯 Benchmark Summary:")
+        if 'pattern_matching' in results:
+            pm = results['pattern_matching']
+            print(f"  🔍 Pattern Matching: {pm['lines_per_second']:.0f} lines/sec")
+        
+        if 'file_io' in results:
+            fio = results['file_io']
+            print(f"  📁 File I/O: {fio['creation_rate']:.0f} files/sec created")
+        
+        if 'network' in results:
+            net = results['network']
+            if 'avg_response_time' in net:
+                print(f"  🌐 Network: {net['avg_response_time']:.1f}ms avg response")
+        
+        if args.recommendations:
+            provide_optimization_recommendations(results, system_info)
+    
+    else:
+        print("❌ No benchmarks were run. Use --all or specify specific tests.")
+        return False
+    
+    return True
+
+def provide_optimization_recommendations(results, system_info):
+    """Provide optimization recommendations based on benchmark results."""
+    print(f"\n💡 Optimization Recommendations:")
+    
+    # Pattern matching recommendations
+    if 'pattern_matching' in results:
+        pm = results['pattern_matching']
+        lines_per_sec = pm['lines_per_second']
+        
+        if lines_per_sec < 1000:
+            print("  🔍 Pattern Matching:")
+            print("    - Consider compiling patterns once and reusing")
+            print("    - Use more specific patterns to reduce false positives")
+            print("    - Consider parallel processing for large log volumes")
+        elif lines_per_sec > 10000:
+            print("  🔍 Pattern Matching: ✅ Excellent performance")
+    
+    # Memory recommendations
+    memory_gb = system_info['memory_total'] // 1024 // 1024 // 1024
+    if memory_gb < 4:
+        print("  💾 Memory:")
+        print("    - Consider increasing system memory for better performance")
+        print("    - Implement log rotation to manage memory usage")
+    
+    # CPU recommendations
+    cpu_count = system_info['cpu_count']
+    if cpu_count < 4:
+        print("  🖥️  CPU:")
+        print("    - Consider multi-threading for pattern matching")
+        print("    - Use asynchronous processing for I/O operations")
+    
+    # File I/O recommendations
+    if 'file_io' in results:
+        fio = results['file_io']
+        if fio['creation_rate'] < 100:
+            print("  📁 File I/O:")
+            print("    - Consider using faster storage (SSD)")
+            print("    - Implement batched file operations")
+            print("    - Use memory-mapped files for large datasets")
+    
+    # Network recommendations
+    if 'network' in results:
+        net = results['network']
+        if 'avg_response_time' in net and net['avg_response_time'] > 1000:
+            print("  🌐 Network:")
+            print("    - High response times detected")
+            print("    - Consider connection pooling")
+            print("    - Implement request caching where appropriate")
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Performance benchmarking tool for NGINX Security Monitor",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s --all                          # Run all benchmarks
+  %(prog)s --patterns --duration 30      # Pattern matching for 30 seconds
+  %(prog)s --network --url http://localhost --requests 200
+  %(prog)s --file-io --recommendations    # File I/O with optimization tips
+  %(prog)s --generate-data --data-size 50000  # Generate 50k test log entries
+        """
+    )
+    
+    # Test selection
+    parser.add_argument('--all', action='store_true',
+                       help='Run all benchmark tests')
+    parser.add_argument('--patterns', action='store_true',
+                       help='Benchmark pattern matching performance')
+    parser.add_argument('--file-io', action='store_true',
+                       help='Benchmark file I/O performance')
+    parser.add_argument('--network', action='store_true',
+                       help='Benchmark network request performance')
+    
+    # Configuration
+    parser.add_argument('--duration', type=int, default=60,
+                       help='Duration for each benchmark test in seconds (default: 60)')
+    parser.add_argument('--url', type=str,
+                       help='URL for network benchmarking')
+    parser.add_argument('--requests', type=int, default=100,
+                       help='Number of requests for network benchmark (default: 100)')
+    parser.add_argument('--concurrency', type=int, default=10,
+                       help='Concurrent requests for network benchmark (default: 10)')
+    
+    # Data generation
+    parser.add_argument('--generate-data', action='store_true',
+                       help='Generate test log data for load testing')
+    parser.add_argument('--data-size', type=int, default=10000,
+                       help='Number of log entries to generate (default: 10000)')
+    
+    # Output options
+    parser.add_argument('--recommendations', action='store_true',
+                       help='Provide optimization recommendations')
+    
+    args = parser.parse_args()
+    
+    if not any([args.all, args.patterns, args.file_io, args.network, args.generate_data]):
+        parser.print_help()
+        return True
+    
+    try:
+        return benchmark_command(args)
+    except KeyboardInterrupt:
+        print("\n❌ Benchmark cancelled by user")
+        return False
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        return False
+
+if __name__ == "__main__":
+    success = main()
+    sys.exit(0 if success else 1)

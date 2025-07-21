@@ -1,0 +1,260 @@
+# Documentation Generator Configuration
+# Controls automated documentation generation for Nginx Security Monitor
+
+# API Documentation Generation
+api_docs:
+  enabled: true
+  output_dir: 'docs/api'
+  formats: ['markdown', 'html']
+  include_private: false
+  auto_update: true
+  
+  # Code analysis settings
+  extract_type_hints: true
+  include_examples: true
+  generate_diagrams: false
+  
+  # Documentation standards
+  require_docstrings: true
+  min_description_length: 20
+  validate_parameters: true
+
+# README.md Automatic Updates
+readme:
+  auto_update: true
+  include_metrics: true
+  include_badges: true
+  
+  # Badge configuration
+  badges:
+    - type: "python_version"
+      template: "![Python](https://img.shields.io/badge/python-3.8%2B-blue)"
+    - type: "documentation"
+      template: "![Documentation](https://img.shields.io/badge/docs-{doc_files}_files-green)"
+    - type: "test_coverage"
+      template: "![Test Coverage](https://img.shields.io/badge/coverage-{coverage}%25-yellow)"
+    - type: "last_updated"
+      template: "![Last Updated](https://img.shields.io/badge/updated-{date}-lightgrey)"
+    - type: "license"
+      template: "![License](https://img.shields.io/badge/license-MIT-blue)"
+    - type: "build_status"
+      template: "![Build](https://github.com/nginx-security-monitor/nginx-security-monitor/workflows/CI/badge.svg)"
+
+# Link Validation
+links:
+  check_external: true
+  check_internal: true
+  timeout: 10
+  retry_count: 3
+  
+  # Skip certain URLs
+  skip_patterns:
+    - "localhost"
+    - "127.0.0.1"
+    - "example.com"
+    - "placeholder.url"
+  
+  # Auto-fix common issues
+  auto_fix: true
+  fix_patterns:
+    - from: "docs/"
+      to: ""
+    - from: ".md"
+      to: ""
+
+# Documentation Site Generation
+site:
+  generator: 'mkdocs'
+  theme: 'material'
+  auto_deploy: false
+  
+  # MkDocs Material configuration
+  material_config:
+    features:
+      - navigation.tabs
+      - navigation.sections
+      - navigation.expand
+      - navigation.top
+      - search.highlight
+      - search.share
+      - toc.integrate
+      - content.code.annotate
+    
+    palette:
+      - scheme: default
+        primary: blue
+        accent: blue
+        toggle:
+          icon: material/brightness-7
+          name: Switch to dark mode
+      - scheme: slate
+        primary: blue
+        accent: blue
+        toggle:
+          icon: material/brightness-4
+          name: Switch to light mode
+  
+  # Additional plugins
+  plugins:
+    - search
+    - minify
+    - git-revision-date-localized
+    - awesome-pages
+    - macros
+  
+  # Markdown extensions
+  markdown_extensions:
+    - pymdownx.highlight:
+        anchor_linenums: true
+    - pymdownx.inlinehilite
+    - pymdownx.snippets
+    - pymdownx.superfences:
+        custom_fences:
+          - name: mermaid
+            class: mermaid
+            format: "pymdownx.superfences.fence_code_format"
+    - pymdownx.tabbed:
+        alternate_style: true
+    - admonition
+    - pymdownx.details
+    - pymdownx.mark
+    - pymdownx.caret
+    - pymdownx.keys
+    - pymdownx.tilde
+    - codehilite
+    - meta
+    - toc:
+        permalink: true
+
+# Content Freshness Checking
+content:
+  max_age_days: 90
+  check_freshness: true
+  auto_update_dates: true
+  
+  # Files to exclude from freshness checking
+  exclude_patterns:
+    - "LICENSE*"
+    - "CHANGELOG*"
+    - "archive/*"
+    - "legacy/*"
+  
+  # Auto-update patterns
+  date_patterns:
+    - pattern: "Last updated: \\d{4}-\\d{2}-\\d{2}"
+      replacement: "Last updated: {current_date}"
+    - pattern: "Generated on \\d{4}-\\d{2}-\\d{2}"
+      replacement: "Generated on {current_date}"
+
+# Quality Assurance
+quality:
+  # Spell checking
+  spell_check:
+    enabled: true
+    dictionary: "en_US"
+    personal_dict: "docs/.wordlist.txt"
+    skip_code_blocks: true
+  
+  # Style checking with Vale
+  style_check:
+    enabled: true
+    config_file: "docs/.vale.ini"
+    min_score: 8.0
+  
+  # Accessibility
+  accessibility:
+    check_headings: true
+    require_alt_text: true
+    check_color_contrast: false
+    
+  # SEO
+  seo:
+    check_meta_descriptions: true
+    check_title_length: true
+    generate_sitemap: true
+
+# Automation Settings
+automation:
+  # Schedule for automated runs
+  schedule:
+    full_generation: "0 2 * * 0"  # Weekly on Sunday at 2 AM
+    link_validation: "0 6 * * *"  # Daily at 6 AM
+    metrics_update: "0 */6 * * *"  # Every 6 hours
+  
+  # Git integration
+  git:
+    auto_commit: false
+    commit_message: "docs: automated documentation update"
+    create_pull_request: false
+    
+  # Notifications
+  notifications:
+    enabled: false
+    webhook_url: ""
+    email:
+      enabled: false
+      smtp_server: ""
+      recipients: []
+
+# Metrics Collection
+metrics:
+  collect_analytics: true
+  track_page_views: false
+  
+  # Custom metrics
+  custom_metrics:
+    - name: "api_coverage"
+      description: "Percentage of API functions documented"
+      calculation: "documented_functions / total_functions * 100"
+    
+    - name: "example_coverage"
+      description: "Percentage of documentation with code examples"
+      calculation: "docs_with_examples / total_docs * 100"
+    
+    - name: "freshness_score"
+      description: "Documentation freshness score"
+      calculation: "recent_docs / total_docs * 100"
+
+# Advanced Features
+advanced:
+  # Diagram generation
+  diagrams:
+    enabled: false
+    generator: "mermaid"
+    auto_generate: false
+    
+  # Multi-language support
+  i18n:
+    enabled: false
+    default_language: "en"
+    supported_languages: ["en", "es", "fr", "de"]
+    
+  # API documentation from OpenAPI
+  openapi:
+    enabled: false
+    spec_file: "api/openapi.yaml"
+    generate_examples: true
+    
+  # Performance optimization
+  performance:
+    parallel_processing: true
+    cache_results: true
+    cache_duration: 3600  # 1 hour
+    
+    # Large file handling
+    max_file_size_mb: 10
+    skip_large_files: true
+
+# Development Settings
+development:
+  debug: false
+  verbose_logging: false
+  dry_run: false
+  
+  # Testing
+  test_mode: false
+  mock_external_calls: false
+  
+  # Profiling
+  enable_profiling: false
+  profile_output: "docs/performance-profile.json"

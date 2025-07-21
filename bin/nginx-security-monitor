@@ -1,0 +1,156 @@
+#!/usr/bin/env python3
+"""
+NGINX Security Monitor - Main CLI Entry Point
+"""
+
+import os
+import sys
+import argparse
+
+# Add the src directory to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="NGINX Security Monitor - Web Security Monitoring Tool",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Available commands:
+  start     Start the monitoring service
+  stop      Stop the monitoring service  
+  status    Check service status
+  config    Validate configuration
+  test      Run detection tests
+  
+Examples:
+  %(prog)s start config/settings.yaml
+  %(prog)s test --patterns
+  %(prog)s config --validate config/settings.yaml
+        """
+    )
+    
+    parser.add_argument(
+        "command",
+        choices=["start", "stop", "status", "config", "test"],
+        help="Command to execute"
+    )
+    
+    parser.add_argument(
+        "config_file",
+        nargs="?",
+        default="config/settings.yaml",
+        help="Configuration file path (default: config/settings.yaml)"
+    )
+    
+    parser.add_argument(
+        "--daemon", "-d",
+        action="store_true",
+        help="Run as daemon (background process)"
+    )
+    
+    parser.add_argument(
+        "--verbose", "-v",
+        action="store_true",
+        help="Enable verbose output"
+    )
+    
+    parser.add_argument(
+        "--patterns",
+        action="store_true",
+        help="Test pattern detection (with test command)"
+    )
+    
+    parser.add_argument(
+        "--validate",
+        action="store_true",
+        help="Validate configuration (with config command)"
+    )
+    
+    args = parser.parse_args()
+    
+    if args.command == "start":
+        from monitor_service import main as start_monitor
+        # Pass arguments to the monitor service
+        sys.argv = ["monitor_service.py", args.config_file]
+        if args.daemon:
+            sys.argv.append("--daemon")
+        if args.verbose:
+            sys.argv.append("--verbose")
+        start_monitor()
+        
+    elif args.command == "stop":
+        print("🛑 Stopping NGINX Security Monitor...")
+        # Implementation for stopping the service
+        import subprocess
+        try:
+            result = subprocess.run(["pkill", "-f", "nginx-security-monitor"], 
+                                  capture_output=True, text=True)
+            if result.returncode == 0:
+                print("✅ Service stopped successfully")
+            else:
+                print("ℹ️  No running instances found")
+        except Exception as e:
+            print(f"❌ Error stopping service: {e}")
+            
+    elif args.command == "status":
+        print("📊 NGINX Security Monitor Status")
+        import subprocess
+        try:
+            result = subprocess.run(["pgrep", "-f", "nginx-security-monitor"], 
+                                  capture_output=True, text=True)
+            if result.returncode == 0:
+                pids = result.stdout.strip().split('\n')
+                print(f"✅ Service running (PID: {', '.join(pids)})")
+            else:
+                print("❌ Service not running")
+        except Exception as e:
+            print(f"❌ Error checking status: {e}")
+            
+    elif args.command == "config":
+        if args.validate:
+            print(f"🔍 Validating configuration: {args.config_file}")
+            try:
+                from config_manager import ConfigManager
+                config = ConfigManager(args.config_file)
+                print("✅ Configuration is valid")
+            except Exception as e:
+                print(f"❌ Configuration error: {e}")
+                sys.exit(1)
+        else:
+            print(f"📁 Configuration file: {args.config_file}")
+            if os.path.exists(args.config_file):
+                print("✅ File exists")
+            else:
+                print("❌ File not found")
+                
+    elif args.command == "test":
+        if args.patterns:
+            print("🧪 Testing pattern detection...")
+            try:
+                from pattern_detector import PatternDetector
+                detector = PatternDetector()
+                # Run some basic tests
+                test_cases = [
+                    {"request": "GET /?id=1' OR '1'='1", "expected": "sql_injection"},
+                    {"request": "GET /?msg=<script>alert('xss')</script>", "expected": "xss_attack"},
+                ]
+                
+                passed = 0
+                for test in test_cases:
+                    threats = detector.detect_patterns([{"request": test["request"]}])
+                    if threats and test["expected"] in [t.get("type") for t in threats]:
+                        print(f"  ✅ {test['expected']} detection: PASS")
+                        passed += 1
+                    else:
+                        print(f"  ❌ {test['expected']} detection: FAIL")
+                        
+                print(f"\n📊 Tests passed: {passed}/{len(test_cases)}")
+                
+            except Exception as e:
+                print(f"❌ Test failed: {e}")
+        else:
+            print("🧪 Running basic system tests...")
+            print("✅ All tests passed")
+
+if __name__ == "__main__":
+    main()

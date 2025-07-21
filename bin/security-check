@@ -1,0 +1,455 @@
+#!/usr/bin/env python3
+"""
+NGINX Security Monitor - Security Configuration Audit
+Performs comprehensive security checks and compliance validation.
+"""
+
+import os
+import sys
+import argparse
+import stat
+import subprocess
+import yaml
+from pathlib import Path
+
+# Add the src directory to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
+
+def check_file_permissions():
+    """Check file and directory permissions for security compliance."""
+    print("🔒 Checking File Permissions...")
+    
+    issues = []
+    checks = [
+        # (path, expected_max_permissions, description)
+        ('config/', 0o755, 'Configuration directory'),
+        ('config/settings.yaml', 0o600, 'Main configuration file'),
+        ('config/service-settings.yaml', 0o600, 'Service configuration file'),
+        ('keys/', 0o700, 'Keys directory'),
+        ('plugins/', 0o755, 'Plugins directory'),
+        ('.env', 0o600, 'Environment file'),
+    ]
+    
+    for file_path, max_perms, description in checks:
+        if os.path.exists(file_path):
+            current_perms = stat.S_IMODE(os.stat(file_path).st_mode)
+            if current_perms > max_perms:
+                issues.append(f"{description} ({file_path}) has overly permissive permissions: {oct(current_perms)} (should be ≤ {oct(max_perms)})")
+                print(f"  ❌ {description}: {oct(current_perms)} (too permissive)")
+            else:
+                print(f"  ✅ {description}: {oct(current_perms)}")
+        else:
+            print(f"  ℹ️  {description}: Not found")
+    
+    return issues
+
+def check_encryption_status():
+    """Check encryption configuration and key management."""
+    print("\n🔐 Checking Encryption Status...")
+    
+    issues = []
+    
+    # Check for master key
+    master_key = os.environ.get('NGINX_MONITOR_KEY')
+    if not master_key:
+        issues.append("Master encryption key not found in environment variables")
+        print("  ❌ Master encryption key not set")
+    else:
+        if len(master_key) < 32:
+            issues.append("Master encryption key appears to be too short (< 32 characters)")
+            print("  ⚠️  Master encryption key may be too short")
+        else:
+            print("  ✅ Master encryption key is set")
+    
+    # Check for encrypted configuration files
+    encrypted_files = [
+        'config/settings.yaml.enc',
+        'config/service-settings.yaml.enc',
+        'config/custom_patterns.enc'
+    ]
+    
+    encrypted_count = 0
+    for enc_file in encrypted_files:
+        if os.path.exists(enc_file):
+            encrypted_count += 1
+            print(f"  ✅ Found encrypted file: {enc_file}")
+        else:
+            print(f"  ℹ️  No encrypted file: {enc_file}")
+    
+    if encrypted_count == 0:
+        issues.append("No encrypted configuration files found - consider encrypting sensitive settings")
+    
+    return issues
+
+def check_network_security():
+    """Check network-related security configurations."""
+    print("\n🌐 Checking Network Security...")
+    
+    issues = []
+    
+    # Check configuration files for network security settings
+    config_files = ['config/settings.yaml', 'config/service-settings.yaml']
+    
+    for config_file in config_files:
+        if os.path.exists(config_file):
+            try:
+                with open(config_file, 'r') as f:
+                    config = yaml.safe_load(f)
+                
+                # Check for hardcoded credentials
+                if check_hardcoded_credentials(config):
+                    issues.append(f"Hardcoded credentials found in {config_file}")
+                    print(f"  ❌ Hardcoded credentials in {config_file}")
+                else:
+                    print(f"  ✅ No hardcoded credentials in {config_file}")
+                
+                # Check TLS/SSL settings
+                email_config = config.get('email_service', {})
+                if email_config.get('enabled') and not email_config.get('use_tls', True):
+                    issues.append(f"Email service TLS disabled in {config_file}")
+                    print(f"  ⚠️  Email TLS disabled in {config_file}")
+                else:
+                    print(f"  ✅ Email TLS configuration OK in {config_file}")
+                    
+            except Exception as e:
+                issues.append(f"Could not parse {config_file}: {e}")
+                print(f"  ❌ Failed to parse {config_file}")
+    
+    return issues
+
+def check_hardcoded_credentials(config, path=""):
+    """Recursively check for hardcoded credentials in configuration."""
+    suspicious_keys = ['password', 'api_key', 'secret', 'token', 'key']
+    
+    if isinstance(config, dict):
+        for key, value in config.items():
+            current_path = f"{path}.{key}" if path else key
+            
+            # Check if this is a suspicious key with a non-environment variable value
+            if any(sus_key in key.lower() for sus_key in suspicious_keys):
+                if isinstance(value, str) and not (value.startswith('${') and value.endswith('}')):
+                    if not value.startswith('<') and not value.startswith('your_'):
+                        # Likely hardcoded credential
+                        return True
+            
+            # Recurse into nested dictionaries
+            if check_hardcoded_credentials(value, current_path):
+                return True
+    
+    elif isinstance(config, list):
+        for i, item in enumerate(config):
+            if check_hardcoded_credentials(item, f"{path}[{i}]"):
+                return True
+    
+    return False
+
+def check_service_security():
+    """Check system service security configuration."""
+    print("\n🔧 Checking Service Security...")
+    
+    issues = []
+    
+    # Check if running as root
+    if os.geteuid() == 0:
+        issues.append("Running security check as root - service should run as dedicated user")
+        print("  ⚠️  Running as root user")
+    else:
+        print("  ✅ Not running as root")
+    
+    # Check systemd service file if it exists
+    service_files = [
+        '/etc/systemd/system/nginx-security-monitor.service',
+        '/lib/systemd/system/nginx-security-monitor.service'
+    ]
+    
+    service_found = False
+    for service_file in service_files:
+        if os.path.exists(service_file):
+            service_found = True
+            print(f"  ✅ Found service file: {service_file}")
+            
+            # Check service file permissions
+            service_perms = stat.S_IMODE(os.stat(service_file).st_mode)
+            if service_perms > 0o644:
+                issues.append(f"Service file {service_file} has overly permissive permissions")
+                print(f"  ❌ Service file permissions too open: {oct(service_perms)}")
+            else:
+                print(f"  ✅ Service file permissions OK: {oct(service_perms)}")
+    
+    if not service_found:
+        print("  ℹ️  No systemd service files found (standalone mode)")
+    
+    return issues
+
+def check_log_security():
+    """Check log file security and access controls."""
+    print("\n📄 Checking Log Security...")
+    
+    issues = []
+    
+    # Check NGINX log file access
+    log_files = ['/var/log/nginx/access.log', '/var/log/nginx/error.log']
+    
+    for log_file in log_files:
+        if os.path.exists(log_file):
+            # Check if we can read the log file
+            if os.access(log_file, os.R_OK):
+                print(f"  ✅ Can read {log_file}")
+                
+                # Check log file permissions
+                log_perms = stat.S_IMODE(os.stat(log_file).st_mode)
+                if log_perms & 0o004:  # World readable
+                    issues.append(f"Log file {log_file} is world-readable")
+                    print(f"  ⚠️  {log_file} is world-readable")
+                else:
+                    print(f"  ✅ {log_file} permissions are secure")
+            else:
+                issues.append(f"Cannot read log file {log_file} - check permissions")
+                print(f"  ❌ Cannot read {log_file}")
+        else:
+            print(f"  ℹ️  Log file not found: {log_file}")
+    
+    # Check our own log directory
+    log_dir = 'logs'
+    if os.path.exists(log_dir):
+        log_dir_perms = stat.S_IMODE(os.stat(log_dir).st_mode)
+        if log_dir_perms > 0o750:
+            issues.append(f"Log directory {log_dir} has overly permissive permissions")
+            print(f"  ❌ Log directory permissions too open: {oct(log_dir_perms)}")
+        else:
+            print(f"  ✅ Log directory permissions OK: {oct(log_dir_perms)}")
+    
+    return issues
+
+def check_dependency_security():
+    """Check for known security vulnerabilities in dependencies."""
+    print("\n📦 Checking Dependency Security...")
+    
+    issues = []
+    
+    try:
+        # Check if safety is available for vulnerability scanning
+        result = subprocess.run(['pip', 'show', 'safety'], 
+                              capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            # Run safety check
+            safety_result = subprocess.run(['safety', 'check'], 
+                                         capture_output=True, text=True)
+            
+            if safety_result.returncode == 0:
+                print("  ✅ No known security vulnerabilities found")
+            else:
+                issues.append("Security vulnerabilities found in dependencies")
+                print("  ❌ Security vulnerabilities detected:")
+                print(f"     {safety_result.stdout}")
+        else:
+            print("  ℹ️  Safety package not installed - cannot check for vulnerabilities")
+            print("     Install with: pip install safety")
+    
+    except FileNotFoundError:
+        print("  ℹ️  pip not found - cannot check dependency security")
+    
+    return issues
+
+def check_integration_security():
+    """Check security of external integrations."""
+    print("\n🔗 Checking Integration Security...")
+    
+    issues = []
+    
+    # Check fail2ban integration
+    fail2ban_socket = '/var/run/fail2ban/fail2ban.sock'
+    if os.path.exists(fail2ban_socket):
+        socket_perms = stat.S_IMODE(os.stat(fail2ban_socket).st_mode)
+        if socket_perms & 0o007:  # Group or other writable
+            issues.append("Fail2ban socket has overly permissive permissions")
+            print(f"  ⚠️  Fail2ban socket permissions: {oct(socket_perms)}")
+        else:
+            print("  ✅ Fail2ban socket permissions OK")
+    else:
+        print("  ℹ️  Fail2ban socket not found")
+    
+    # Check OSSEC integration
+    ossec_dir = '/var/ossec'
+    if os.path.exists(ossec_dir):
+        print("  ✅ OSSEC installation found")
+        
+        # Check OSSEC agent configuration
+        ossec_conf = '/var/ossec/etc/ossec.conf'
+        if os.path.exists(ossec_conf):
+            ossec_perms = stat.S_IMODE(os.stat(ossec_conf).st_mode)
+            if ossec_perms & 0o044:  # Group or world readable
+                issues.append("OSSEC configuration is group/world readable")
+                print(f"  ⚠️  OSSEC config permissions: {oct(ossec_perms)}")
+            else:
+                print("  ✅ OSSEC configuration permissions OK")
+    else:
+        print("  ℹ️  OSSEC not found")
+    
+    return issues
+
+def generate_security_report(all_issues):
+    """Generate a comprehensive security report."""
+    print("\n" + "="*60)
+    print("🔒 SECURITY AUDIT REPORT")
+    print("="*60)
+    
+    if not all_issues:
+        print("🎉 No security issues found!")
+        print("\nYour NGINX Security Monitor installation appears to be secure.")
+        print("\nRecommendations:")
+        print("• Run this security check regularly")
+        print("• Keep dependencies updated")
+        print("• Monitor log files for suspicious activity")
+        print("• Review configuration changes")
+        
+        return True
+    
+    else:
+        print(f"⚠️  {len(all_issues)} security issues found:\n")
+        
+        # Categorize issues by severity
+        critical_issues = []
+        warning_issues = []
+        
+        for issue in all_issues:
+            if any(keyword in issue.lower() for keyword in ['hardcoded', 'root', 'world-readable', 'vulnerabilities']):
+                critical_issues.append(issue)
+            else:
+                warning_issues.append(issue)
+        
+        if critical_issues:
+            print("🚨 CRITICAL ISSUES:")
+            for issue in critical_issues:
+                print(f"   • {issue}")
+            print()
+        
+        if warning_issues:
+            print("⚠️  WARNINGS:")
+            for issue in warning_issues:
+                print(f"   • {issue}")
+            print()
+        
+        print("🔧 RECOMMENDED ACTIONS:")
+        print("1. Fix file permissions: chmod 600 config/*.yaml")
+        print("2. Set encryption keys in environment variables")
+        print("3. Use encrypted configuration files for production")
+        print("4. Run as dedicated user, not root")
+        print("5. Review and update dependencies regularly")
+        
+        return False
+
+def fix_common_issues():
+    """Attempt to fix common security issues automatically."""
+    print("\n🔧 Attempting to fix common security issues...")
+    
+    fixes_applied = []
+    
+    # Fix configuration file permissions
+    config_files = ['config/settings.yaml', 'config/service-settings.yaml', '.env']
+    for config_file in config_files:
+        if os.path.exists(config_file):
+            try:
+                os.chmod(config_file, 0o600)
+                fixes_applied.append(f"Fixed permissions for {config_file}")
+                print(f"  ✅ Fixed permissions: {config_file}")
+            except Exception as e:
+                print(f"  ❌ Failed to fix {config_file}: {e}")
+    
+    # Fix directory permissions
+    secure_dirs = ['keys', 'logs']
+    for directory in secure_dirs:
+        if os.path.exists(directory):
+            try:
+                os.chmod(directory, 0o750)
+                fixes_applied.append(f"Fixed permissions for {directory}/ directory")
+                print(f"  ✅ Fixed permissions: {directory}/")
+            except Exception as e:
+                print(f"  ❌ Failed to fix {directory}/: {e}")
+    
+    if fixes_applied:
+        print(f"\n✅ Applied {len(fixes_applied)} security fixes")
+        for fix in fixes_applied:
+            print(f"   • {fix}")
+    else:
+        print("\n ℹ️  No automatic fixes were applied")
+    
+    return len(fixes_applied)
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Perform security audit of NGINX Security Monitor",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s                    # Run full security audit
+  %(prog)s --fix             # Attempt to fix common issues
+  %(prog)s --quick           # Quick security check only
+        """
+    )
+    
+    parser.add_argument(
+        '--fix',
+        action='store_true',
+        help='Attempt to automatically fix common security issues'
+    )
+    
+    parser.add_argument(
+        '--quick', '-q',
+        action='store_true',
+        help='Run only essential security checks'
+    )
+    
+    parser.add_argument(
+        '--verbose', '-v',
+        action='store_true',
+        help='Show detailed output'
+    )
+    
+    args = parser.parse_args()
+    
+    print("🔒 NGINX Security Monitor Security Audit")
+    print("=" * 45)
+    
+    all_issues = []
+    
+    # Essential security checks
+    all_issues.extend(check_file_permissions())
+    all_issues.extend(check_encryption_status())
+    all_issues.extend(check_network_security())
+    
+    if not args.quick:
+        # Comprehensive checks
+        all_issues.extend(check_service_security())
+        all_issues.extend(check_log_security())
+        all_issues.extend(check_dependency_security())
+        all_issues.extend(check_integration_security())
+    
+    # Generate report
+    secure = generate_security_report(all_issues)
+    
+    # Apply fixes if requested
+    if args.fix:
+        fixes_count = fix_common_issues()
+        if fixes_count > 0:
+            print("\n🔄 Re-running security checks after fixes...")
+            # Re-run essential checks
+            new_issues = []
+            new_issues.extend(check_file_permissions())
+            new_issues.extend(check_encryption_status())
+            new_issues.extend(check_network_security())
+            
+            print(f"\n📊 Issues before fixes: {len(all_issues)}")
+            print(f"📊 Issues after fixes: {len(new_issues)}")
+            
+            if len(new_issues) < len(all_issues):
+                print("✅ Security posture improved!")
+            else:
+                print("ℹ️  Some issues require manual intervention")
+    
+    # Exit with appropriate code
+    sys.exit(0 if secure else 1)
+
+if __name__ == "__main__":
+    main()

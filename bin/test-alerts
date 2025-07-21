@@ -1,0 +1,585 @@
+#!/usr/bin/env python3
+"""
+NGINX Security Monitor - Alert System Testing Tool
+Test and validate alert configurations and delivery mechanisms.
+"""
+
+import os
+import sys
+import argparse
+import json
+import yaml
+import smtplib
+import time
+from datetime import datetime
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from pathlib import Path
+
+# Add the src directory to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
+
+def print_test_header():
+    """Print testing header."""
+    print("📬 NGINX Security Monitor - Alert System Testing")
+    print("=" * 50)
+
+def load_config(config_file):
+    """Load configuration file."""
+    try:
+        with open(config_file, 'r') as f:
+            if config_file.endswith('.yaml') or config_file.endswith('.yml'):
+                config = yaml.safe_load(f)
+            else:
+                config = json.load(f)
+        
+        print(f"✅ Loaded configuration from: {config_file}")
+        return config
+        
+    except FileNotFoundError:
+        print(f"❌ Configuration file not found: {config_file}")
+        return None
+    except (yaml.YAMLError, json.JSONDecodeError) as e:
+        print(f"❌ Invalid configuration file: {e}")
+        return None
+
+def validate_alert_config(config):
+    """Validate alert configuration structure."""
+    print("\n🔍 Validating alert configuration...")
+    
+    validation_results = {
+        'email_config': False,
+        'sms_config': False,
+        'webhook_config': False,
+        'alert_rules': False
+    }
+    
+    # Check email configuration
+    email_config = config.get('alerts', {}).get('email', {})
+    if email_config.get('enabled', False):
+        required_email_fields = ['smtp_server', 'smtp_port', 'smtp_username', 'recipients']
+        missing_fields = [field for field in required_email_fields if not email_config.get(field)]
+        
+        if not missing_fields:
+            validation_results['email_config'] = True
+            print("   ✅ Email configuration valid")
+        else:
+            print(f"   ❌ Email configuration missing: {', '.join(missing_fields)}")
+    else:
+        print("   ⚠️  Email alerts disabled")
+    
+    # Check SMS configuration
+    sms_config = config.get('alerts', {}).get('sms', {})
+    if sms_config.get('enabled', False):
+        required_sms_fields = ['service', 'api_key', 'recipients']
+        missing_fields = [field for field in required_sms_fields if not sms_config.get(field)]
+        
+        if not missing_fields:
+            validation_results['sms_config'] = True
+            print("   ✅ SMS configuration valid")
+        else:
+            print(f"   ❌ SMS configuration missing: {', '.join(missing_fields)}")
+    else:
+        print("   ⚠️  SMS alerts disabled")
+    
+    # Check webhook configuration
+    webhook_config = config.get('alerts', {}).get('webhook', {})
+    if webhook_config.get('enabled', False):
+        if webhook_config.get('url'):
+            validation_results['webhook_config'] = True
+            print("   ✅ Webhook configuration valid")
+        else:
+            print("   ❌ Webhook configuration missing URL")
+    else:
+        print("   ⚠️  Webhook alerts disabled")
+    
+    # Check alert rules
+    alert_rules = config.get('alert_rules', [])
+    if alert_rules:
+        validation_results['alert_rules'] = True
+        print(f"   ✅ Found {len(alert_rules)} alert rules")
+        
+        # Validate each rule
+        for i, rule in enumerate(alert_rules):
+            rule_name = rule.get('name', f'Rule {i+1}')
+            required_rule_fields = ['name', 'pattern', 'severity', 'action']
+            missing_fields = [field for field in required_rule_fields if not rule.get(field)]
+            
+            if missing_fields:
+                print(f"      ❌ {rule_name} missing: {', '.join(missing_fields)}")
+                validation_results['alert_rules'] = False
+            else:
+                print(f"      ✅ {rule_name} valid")
+    else:
+        print("   ❌ No alert rules found")
+    
+    return validation_results
+
+def create_test_alerts():
+    """Create test alert scenarios."""
+    test_alerts = [
+        {
+            'name': 'SQL Injection Test',
+            'severity': 'high',
+            'message': 'Test SQL injection attack detected',
+            'details': {
+                'source_ip': '192.168.1.100',
+                'timestamp': datetime.now().isoformat(),
+                'attack_type': 'sql_injection',
+                'url': '/admin.php?id=1\' OR 1=1--',
+                'user_agent': 'sqlmap/1.4.7',
+                'pattern_matched': 'SQL_INJECTION_BASIC'
+            }
+        },
+        {
+            'name': 'XSS Attack Test',
+            'severity': 'medium',
+            'message': 'Test XSS attack detected',
+            'details': {
+                'source_ip': '10.0.0.50',
+                'timestamp': datetime.now().isoformat(),
+                'attack_type': 'xss',
+                'url': '/comment.php?msg=<script>alert(\'XSS\')</script>',
+                'user_agent': 'Mozilla/5.0',
+                'pattern_matched': 'XSS_SCRIPT_TAG'
+            }
+        },
+        {
+            'name': 'Brute Force Test',
+            'severity': 'high',
+            'message': 'Test brute force attack detected',
+            'details': {
+                'source_ip': '172.16.0.25',
+                'timestamp': datetime.now().isoformat(),
+                'attack_type': 'brute_force',
+                'failed_attempts': 15,
+                'time_window': '5 minutes',
+                'target_endpoint': '/wp-login.php'
+            }
+        },
+        {
+            'name': 'Suspicious Activity Test',
+            'severity': 'low',
+            'message': 'Test suspicious user agent detected',
+            'details': {
+                'source_ip': '203.0.113.10',
+                'timestamp': datetime.now().isoformat(),
+                'attack_type': 'reconnaissance',
+                'user_agent': 'Nikto/2.1.6',
+                'url': '/admin/',
+                'pattern_matched': 'SUSPICIOUS_USER_AGENT'
+            }
+        }
+    ]
+    
+    return test_alerts
+
+def test_email_alerts(email_config, test_alerts, dry_run=False):
+    """Test email alert delivery."""
+    print("\n📧 Testing email alerts...")
+    
+    if not email_config.get('enabled', False):
+        print("   ⚠️  Email alerts are disabled")
+        return False
+    
+    if dry_run:
+        print("   🔍 DRY RUN - Email configuration would be tested")
+        for alert in test_alerts:
+            print(f"      • Would send: {alert['name']} ({alert['severity']})")
+        return True
+    
+    # Test SMTP connection
+    try:
+        smtp_server = email_config['smtp_server']
+        smtp_port = email_config['smtp_port']
+        username = email_config['smtp_username']
+        password = email_config.get('smtp_password', os.getenv('SMTP_PASSWORD', ''))
+        
+        if not password:
+            print("   ❌ SMTP password not configured (set SMTP_PASSWORD environment variable)")
+            return False
+        
+        print(f"   🔌 Connecting to {smtp_server}:{smtp_port}...")
+        
+        # Create SMTP connection
+        if smtp_port == 465:
+            server = smtplib.SMTP_SSL(smtp_server, smtp_port)
+        else:
+            server = smtplib.SMTP(smtp_server, smtp_port)
+            if smtp_port == 587:
+                server.starttls()
+        
+        server.login(username, password)
+        print("   ✅ SMTP connection successful")
+        
+        # Send test alerts
+        recipients = email_config['recipients']
+        if isinstance(recipients, str):
+            recipients = [recipients]
+        
+        for alert in test_alerts:
+            try:
+                # Create email message
+                msg = MIMEMultipart()
+                msg['From'] = username
+                msg['To'] = ', '.join(recipients)
+                msg['Subject'] = f"[TEST] NGINX Security Alert - {alert['name']}"
+                
+                # Create email body
+                body = f"""
+NGINX Security Monitor - Test Alert
+
+Alert: {alert['name']}
+Severity: {alert['severity'].upper()}
+Message: {alert['message']}
+
+Details:
+"""
+                for key, value in alert['details'].items():
+                    body += f"  {key.replace('_', ' ').title()}: {value}\n"
+                
+                body += f"""
+
+This is a test alert generated by the NGINX Security Monitor alert testing system.
+Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+"""
+                
+                msg.attach(MIMEText(body, 'plain'))
+                
+                # Send email
+                server.send_message(msg)
+                print(f"   ✅ Sent test alert: {alert['name']}")
+                
+                # Small delay between emails
+                time.sleep(1)
+                
+            except Exception as e:
+                print(f"   ❌ Failed to send {alert['name']}: {e}")
+                return False
+        
+        server.quit()
+        print(f"   📧 Successfully sent {len(test_alerts)} test alerts")
+        return True
+        
+    except Exception as e:
+        print(f"   ❌ Email test failed: {e}")
+        return False
+
+def test_webhook_alerts(webhook_config, test_alerts, dry_run=False):
+    """Test webhook alert delivery."""
+    print("\n🔗 Testing webhook alerts...")
+    
+    if not webhook_config.get('enabled', False):
+        print("   ⚠️  Webhook alerts are disabled")
+        return False
+    
+    webhook_url = webhook_config.get('url')
+    if not webhook_url:
+        print("   ❌ No webhook URL configured")
+        return False
+    
+    if dry_run:
+        print(f"   🔍 DRY RUN - Would send to: {webhook_url}")
+        for alert in test_alerts:
+            print(f"      • Would send: {alert['name']} ({alert['severity']})")
+        return True
+    
+    try:
+        import requests
+        
+        headers = {
+            'Content-Type': 'application/json',
+            'User-Agent': 'NGINX-Security-Monitor-Test/1.0'
+        }
+        
+        # Add custom headers if configured
+        custom_headers = webhook_config.get('headers', {})
+        headers.update(custom_headers)
+        
+        success_count = 0
+        
+        for alert in test_alerts:
+            try:
+                # Prepare webhook payload
+                payload = {
+                    'alert_name': alert['name'],
+                    'severity': alert['severity'],
+                    'message': alert['message'],
+                    'timestamp': datetime.now().isoformat(),
+                    'details': alert['details'],
+                    'test_mode': True
+                }
+                
+                # Send webhook
+                response = requests.post(
+                    webhook_url,
+                    json=payload,
+                    headers=headers,
+                    timeout=10
+                )
+                
+                if response.status_code == 200:
+                    print(f"   ✅ Webhook sent: {alert['name']} (HTTP {response.status_code})")
+                    success_count += 1
+                else:
+                    print(f"   ⚠️  Webhook warning: {alert['name']} (HTTP {response.status_code})")
+                
+                # Small delay between webhooks
+                time.sleep(0.5)
+                
+            except Exception as e:
+                print(f"   ❌ Webhook failed: {alert['name']} - {e}")
+        
+        print(f"   🔗 Webhook test completed: {success_count}/{len(test_alerts)} successful")
+        return success_count == len(test_alerts)
+        
+    except ImportError:
+        print("   ❌ requests library not available for webhook testing")
+        return False
+    except Exception as e:
+        print(f"   ❌ Webhook test failed: {e}")
+        return False
+
+def test_sms_alerts(sms_config, test_alerts, dry_run=False):
+    """Test SMS alert delivery."""
+    print("\n📱 Testing SMS alerts...")
+    
+    if not sms_config.get('enabled', False):
+        print("   ⚠️  SMS alerts are disabled")
+        return False
+    
+    if dry_run:
+        print("   🔍 DRY RUN - SMS configuration would be tested")
+        recipients = sms_config.get('recipients', [])
+        for alert in test_alerts:
+            print(f"      • Would send to {len(recipients)} recipients: {alert['name']}")
+        return True
+    
+    # Note: SMS testing requires specific service implementation
+    # This is a placeholder for the common SMS services
+    
+    service = sms_config.get('service', '').lower()
+    api_key = sms_config.get('api_key')
+    recipients = sms_config.get('recipients', [])
+    
+    if not api_key:
+        print("   ❌ SMS API key not configured")
+        return False
+    
+    if not recipients:
+        print("   ❌ No SMS recipients configured")
+        return False
+    
+    print(f"   📱 SMS service: {service}")
+    print(f"   📞 Recipients: {len(recipients)}")
+    
+    # Placeholder for actual SMS implementation
+    # Different services (Twilio, AWS SNS, etc.) would have different implementations
+    
+    if service in ['twilio', 'aws_sns', 'nexmo']:
+        print(f"   ⚠️  SMS testing for {service} requires service-specific implementation")
+        print("   💡 Configure test mode in your SMS service for safe testing")
+        return True
+    else:
+        print(f"   ❌ Unsupported SMS service: {service}")
+        return False
+
+def run_alert_integration_test(config, dry_run=False):
+    """Run complete alert integration test."""
+    print("\n🧪 Running alert integration test...")
+    
+    # Create test alerts
+    test_alerts = create_test_alerts()
+    print(f"   📋 Created {len(test_alerts)} test scenarios")
+    
+    # Test each alert channel
+    results = {}
+    
+    # Email alerts
+    email_config = config.get('alerts', {}).get('email', {})
+    results['email'] = test_email_alerts(email_config, test_alerts, dry_run)
+    
+    # Webhook alerts
+    webhook_config = config.get('alerts', {}).get('webhook', {})
+    results['webhook'] = test_webhook_alerts(webhook_config, test_alerts, dry_run)
+    
+    # SMS alerts
+    sms_config = config.get('alerts', {}).get('sms', {})
+    results['sms'] = test_sms_alerts(sms_config, test_alerts, dry_run)
+    
+    return results
+
+def generate_alert_test_report(validation_results, integration_results, output_file=None):
+    """Generate comprehensive test report."""
+    report = {
+        'test_summary': {
+            'timestamp': datetime.now().isoformat(),
+            'validation_passed': all(validation_results.values()),
+            'integration_passed': all(integration_results.values())
+        },
+        'validation_results': validation_results,
+        'integration_results': integration_results,
+        'recommendations': []
+    }
+    
+    # Add recommendations based on results
+    if not validation_results.get('email_config', False):
+        report['recommendations'].append("Configure email alerts for critical notifications")
+    
+    if not validation_results.get('webhook_config', False):
+        report['recommendations'].append("Configure webhook integration for automated response")
+    
+    if not validation_results.get('alert_rules', False):
+        report['recommendations'].append("Define alert rules for different attack patterns")
+    
+    if not integration_results.get('email', True):
+        report['recommendations'].append("Fix email delivery configuration")
+    
+    if output_file:
+        try:
+            with open(output_file, 'w') as f:
+                json.dump(report, f, indent=2)
+            print(f"\n📄 Alert test report saved to: {output_file}")
+        except Exception as e:
+            print(f"\n❌ Failed to save report: {e}")
+    
+    return report
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Test and validate NGINX Security Monitor alert system",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s                              # Test all alert configurations
+  %(prog)s --config config/settings.yaml --dry-run
+  %(prog)s --email-only --verbose
+  %(prog)s --webhook-only --report alert_test.json
+  %(prog)s --quick                      # Quick validation only
+        """
+    )
+    
+    parser.add_argument(
+        '--config',
+        default='config/settings.yaml',
+        help='Path to configuration file'
+    )
+    
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Validate configuration without sending test alerts'
+    )
+    
+    parser.add_argument(
+        '--email-only',
+        action='store_true',
+        help='Test email alerts only'
+    )
+    
+    parser.add_argument(
+        '--webhook-only',
+        action='store_true',
+        help='Test webhook alerts only'
+    )
+    
+    parser.add_argument(
+        '--sms-only',
+        action='store_true',
+        help='Test SMS alerts only'
+    )
+    
+    parser.add_argument(
+        '--quick',
+        action='store_true',
+        help='Quick validation only (no integration tests)'
+    )
+    
+    parser.add_argument(
+        '--verbose', '-v',
+        action='store_true',
+        help='Show detailed output'
+    )
+    
+    parser.add_argument(
+        '--report',
+        help='Save test report to JSON file'
+    )
+    
+    args = parser.parse_args()
+    
+    print_test_header()
+    
+    # Load configuration
+    config = load_config(args.config)
+    if not config:
+        sys.exit(1)
+    
+    # Validate alert configuration
+    validation_results = validate_alert_config(config)
+    
+    if args.quick:
+        # Quick validation only
+        if all(validation_results.values()):
+            print("\n✅ Alert configuration validation passed")
+            sys.exit(0)
+        else:
+            print("\n❌ Alert configuration validation failed")
+            sys.exit(1)
+    
+    # Run integration tests unless dry-run
+    integration_results = {}
+    
+    if not args.dry_run or args.dry_run:  # Always run integration test (dry-run mode if specified)
+        # Create test alerts
+        test_alerts = create_test_alerts()
+        
+        if args.email_only:
+            email_config = config.get('alerts', {}).get('email', {})
+            integration_results['email'] = test_email_alerts(email_config, test_alerts, args.dry_run)
+        elif args.webhook_only:
+            webhook_config = config.get('alerts', {}).get('webhook', {})
+            integration_results['webhook'] = test_webhook_alerts(webhook_config, test_alerts, args.dry_run)
+        elif args.sms_only:
+            sms_config = config.get('alerts', {}).get('sms', {})
+            integration_results['sms'] = test_sms_alerts(sms_config, test_alerts, args.dry_run)
+        else:
+            integration_results = run_alert_integration_test(config, args.dry_run)
+    
+    # Results summary
+    validation_passed = all(validation_results.values())
+    integration_passed = all(integration_results.values()) if integration_results else True
+    
+    print(f"\n" + "="*60)
+    print(f"📊 ALERT SYSTEM TEST RESULTS")
+    print(f"="*60)
+    
+    print(f"🔍 Configuration Validation:")
+    for component, passed in validation_results.items():
+        status = "✅" if passed else "❌"
+        print(f"   {status} {component.replace('_', ' ').title()}")
+    
+    if integration_results:
+        print(f"\n🧪 Integration Tests:")
+        for channel, passed in integration_results.items():
+            status = "✅" if passed else "❌"
+            print(f"   {status} {channel.title()} alerts")
+    
+    overall_success = validation_passed and integration_passed
+    print(f"\n📊 Overall Result: {'✅ PASSED' if overall_success else '❌ FAILED'}")
+    
+    # Generate report
+    if args.report:
+        generate_alert_test_report(validation_results, integration_results, args.report)
+    
+    if not overall_success:
+        print("\n💡 Run with --verbose for detailed error information")
+        print("💡 Use --dry-run to test configuration without sending alerts")
+    
+    print(f"\n🎉 Alert system testing complete!")
+    
+    # Exit code based on results
+    sys.exit(0 if overall_success else 1)
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,521 @@
+#!/usr/bin/env python3
+"""
+NGINX Security Monitor - Health Check
+Monitors service health and system performance.
+"""
+
+import os
+import sys
+import argparse
+import subprocess
+import time
+import json
+import psutil
+from datetime import datetime, timedelta
+
+# Add the src directory to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
+
+def check_service_status():
+    """Check if the service is running."""
+    print("🔍 Checking Service Status...")
+    
+    status = {
+        'running': False,
+        'pids': [],
+        'uptime': None,
+        'memory_usage': 0,
+        'cpu_usage': 0
+    }
+    
+    try:
+        # Look for running processes
+        result = subprocess.run(['pgrep', '-f', 'nginx-security-monitor'], 
+                              capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            pids = [int(pid.strip()) for pid in result.stdout.strip().split('\n') if pid.strip()]
+            status['pids'] = pids
+            status['running'] = True
+            
+            print(f"  ✅ Service is running (PIDs: {', '.join(map(str, pids))})")
+            
+            # Get process details
+            total_memory = 0
+            total_cpu = 0
+            oldest_start_time = None
+            
+            for pid in pids:
+                try:
+                    process = psutil.Process(pid)
+                    mem_info = process.memory_info()
+                    cpu_percent = process.cpu_percent()
+                    create_time = datetime.fromtimestamp(process.create_time())
+                    
+                    total_memory += mem_info.rss
+                    total_cpu += cpu_percent
+                    
+                    if oldest_start_time is None or create_time < oldest_start_time:
+                        oldest_start_time = create_time
+                    
+                    print(f"     PID {pid}: {mem_info.rss // 1024 // 1024} MB, {cpu_percent:.1f}% CPU")
+                    
+                except psutil.NoSuchProcess:
+                    print(f"     PID {pid}: Process no longer exists")
+            
+            status['memory_usage'] = total_memory
+            status['cpu_usage'] = total_cpu
+            
+            if oldest_start_time:
+                uptime = datetime.now() - oldest_start_time
+                status['uptime'] = uptime
+                print(f"  ⏰ Uptime: {format_duration(uptime)}")
+        else:
+            print("  ❌ Service is not running")
+    
+    except Exception as e:
+        print(f"  ❌ Error checking service status: {e}")
+    
+    return status
+
+def check_system_resources():
+    """Check system resource usage."""
+    print("\n💻 Checking System Resources...")
+    
+    resources = {}
+    
+    try:
+        # CPU usage
+        cpu_percent = psutil.cpu_percent(interval=1)
+        resources['cpu'] = cpu_percent
+        
+        if cpu_percent > 90:
+            print(f"  ⚠️  High CPU usage: {cpu_percent:.1f}%")
+        elif cpu_percent > 70:
+            print(f"  🟡 Moderate CPU usage: {cpu_percent:.1f}%")
+        else:
+            print(f"  ✅ CPU usage: {cpu_percent:.1f}%")
+        
+        # Memory usage
+        memory = psutil.virtual_memory()
+        resources['memory'] = {
+            'total': memory.total,
+            'available': memory.available,
+            'percent': memory.percent,
+            'used': memory.used
+        }
+        
+        if memory.percent > 90:
+            print(f"  ⚠️  High memory usage: {memory.percent:.1f}%")
+        elif memory.percent > 70:
+            print(f"  🟡 Moderate memory usage: {memory.percent:.1f}%")
+        else:
+            print(f"  ✅ Memory usage: {memory.percent:.1f}%")
+        
+        # Disk usage
+        disk = psutil.disk_usage('/')
+        resources['disk'] = {
+            'total': disk.total,
+            'used': disk.used,
+            'free': disk.free,
+            'percent': (disk.used / disk.total) * 100
+        }
+        
+        disk_percent = resources['disk']['percent']
+        if disk_percent > 90:
+            print(f"  ⚠️  High disk usage: {disk_percent:.1f}%")
+        elif disk_percent > 80:
+            print(f"  🟡 Moderate disk usage: {disk_percent:.1f}%")
+        else:
+            print(f"  ✅ Disk usage: {disk_percent:.1f}%")
+        
+        # Load average (Unix only)
+        if hasattr(os, 'getloadavg'):
+            load_avg = os.getloadavg()
+            resources['load_average'] = load_avg
+            cpu_count = psutil.cpu_count()
+            
+            if load_avg[0] > cpu_count * 2:
+                print(f"  ⚠️  High system load: {load_avg[0]:.2f}")
+            elif load_avg[0] > cpu_count:
+                print(f"  🟡 Moderate system load: {load_avg[0]:.2f}")
+            else:
+                print(f"  ✅ System load: {load_avg[0]:.2f}")
+    
+    except Exception as e:
+        print(f"  ❌ Error checking system resources: {e}")
+    
+    return resources
+
+def check_log_files():
+    """Check log file status and recent activity."""
+    print("\n📄 Checking Log Files...")
+    
+    log_status = {}
+    
+    # Check NGINX log files
+    nginx_logs = [
+        '/var/log/nginx/access.log',
+        '/var/log/nginx/error.log'
+    ]
+    
+    for log_file in nginx_logs:
+        if os.path.exists(log_file):
+            try:
+                stat = os.stat(log_file)
+                size_mb = stat.st_size / (1024 * 1024)
+                modified = datetime.fromtimestamp(stat.st_mtime)
+                age = datetime.now() - modified
+                
+                log_status[log_file] = {
+                    'size_mb': size_mb,
+                    'modified': modified,
+                    'age_minutes': age.total_seconds() / 60
+                }
+                
+                if age.total_seconds() > 3600:  # More than 1 hour old
+                    print(f"  ⚠️  {log_file}: {size_mb:.1f} MB (last modified {format_duration(age)} ago)")
+                else:
+                    print(f"  ✅ {log_file}: {size_mb:.1f} MB (last modified {format_duration(age)} ago)")
+                
+                # Check if log is growing rapidly
+                if size_mb > 100:
+                    print(f"     🟡 Large log file - consider rotation")
+                    
+            except Exception as e:
+                print(f"  ❌ Error checking {log_file}: {e}")
+        else:
+            print(f"  ❌ Log file not found: {log_file}")
+    
+    # Check our application logs
+    app_log_dirs = ['logs', '/var/log/nginx-security-monitor']
+    
+    for log_dir in app_log_dirs:
+        if os.path.exists(log_dir):
+            try:
+                log_files = [f for f in os.listdir(log_dir) if f.endswith('.log')]
+                if log_files:
+                    print(f"  ✅ Application logs found in {log_dir}: {len(log_files)} files")
+                    
+                    # Check most recent log
+                    latest_log = max([os.path.join(log_dir, f) for f in log_files], 
+                                   key=os.path.getmtime)
+                    stat = os.stat(latest_log)
+                    modified = datetime.fromtimestamp(stat.st_mtime)
+                    age = datetime.now() - modified
+                    
+                    if age.total_seconds() > 3600:
+                        print(f"     ⚠️  Latest log is {format_duration(age)} old")
+                    else:
+                        print(f"     ✅ Latest log updated {format_duration(age)} ago")
+                else:
+                    print(f"  ⚠️  No log files found in {log_dir}")
+            except Exception as e:
+                print(f"  ❌ Error checking {log_dir}: {e}")
+    
+    return log_status
+
+def check_configuration_health():
+    """Check configuration file health and consistency."""
+    print("\n⚙️ Checking Configuration Health...")
+    
+    config_health = {}
+    
+    # Use our validate-config command
+    try:
+        result = subprocess.run(['./bin/validate-config', '--all'], 
+                              capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            print("  ✅ All configuration files are valid")
+            config_health['valid'] = True
+        else:
+            print("  ❌ Configuration validation failed")
+            config_health['valid'] = False
+            config_health['errors'] = result.stdout
+            
+    except Exception as e:
+        print(f"  ❌ Error validating configuration: {e}")
+        config_health['valid'] = False
+    
+    return config_health
+
+def check_network_connectivity():
+    """Check network connectivity and external services."""
+    print("\n🌐 Checking Network Connectivity...")
+    
+    connectivity = {}
+    
+    # Test basic internet connectivity
+    try:
+        result = subprocess.run(['ping', '-c', '1', '8.8.8.8'], 
+                              capture_output=True, text=True, timeout=5)
+        
+        if result.returncode == 0:
+            print("  ✅ Internet connectivity available")
+            connectivity['internet'] = True
+        else:
+            print("  ❌ No internet connectivity")
+            connectivity['internet'] = False
+            
+    except subprocess.TimeoutExpired:
+        print("  ⚠️  Internet connectivity test timed out")
+        connectivity['internet'] = None
+    except Exception as e:
+        print(f"  ❌ Error testing connectivity: {e}")
+        connectivity['internet'] = False
+    
+    # Test email server connectivity (if configured)
+    # This would require parsing config and testing SMTP
+    print("  ℹ️  Email server connectivity test not implemented")
+    
+    return connectivity
+
+def check_alert_system():
+    """Check alert system health."""
+    print("\n🚨 Checking Alert System...")
+    
+    alert_health = {}
+    
+    try:
+        # This would integrate with our alert testing command when implemented
+        print("  ℹ️  Alert system health check not fully implemented")
+        print("  💡 Run './bin/test-alerts' for comprehensive alert testing")
+        
+        alert_health['status'] = 'not_implemented'
+        
+    except Exception as e:
+        print(f"  ❌ Error checking alert system: {e}")
+        alert_health['status'] = 'error'
+    
+    return alert_health
+
+def format_duration(duration):
+    """Format a timedelta into a human-readable string."""
+    if isinstance(duration, timedelta):
+        total_seconds = int(duration.total_seconds())
+    else:
+        total_seconds = int(duration)
+    
+    if total_seconds < 60:
+        return f"{total_seconds}s"
+    elif total_seconds < 3600:
+        minutes = total_seconds // 60
+        seconds = total_seconds % 60
+        return f"{minutes}m {seconds}s"
+    elif total_seconds < 86400:
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        return f"{hours}h {minutes}m"
+    else:
+        days = total_seconds // 86400
+        hours = (total_seconds % 86400) // 3600
+        return f"{days}d {hours}h"
+
+def format_bytes(bytes_value):
+    """Format bytes into human-readable string."""
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if bytes_value < 1024.0:
+            return f"{bytes_value:.1f} {unit}"
+        bytes_value /= 1024.0
+    return f"{bytes_value:.1f} TB"
+
+def generate_health_report(service_status, resources, log_status, config_health, connectivity, alert_health):
+    """Generate comprehensive health report."""
+    print("\n" + "="*60)
+    print("💊 SYSTEM HEALTH REPORT")
+    print("="*60)
+    
+    # Overall health score
+    score = calculate_health_score(service_status, resources, config_health)
+    
+    if score >= 90:
+        health_emoji = "🟢"
+        health_status = "EXCELLENT"
+    elif score >= 75:
+        health_emoji = "🟡"
+        health_status = "GOOD"
+    elif score >= 60:
+        health_emoji = "🟠"
+        health_status = "FAIR"
+    else:
+        health_emoji = "🔴"
+        health_status = "POOR"
+    
+    print(f"Overall Health: {health_emoji} {health_status} ({score}/100)")
+    print()
+    
+    # Service summary
+    if service_status['running']:
+        print(f"🔍 Service: ✅ Running ({len(service_status['pids'])} processes)")
+        if service_status['uptime']:
+            print(f"   Uptime: {format_duration(service_status['uptime'])}")
+        print(f"   Memory: {format_bytes(service_status['memory_usage'])}")
+        print(f"   CPU: {service_status['cpu_usage']:.1f}%")
+    else:
+        print("🔍 Service: ❌ Not running")
+    
+    # System summary
+    if 'cpu' in resources:
+        print(f"💻 System: CPU {resources['cpu']:.1f}%, Memory {resources['memory']['percent']:.1f}%, Disk {resources['disk']['percent']:.1f}%")
+    
+    # Configuration summary
+    if config_health.get('valid'):
+        print("⚙️ Configuration: ✅ Valid")
+    else:
+        print("⚙️ Configuration: ❌ Issues found")
+    
+    # Recommendations
+    print("\n🔧 RECOMMENDATIONS:")
+    
+    if not service_status['running']:
+        print("• Start the service: ./bin/nginx-security-monitor start")
+    
+    if resources.get('memory', {}).get('percent', 0) > 80:
+        print("• High memory usage - consider restarting or investigating memory leaks")
+    
+    if resources.get('cpu', 0) > 80:
+        print("• High CPU usage - check for performance issues")
+    
+    if not config_health.get('valid'):
+        print("• Fix configuration issues: ./bin/validate-config --all")
+    
+    if connectivity.get('internet') is False:
+        print("• Check network connectivity for external alerts")
+    
+    print("• Run './bin/security-check' for security audit")
+    print("• Monitor log files for errors and unusual activity")
+    
+    return score >= 75
+
+def calculate_health_score(service_status, resources, config_health):
+    """Calculate overall health score (0-100)."""
+    score = 0
+    
+    # Service status (40 points)
+    if service_status['running']:
+        score += 35
+        # Bonus points for stable uptime
+        if service_status['uptime'] and service_status['uptime'].total_seconds() > 3600:
+            score += 5
+    
+    # System resources (30 points)
+    if 'cpu' in resources:
+        if resources['cpu'] < 50:
+            score += 10
+        elif resources['cpu'] < 80:
+            score += 5
+    
+    if 'memory' in resources:
+        if resources['memory']['percent'] < 70:
+            score += 10
+        elif resources['memory']['percent'] < 90:
+            score += 5
+    
+    if 'disk' in resources:
+        if resources['disk']['percent'] < 80:
+            score += 10
+        elif resources['disk']['percent'] < 95:
+            score += 5
+    
+    # Configuration (20 points)
+    if config_health.get('valid'):
+        score += 20
+    else:
+        score += 10  # Partial credit if some configs are valid
+    
+    # Connectivity (10 points)
+    # This would be expanded when we have more connectivity checks
+    score += 10
+    
+    return min(score, 100)
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Check NGINX Security Monitor system health",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s                    # Full health check
+  %(prog)s --quick           # Essential checks only
+  %(prog)s --json            # Output in JSON format
+        """
+    )
+    
+    parser.add_argument(
+        '--quick', '-q',
+        action='store_true',
+        help='Run only essential health checks'
+    )
+    
+    parser.add_argument(
+        '--json',
+        action='store_true',
+        help='Output results in JSON format'
+    )
+    
+    parser.add_argument(
+        '--continuous', '-c',
+        type=int,
+        metavar='SECONDS',
+        help='Run continuously, updating every N seconds'
+    )
+    
+    args = parser.parse_args()
+    
+    def run_health_check():
+        if not args.json:
+            print("💊 NGINX Security Monitor Health Check")
+            print("=" * 42)
+        
+        # Run health checks
+        service_status = check_service_status()
+        resources = check_system_resources()
+        
+        if not args.quick:
+            log_status = check_log_files()
+            config_health = check_configuration_health()
+            connectivity = check_network_connectivity()
+            alert_health = check_alert_system()
+        else:
+            log_status = {}
+            config_health = {'valid': True}  # Assume valid for quick check
+            connectivity = {}
+            alert_health = {}
+        
+        if args.json:
+            # Output JSON report
+            report = {
+                'timestamp': datetime.now().isoformat(),
+                'service': service_status,
+                'resources': resources,
+                'logs': log_status,
+                'configuration': config_health,
+                'connectivity': connectivity,
+                'alerts': alert_health
+            }
+            print(json.dumps(report, indent=2, default=str))
+        else:
+            # Generate human-readable report
+            healthy = generate_health_report(
+                service_status, resources, log_status, 
+                config_health, connectivity, alert_health
+            )
+            return healthy
+    
+    if args.continuous:
+        try:
+            while True:
+                os.system('clear' if os.name == 'posix' else 'cls')
+                healthy = run_health_check()
+                print(f"\n🔄 Refreshing in {args.continuous} seconds... (Ctrl+C to stop)")
+                time.sleep(args.continuous)
+        except KeyboardInterrupt:
+            print("\n👋 Health monitoring stopped")
+            sys.exit(0)
+    else:
+        healthy = run_health_check()
+        sys.exit(0 if healthy else 1)
+
+if __name__ == "__main__":
+    main()

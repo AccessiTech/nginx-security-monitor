@@ -1,0 +1,183 @@
+# NGINX Security Monitor Configuration
+
+# Email service configuration
+email_service:
+  enabled: true
+  smtp_server: "${SMTP_SERVER}"
+  smtp_port: "${SMTP_PORT}"
+  use_tls: true
+  username: "${SMTP_USERNAME}"
+  password: "${SMTP_PASSWORD}"
+  from_address: "${SMTP_USERNAME}"
+  to_address: alert_recipient@example.com
+
+# SMS service configuration
+sms_service:
+  enabled: false
+  provider: your_sms_provider
+  api_key: "${SMS_API_KEY}"
+  from_number: +1234567890
+  to_number: +0987654321
+
+# Alert thresholds
+alert_thresholds:
+  high: 10
+  medium: 5
+  low: 1
+
+# Log file paths
+log_file_path: /var/log/nginx/access.log
+error_log_file_path: /var/log/nginx/error.log
+
+# Monitoring settings
+monitoring:
+  check_interval: 10  # seconds between log checks
+  max_log_size: 100MB  # rotate when log gets this big
+  
+# Logging configuration
+logging:
+  level: INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  file: /var/log/nginx-security-monitor.log
+  max_file_size: 10MB
+  backup_count: 5
+
+# Security and obfuscation settings
+security:
+  # Path to encrypted custom patterns file
+  encrypted_patterns_file: /etc/nginx-security-monitor/custom_patterns.enc
+  
+  # Self-protection settings
+  self_check_interval: 300  # seconds between self-protection checks
+  
+  # Obfuscation settings
+  obfuscation:
+    enabled: true
+    timing_variance_percent: 20  # Add up to 20% randomness to check intervals
+    add_decoy_entries: true      # Add fake log entries to confuse attackers
+    randomize_pattern_order: true # Randomize detection order
+    
+  # Environment variable for master encryption key
+  # Set this: export NGINX_MONITOR_KEY="your-secret-key-here"
+  master_key_env: NGINX_MONITOR_KEY
+  
+  # Alternative: you can use encrypted_config sections (example below)
+  # encrypted_config:
+  #   sensitive_settings: "encrypted_base64_data_here"
+
+# Network security settings
+network_security:
+  # IP addresses allowed to access the service (if applicable)
+  allowed_ips:
+    - 127.0.0.1
+    - ::1
+    # Add your management IPs here
+  
+  # Network interfaces the service can bind to
+  allowed_interfaces:
+    - 127.0.0.1
+    - localhost
+  
+  # Ports that are expected to be open (won't trigger alerts)
+  allowed_ports:
+    - 22    # SSH
+    - 80    # HTTP
+    - 443   # HTTPS
+    - 25    # SMTP
+    - 587   # SMTP TLS
+  
+  # Rate limiting
+  max_attempts_per_hour: 100
+  max_failed_attempts: 10
+
+# Service protection settings  
+protection:
+  # Resource usage thresholds (will trigger alerts)
+  resource_thresholds:
+    cpu_percent: 80.0
+    memory_percent: 80.0
+    disk_usage_percent: 90.0
+  
+  # File integrity monitoring
+  monitor_file_integrity: true
+  
+  # Process monitoring
+  monitor_process_integrity: true
+  
+  # Emergency shutdown conditions
+  emergency_shutdown:
+    file_tampering: true      # Shutdown if critical files are modified
+    process_hijacking: true   # Shutdown if process appears hijacked
+    
+  # IPs that are allowed for outbound connections (your SMTP, APIs, etc.)
+  allowed_ips:
+    # Add your SMTP server IP, API endpoints, etc.
+    # - 74.125.224.108  # Gmail SMTP example
+
+# Security integrations with popular security frameworks
+security_integrations:
+  # fail2ban integration
+  fail2ban:
+    enabled: true
+    jail_files:
+      - /etc/fail2ban/jail.local
+      - /etc/fail2ban/jail.conf
+      - /etc/fail2ban/jail.d/
+    
+  # OSSEC HIDS integration  
+  ossec:
+    enabled: true
+    ossec_dir: /var/ossec
+    
+  # Suricata IDS integration
+  suricata:
+    enabled: true
+    suricata_log: /var/log/suricata/eve.json
+    suricata_rules: /etc/suricata/rules/
+    
+  # Wazuh SIEM integration
+  wazuh:
+    enabled: true
+    wazuh_dir: /var/ossec
+    api_url: ""  # Optional: Wazuh API endpoint
+    api_user: ""  # Optional: API credentials
+    api_password: ""
+    
+  # ModSecurity WAF integration
+  modsecurity:
+    enabled: true
+    audit_log: /var/log/modsec_audit.log
+    rules_dir: /etc/modsecurity/rules
+
+# Plugin system configuration
+plugins:
+  directories:
+    - "plugins"                                    # Local development plugins
+    - /etc/nginx-security-monitor/plugins
+    - /opt/nginx-security-monitor/custom_plugins
+    - ~/.nginx-security-monitor/plugins
+  
+  # Plugin execution settings
+  max_execution_time: 30  # seconds
+  retry_failed_plugins: false
+
+# Security patterns (can be moved to encrypted file)
+patterns:
+  enabled:
+    - sql_injection
+    - xss_attack
+    - ddos_attempt
+    - brute_force_login
+    - directory_traversal
+    - suspicious_user_agents
+  
+  thresholds:
+    failed_requests_per_minute: 50
+    requests_per_ip_per_minute: 100
+    error_rate_threshold: 0.1  # 10% error rate
+
+# Example of how to use encrypted configuration sections:
+# Use the encrypt_config.py utility to generate these
+# encrypted_config:
+#   email_credentials: "gAAAAABh..."  # Encrypted email passwords
+#   api_keys: "gAAAAABh..."           # Encrypted API keys
+#   custom_thresholds: "gAAAAABh..."  # Encrypted custom detection thresholds

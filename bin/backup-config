@@ -1,0 +1,562 @@
+#!/usr/bin/env python3
+"""
+NGINX Security Monitor - Configuration Backup Tool
+Backup and restore configurations, keys, and critical data.
+"""
+
+import os
+import sys
+import argparse
+import json
+import yaml
+import shutil
+import tarfile
+import gzip
+from datetime import datetime
+from pathlib import Path
+
+# Add the src directory to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
+
+def print_backup_header():
+    """Print backup header."""
+    print("💾 NGINX Security Monitor - Configuration Backup")
+    print("=" * 50)
+
+def get_backup_paths():
+    """Get standard backup paths for NGINX Security Monitor."""
+    backup_paths = {
+        'config_files': [
+            'config/settings.yaml',
+            'config/service-settings.yaml',
+            'config/patterns.json'
+        ],
+        'key_files': [
+            'keys/',
+            '.env'
+        ],
+        'custom_patterns': [
+            'patterns/',
+            'custom_patterns/'
+        ],
+        'plugins': [
+            'plugins/'
+        ],
+        'bin_scripts': [
+            'bin/'
+        ],
+        'docs': [
+            'docs/',
+            'README.md',
+            'LICENSE'
+        ],
+        'system_configs': [
+            '/etc/nginx-security-monitor/',
+            '/etc/fail2ban/jail.d/nginx-security-monitor.conf',
+            '/etc/fail2ban/filter.d/nginx-security-monitor.conf',
+            '/etc/rsyslog.d/10-nginx-security-monitor.conf',
+            '/etc/nginx/conf.d/nginx-security-monitor.conf',
+            '/etc/logrotate.d/nginx-security-monitor',
+            '/etc/systemd/system/nginx-security-monitor.service'
+        ]
+    }
+    
+    return backup_paths
+
+def create_backup_manifest(backup_paths, backup_dir):
+    """Create backup manifest with metadata."""
+    manifest = {
+        'backup_info': {
+            'timestamp': datetime.now().isoformat(),
+            'hostname': os.uname().nodename,
+            'backup_version': '1.0',
+            'tool_version': 'NGINX Security Monitor CLI v1.0'
+        },
+        'included_paths': {},
+        'file_checksums': {},
+        'statistics': {
+            'total_files': 0,
+            'total_size': 0,
+            'directories': 0
+        }
+    }
+    
+    # Collect file information
+    for category, paths in backup_paths.items():
+        manifest['included_paths'][category] = []
+        
+        for path in paths:
+            if os.path.exists(path):
+                if os.path.isfile(path):
+                    file_info = {
+                        'path': path,
+                        'size': os.path.getsize(path),
+                        'modified': datetime.fromtimestamp(os.path.getmtime(path)).isoformat(),
+                        'type': 'file'
+                    }
+                    manifest['included_paths'][category].append(file_info)
+                    manifest['statistics']['total_files'] += 1
+                    manifest['statistics']['total_size'] += file_info['size']
+                    
+                elif os.path.isdir(path):
+                    dir_info = {
+                        'path': path,
+                        'type': 'directory',
+                        'files': []
+                    }
+                    
+                    for root, dirs, files in os.walk(path):
+                        manifest['statistics']['directories'] += 1
+                        for file in files:
+                            file_path = os.path.join(root, file)
+                            file_size = os.path.getsize(file_path)
+                            file_info = {
+                                'path': file_path,
+                                'size': file_size,
+                                'modified': datetime.fromtimestamp(os.path.getmtime(file_path)).isoformat()
+                            }
+                            dir_info['files'].append(file_info)
+                            manifest['statistics']['total_files'] += 1
+                            manifest['statistics']['total_size'] += file_size
+                    
+                    manifest['included_paths'][category].append(dir_info)
+    
+    # Save manifest
+    manifest_file = os.path.join(backup_dir, 'backup_manifest.json')
+    with open(manifest_file, 'w') as f:
+        json.dump(manifest, f, indent=2)
+    
+    return manifest
+
+def create_full_backup(output_file, include_system=False, compress=True):
+    """Create a full backup of NGINX Security Monitor configuration."""
+    print(f"📦 Creating full backup...")
+    
+    backup_paths = get_backup_paths()
+    
+    # Filter out system paths if not requested
+    if not include_system:
+        backup_paths.pop('system_configs', None)
+        print("   ⚠️  System configurations excluded (use --include-system to include)")
+    
+    # Create temporary backup directory
+    backup_dir = f"backup_temp_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    os.makedirs(backup_dir, exist_ok=True)
+    
+    try:
+        # Create manifest
+        manifest = create_backup_manifest(backup_paths, backup_dir)
+        
+        print(f"   📊 Backup statistics:")
+        print(f"      Files: {manifest['statistics']['total_files']}")
+        print(f"      Directories: {manifest['statistics']['directories']}")
+        print(f"      Total size: {manifest['statistics']['total_size']} bytes")
+        
+        # Create tar archive
+        print(f"   📦 Creating archive: {output_file}")
+        
+        mode = 'w:gz' if compress else 'w'
+        with tarfile.open(output_file, mode) as tar:
+            # Add manifest
+            tar.add(os.path.join(backup_dir, 'backup_manifest.json'), 
+                   arcname='backup_manifest.json')
+            
+            # Add all files and directories
+            for category, paths in backup_paths.items():
+                for path in paths:
+                    if os.path.exists(path):
+                        print(f"      Adding: {path}")
+                        # Use relative path in archive
+                        arcname = path
+                        if path.startswith('/'):
+                            arcname = path.lstrip('/')
+                        tar.add(path, arcname=arcname)
+        
+        # Calculate final archive size
+        archive_size = os.path.getsize(output_file)
+        compression_ratio = (manifest['statistics']['total_size'] / archive_size) if archive_size > 0 else 1
+        
+        print(f"   ✅ Backup created successfully")
+        print(f"   📊 Archive size: {archive_size} bytes")
+        if compress:
+            print(f"   📊 Compression ratio: {compression_ratio:.1f}x")
+        
+        return True
+        
+    except Exception as e:
+        print(f"   ❌ Backup failed: {e}")
+        return False
+        
+    finally:
+        # Clean up temporary directory
+        if os.path.exists(backup_dir):
+            shutil.rmtree(backup_dir)
+
+def backup_specific_category(category, output_file, compress=True):
+    """Backup specific category of files."""
+    print(f"📦 Creating {category} backup...")
+    
+    backup_paths = get_backup_paths()
+    
+    if category not in backup_paths:
+        print(f"   ❌ Unknown category: {category}")
+        print(f"   Available categories: {', '.join(backup_paths.keys())}")
+        return False
+    
+    paths = backup_paths[category]
+    existing_paths = [path for path in paths if os.path.exists(path)]
+    
+    if not existing_paths:
+        print(f"   ⚠️  No files found for category: {category}")
+        return False
+    
+    try:
+        mode = 'w:gz' if compress else 'w'
+        with tarfile.open(output_file, mode) as tar:
+            for path in existing_paths:
+                print(f"      Adding: {path}")
+                arcname = os.path.basename(path) if os.path.isfile(path) else path
+                tar.add(path, arcname=arcname)
+        
+        archive_size = os.path.getsize(output_file)
+        print(f"   ✅ Category backup created: {archive_size} bytes")
+        
+        return True
+        
+    except Exception as e:
+        print(f"   ❌ Category backup failed: {e}")
+        return False
+
+def list_backup_contents(backup_file):
+    """List contents of a backup file."""
+    print(f"📋 Listing backup contents: {backup_file}")
+    
+    try:
+        with tarfile.open(backup_file, 'r:*') as tar:
+            members = tar.getmembers()
+            
+            # Check for manifest
+            manifest_member = None
+            for member in members:
+                if member.name == 'backup_manifest.json':
+                    manifest_member = member
+                    break
+            
+            if manifest_member:
+                # Extract and display manifest
+                manifest_file = tar.extractfile(manifest_member)
+                manifest = json.load(manifest_file)
+                
+                print(f"\n📊 Backup Information:")
+                print(f"   Timestamp: {manifest['backup_info']['timestamp']}")
+                print(f"   Hostname: {manifest['backup_info']['hostname']}")
+                print(f"   Tool Version: {manifest['backup_info']['tool_version']}")
+                
+                print(f"\n📈 Statistics:")
+                print(f"   Files: {manifest['statistics']['total_files']}")
+                print(f"   Directories: {manifest['statistics']['directories']}")
+                print(f"   Total Size: {manifest['statistics']['total_size']} bytes")
+                
+                print(f"\n📁 Categories:")
+                for category, items in manifest['included_paths'].items():
+                    if items:
+                        print(f"   {category}: {len(items)} items")
+            
+            else:
+                # Fallback: list all members
+                print(f"\n📁 Archive Contents ({len(members)} items):")
+                for member in members:
+                    file_type = "DIR" if member.isdir() else "FILE"
+                    print(f"   {file_type}: {member.name} ({member.size} bytes)")
+        
+        return True
+        
+    except Exception as e:
+        print(f"   ❌ Failed to list backup contents: {e}")
+        return False
+
+def restore_backup(backup_file, target_dir='.', category=None, dry_run=False):
+    """Restore backup to target directory."""
+    print(f"🔄 Restoring backup: {backup_file}")
+    
+    if dry_run:
+        print("   🔍 DRY RUN - No files will be restored")
+    
+    try:
+        with tarfile.open(backup_file, 'r:*') as tar:
+            members = tar.getmembers()
+            
+            # Load manifest if available
+            manifest = None
+            for member in members:
+                if member.name == 'backup_manifest.json':
+                    manifest_file = tar.extractfile(member)
+                    manifest = json.load(manifest_file)
+                    break
+            
+            # Filter members by category if specified
+            if category and manifest:
+                category_files = []
+                if category in manifest['included_paths']:
+                    for item in manifest['included_paths'][category]:
+                        if item['type'] == 'file':
+                            category_files.append(item['path'])
+                        elif item['type'] == 'directory':
+                            category_files.append(item['path'])
+                            for file_info in item['files']:
+                                category_files.append(file_info['path'])
+                
+                # Filter tar members
+                filtered_members = []
+                for member in members:
+                    if any(member.name.startswith(cf) for cf in category_files):
+                        filtered_members.append(member)
+                members = filtered_members
+                
+                print(f"   🎯 Restoring category: {category} ({len(members)} items)")
+            
+            # Restore files
+            restored_count = 0
+            for member in members:
+                if member.name == 'backup_manifest.json':
+                    continue  # Skip manifest in restore
+                
+                target_path = os.path.join(target_dir, member.name)
+                
+                if dry_run:
+                    print(f"      Would restore: {member.name} -> {target_path}")
+                else:
+                    print(f"      Restoring: {member.name}")
+                    
+                    # Create directory if needed
+                    if member.isdir():
+                        os.makedirs(target_path, exist_ok=True)
+                    else:
+                        os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                        
+                        # Extract file
+                        with open(target_path, 'wb') as f:
+                            file_data = tar.extractfile(member)
+                            if file_data:
+                                f.write(file_data.read())
+                        
+                        # Restore permissions
+                        os.chmod(target_path, member.mode)
+                
+                restored_count += 1
+            
+            if not dry_run:
+                print(f"   ✅ Restored {restored_count} items to {target_dir}")
+            else:
+                print(f"   🔍 Would restore {restored_count} items to {target_dir}")
+        
+        return True
+        
+    except Exception as e:
+        print(f"   ❌ Restore failed: {e}")
+        return False
+
+def cleanup_old_backups(backup_dir, keep_count=10):
+    """Clean up old backup files."""
+    print(f"🧹 Cleaning up old backups in {backup_dir}...")
+    
+    try:
+        # Find backup files
+        backup_files = []
+        for file in os.listdir(backup_dir):
+            if file.startswith('nginx-security-monitor-backup-') and (file.endswith('.tar.gz') or file.endswith('.tar')):
+                file_path = os.path.join(backup_dir, file)
+                backup_files.append((file_path, os.path.getmtime(file_path)))
+        
+        # Sort by modification time (newest first)
+        backup_files.sort(key=lambda x: x[1], reverse=True)
+        
+        if len(backup_files) <= keep_count:
+            print(f"   ✅ No cleanup needed ({len(backup_files)} backups, keeping {keep_count})")
+            return True
+        
+        # Remove old backups
+        removed_count = 0
+        for file_path, _ in backup_files[keep_count:]:
+            try:
+                os.remove(file_path)
+                print(f"      Removed: {os.path.basename(file_path)}")
+                removed_count += 1
+            except Exception as e:
+                print(f"      Failed to remove {os.path.basename(file_path)}: {e}")
+        
+        print(f"   ✅ Cleaned up {removed_count} old backups")
+        return True
+        
+    except Exception as e:
+        print(f"   ❌ Cleanup failed: {e}")
+        return False
+
+def verify_backup_integrity(backup_file):
+    """Verify backup file integrity."""
+    print(f"🔍 Verifying backup integrity: {backup_file}")
+    
+    try:
+        with tarfile.open(backup_file, 'r:*') as tar:
+            # Test archive integrity
+            members = tar.getmembers()
+            
+            print(f"   📊 Archive contains {len(members)} members")
+            
+            # Check for manifest
+            has_manifest = any(m.name == 'backup_manifest.json' for m in members)
+            print(f"   📋 Manifest present: {'✅' if has_manifest else '❌'}")
+            
+            # Verify each member can be read
+            corrupted_files = []
+            for member in members:
+                try:
+                    if not member.isdir():
+                        file_data = tar.extractfile(member)
+                        if file_data:
+                            # Try to read the file
+                            file_data.read()
+                except Exception:
+                    corrupted_files.append(member.name)
+            
+            if corrupted_files:
+                print(f"   ❌ Corrupted files found:")
+                for corrupted_file in corrupted_files:
+                    print(f"      {corrupted_file}")
+                return False
+            else:
+                print(f"   ✅ All files verified successfully")
+                return True
+        
+    except Exception as e:
+        print(f"   ❌ Verification failed: {e}")
+        return False
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Backup and restore NGINX Security Monitor configurations",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s --create backup.tar.gz                    # Create full backup
+  %(prog)s --create backup.tar.gz --include-system   # Include system configs
+  %(prog)s --category config_files --output config-backup.tar.gz
+  %(prog)s --restore backup.tar.gz --target /tmp/restore
+  %(prog)s --list backup.tar.gz                      # List backup contents
+  %(prog)s --verify backup.tar.gz                    # Verify integrity
+  %(prog)s --cleanup /backup/dir --keep 5            # Clean old backups
+        """
+    )
+    
+    # Action arguments
+    action_group = parser.add_mutually_exclusive_group(required=True)
+    action_group.add_argument(
+        '--create',
+        metavar='OUTPUT_FILE',
+        help='Create backup to specified file'
+    )
+    
+    action_group.add_argument(
+        '--restore',
+        metavar='BACKUP_FILE',
+        help='Restore from backup file'
+    )
+    
+    action_group.add_argument(
+        '--list',
+        metavar='BACKUP_FILE',
+        help='List contents of backup file'
+    )
+    
+    action_group.add_argument(
+        '--verify',
+        metavar='BACKUP_FILE',
+        help='Verify backup file integrity'
+    )
+    
+    action_group.add_argument(
+        '--cleanup',
+        metavar='BACKUP_DIR',
+        help='Clean up old backup files'
+    )
+    
+    # Backup options
+    parser.add_argument(
+        '--category',
+        choices=['config_files', 'key_files', 'custom_patterns', 'plugins', 'bin_scripts', 'docs', 'system_configs'],
+        help='Backup specific category only'
+    )
+    
+    parser.add_argument(
+        '--include-system',
+        action='store_true',
+        help='Include system configuration files'
+    )
+    
+    parser.add_argument(
+        '--no-compress',
+        action='store_true',
+        help='Create uncompressed backup'
+    )
+    
+    # Restore options
+    parser.add_argument(
+        '--target',
+        default='.',
+        help='Target directory for restore (default: current directory)'
+    )
+    
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Show what would be restored without doing it'
+    )
+    
+    # Cleanup options
+    parser.add_argument(
+        '--keep',
+        type=int,
+        default=10,
+        help='Number of backup files to keep (default: 10)'
+    )
+    
+    parser.add_argument(
+        '--output', '-o',
+        help='Output file for category backup'
+    )
+    
+    args = parser.parse_args()
+    
+    print_backup_header()
+    
+    success = False
+    
+    if args.create:
+        if args.category:
+            if not args.output:
+                print("❌ --output required when using --category")
+                sys.exit(1)
+            success = backup_specific_category(args.category, args.output, not args.no_compress)
+        else:
+            success = create_full_backup(args.create, args.include_system, not args.no_compress)
+    
+    elif args.restore:
+        success = restore_backup(args.restore, args.target, args.category, args.dry_run)
+    
+    elif args.list:
+        success = list_backup_contents(args.list)
+    
+    elif args.verify:
+        success = verify_backup_integrity(args.verify)
+    
+    elif args.cleanup:
+        success = cleanup_old_backups(args.cleanup, args.keep)
+    
+    if success:
+        print("\n🎉 Operation completed successfully!")
+    else:
+        print("\n❌ Operation failed!")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

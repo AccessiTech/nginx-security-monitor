@@ -1,0 +1,36 @@
+[Unit]
+Description=NGINX Security Monitor
+Documentation=https://github.com/AccessiTech/nginx-security-monitor
+After=network.target nginx.service
+Wants=nginx.service
+
+[Service]
+Type=simple
+User=nginx-monitor
+Group=nginx-monitor
+WorkingDirectory=/opt/nginx-security-monitor
+ExecStart=/opt/nginx-security-monitor/venv/bin/python /opt/nginx-security-monitor/src/monitor_service.py
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=nginx-security-monitor
+
+# Security settings
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/nginx-security-monitor /var/lib/nginx-security-monitor
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+# Environment
+Environment=PYTHONPATH=/opt/nginx-security-monitor/src
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

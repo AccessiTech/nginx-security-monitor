@@ -1,0 +1,352 @@
+#!/usr/bin/env python3
+"""
+NGINX Security Monitor - Installation Test Suite
+Verifies that the installation is working correctly.
+"""
+
+import os
+import sys
+import argparse
+import subprocess
+import importlib
+from pathlib import Path
+
+# Add the src directory to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
+
+def test_python_dependencies():
+    """Test that all required Python packages are available."""
+    print("🐍 Testing Python Dependencies...")
+    
+    required_packages = [
+        'yaml', 'cryptography', 'psutil', 'pytest'
+    ]
+    
+    missing_packages = []
+    for package in required_packages:
+        try:
+            importlib.import_module(package)
+            print(f"  ✅ {package}")
+        except ImportError:
+            print(f"  ❌ {package} - MISSING")
+            missing_packages.append(package)
+    
+    if missing_packages:
+        print(f"\n⚠️  Missing packages: {', '.join(missing_packages)}")
+        print("Install with: pip install -r requirements.txt")
+        return False
+    
+    print("✅ All Python dependencies are available")
+    return True
+
+def test_core_modules():
+    """Test that core application modules can be imported."""
+    print("\n🔧 Testing Core Modules...")
+    
+    core_modules = [
+        'config_manager',
+        'pattern_detector', 
+        'log_parser',
+        'crypto_utils',
+        'plugin_system'
+    ]
+    
+    failed_modules = []
+    for module in core_modules:
+        try:
+            importlib.import_module(module)
+            print(f"  ✅ {module}")
+        except ImportError as e:
+            print(f"  ❌ {module} - {e}")
+            failed_modules.append(module)
+    
+    if failed_modules:
+        print(f"\n⚠️  Failed to import: {', '.join(failed_modules)}")
+        return False
+    
+    print("✅ All core modules imported successfully")
+    return True
+
+def test_configuration_files():
+    """Test that configuration files exist and are readable."""
+    print("\n📋 Testing Configuration Files...")
+    
+    config_files = [
+        'config/settings.yaml',
+        'config/service-settings.yaml',
+        'config/patterns.json'
+    ]
+    
+    missing_files = []
+    for config_file in config_files:
+        if os.path.exists(config_file):
+            try:
+                if config_file.endswith('.yaml'):
+                    import yaml
+                    with open(config_file, 'r') as f:
+                        yaml.safe_load(f)
+                elif config_file.endswith('.json'):
+                    import json
+                    with open(config_file, 'r') as f:
+                        json.load(f)
+                print(f"  ✅ {config_file}")
+            except Exception as e:
+                print(f"  ❌ {config_file} - Invalid format: {e}")
+                missing_files.append(config_file)
+        else:
+            print(f"  ❌ {config_file} - File not found")
+            missing_files.append(config_file)
+    
+    if missing_files:
+        print(f"\n⚠️  Configuration issues: {', '.join(missing_files)}")
+        return False
+    
+    print("✅ All configuration files are valid")
+    return True
+
+def test_log_file_access():
+    """Test access to NGINX log files."""
+    print("\n📄 Testing Log File Access...")
+    
+    # Default log paths to test
+    log_paths = [
+        '/var/log/nginx/access.log',
+        '/var/log/nginx/error.log'
+    ]
+    
+    accessible_logs = []
+    for log_path in log_paths:
+        if os.path.exists(log_path):
+            if os.access(log_path, os.R_OK):
+                print(f"  ✅ {log_path} - Readable")
+                accessible_logs.append(log_path)
+            else:
+                print(f"  ⚠️  {log_path} - Exists but not readable")
+        else:
+            print(f"  ℹ️  {log_path} - Not found (may be configured differently)")
+    
+    if not accessible_logs:
+        print("⚠️  No standard NGINX log files found/accessible")
+        print("   This is normal if NGINX logs are in a custom location")
+        print("   Update config/settings.yaml with correct log paths")
+    else:
+        print("✅ NGINX log files are accessible")
+    
+    return True
+
+def test_permissions():
+    """Test file and directory permissions."""
+    print("\n🔒 Testing Permissions...")
+    
+    # Test write access to key directories
+    test_dirs = [
+        'plugins',
+        'config',
+        '/tmp'  # For temporary files
+    ]
+    
+    permission_issues = []
+    for test_dir in test_dirs:
+        if os.path.exists(test_dir):
+            if os.access(test_dir, os.W_OK):
+                print(f"  ✅ {test_dir} - Writable")
+            else:
+                print(f"  ❌ {test_dir} - Not writable")
+                permission_issues.append(test_dir)
+        else:
+            print(f"  ℹ️  {test_dir} - Directory not found")
+    
+    if permission_issues:
+        print(f"\n⚠️  Permission issues: {', '.join(permission_issues)}")
+        return False
+    
+    print("✅ All required permissions are available")
+    return True
+
+def test_encryption_capabilities():
+    """Test encryption/decryption functionality."""
+    print("\n🔐 Testing Encryption Capabilities...")
+    
+    try:
+        from crypto_utils import generate_master_key, SecurityConfigManager
+        
+        # Test key generation
+        test_key = generate_master_key()
+        print("  ✅ Master key generation")
+        
+        # Test encryption/decryption
+        os.environ['NGINX_MONITOR_KEY'] = test_key
+        manager = SecurityConfigManager()
+        
+        test_data = {"test": "data", "number": 123}
+        encrypted = manager.encrypt_data(test_data)
+        decrypted = manager.decrypt_data(encrypted)
+        
+        if decrypted == test_data:
+            print("  ✅ Encryption/decryption cycle")
+        else:
+            print("  ❌ Encryption/decryption failed")
+            return False
+        
+        print("✅ Encryption system is working")
+        return True
+        
+    except Exception as e:
+        print(f"  ❌ Encryption test failed: {e}")
+        return False
+
+def test_plugin_system():
+    """Test that the plugin system can load plugins."""
+    print("\n🔌 Testing Plugin System...")
+    
+    try:
+        # Test if we can load the test plugin
+        plugin_path = os.path.join('plugins', 'test_plugin.py')
+        if os.path.exists(plugin_path):
+            # Import using importlib
+            spec = importlib.util.spec_from_file_location("test_plugin", plugin_path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            
+            plugin = module.TestpluginPlugin()
+            print(f"  ✅ Test plugin loaded: {plugin.name}")
+        else:
+            print("  ℹ️  No test plugin found (optional)")
+        
+        print("✅ Plugin system is operational")
+        return True
+        
+    except Exception as e:
+        print(f"  ❌ Plugin system test failed: {e}")
+        return False
+
+def run_quick_pattern_test():
+    """Run a quick pattern detection test."""
+    print("\n🎯 Testing Pattern Detection...")
+    
+    try:
+        from pattern_detector import PatternDetector
+        
+        detector = PatternDetector()
+        
+        # Test with a simple SQL injection pattern
+        test_log = {
+            'ip_address': '127.0.0.1',
+            'request': "GET /test?id=1' OR '1'='1 HTTP/1.1",
+            'status_code': '200'
+        }
+        
+        threats = detector.detect_patterns([test_log])
+        if threats:
+            print(f"  ✅ Pattern detection working - Found {len(threats)} threats")
+        else:
+            print("  ⚠️  No threats detected in test case")
+        
+        print("✅ Pattern detection system is operational")
+        return True
+        
+    except Exception as e:
+        print(f"  ❌ Pattern detection test failed: {e}")
+        return False
+
+def generate_report(results):
+    """Generate a summary report of test results."""
+    print("\n" + "="*60)
+    print("📊 INSTALLATION TEST REPORT")
+    print("="*60)
+    
+    total_tests = len(results)
+    passed_tests = sum(1 for result in results.values() if result)
+    
+    print(f"Total Tests: {total_tests}")
+    print(f"Passed: {passed_tests}")
+    print(f"Failed: {total_tests - passed_tests}")
+    print(f"Success Rate: {(passed_tests/total_tests)*100:.1f}%")
+    
+    print("\nDetailed Results:")
+    for test_name, result in results.items():
+        status = "✅ PASS" if result else "❌ FAIL"
+        print(f"  {status} {test_name}")
+    
+    if passed_tests == total_tests:
+        print("\n🎉 All tests passed! NGINX Security Monitor is ready to use.")
+        print("\nNext steps:")
+        print("1. Configure your settings in config/settings.yaml")
+        print("2. Run: ./bin/nginx-security-monitor start")
+        print("3. Check status: ./bin/nginx-security-monitor status")
+    else:
+        print("\n⚠️  Some tests failed. Please address the issues above.")
+        print("\nCommon solutions:")
+        print("- Install missing dependencies: pip install -r requirements.txt")
+        print("- Check file permissions: ls -la config/ plugins/")
+        print("- Verify NGINX log paths in configuration")
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Test NGINX Security Monitor installation",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s                    # Run all tests
+  %(prog)s --quick           # Run only essential tests
+  %(prog)s --verbose         # Show detailed output
+        """
+    )
+    
+    parser.add_argument(
+        '--quick', '-q',
+        action='store_true',
+        help='Run only essential tests (faster)'
+    )
+    
+    parser.add_argument(
+        '--verbose', '-v',
+        action='store_true',
+        help='Show detailed output'
+    )
+    
+    parser.add_argument(
+        '--report-only',
+        action='store_true',
+        help='Generate report from previous test results'
+    )
+    
+    args = parser.parse_args()
+    
+    print("🧪 NGINX Security Monitor Installation Test")
+    print("=" * 50)
+    
+    # Define tests to run
+    tests = {
+        'Python Dependencies': test_python_dependencies,
+        'Core Modules': test_core_modules,
+        'Configuration Files': test_configuration_files,
+        'Log File Access': test_log_file_access,
+        'Permissions': test_permissions,
+    }
+    
+    if not args.quick:
+        tests.update({
+            'Encryption Capabilities': test_encryption_capabilities,
+            'Plugin System': test_plugin_system,
+            'Pattern Detection': run_quick_pattern_test,
+        })
+    
+    # Run tests
+    results = {}
+    for test_name, test_func in tests.items():
+        try:
+            results[test_name] = test_func()
+        except Exception as e:
+            print(f"❌ {test_name} - Unexpected error: {e}")
+            results[test_name] = False
+    
+    # Generate report
+    generate_report(results)
+    
+    # Exit with appropriate code
+    all_passed = all(results.values())
+    sys.exit(0 if all_passed else 1)
+
+if __name__ == "__main__":
+    main()

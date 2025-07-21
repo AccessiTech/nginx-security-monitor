@@ -1,0 +1,102 @@
+<!--
+Custom OSSEC/Wazuh rules for NGINX Security Monitor
+Place this in /var/ossec/rules/nginx_security_rules.xml or equivalent
+-->
+
+<group name="nginx_security">
+
+  <!-- NGINX Security Monitor alerts -->
+  <rule id="100001" level="10">
+    <if_sid>1002</if_sid>
+    <match>NGINX_SECURITY_ALERT</match>
+    <description>NGINX Security Monitor: Security threat detected</description>
+    <group>web,attack,nginx_security</group>
+  </rule>
+
+  <!-- High severity threats -->
+  <rule id="100002" level="12">
+    <if_sid>100001</if_sid>
+    <match>"severity":\s*"HIGH"</match>
+    <description>NGINX Security Monitor: High severity threat detected</description>
+    <group>web,attack,nginx_security</group>
+  </rule>
+
+  <!-- Critical threats -->
+  <rule id="100003" level="15">
+    <if_sid>100001</if_sid>
+    <match>"severity":\s*"CRITICAL"</match>
+    <description>NGINX Security Monitor: Critical threat detected</description>
+    <group>web,attack,nginx_security</group>
+  </rule>
+
+  <!-- SQL Injection attempts -->
+  <rule id="100004" level="12">
+    <if_sid>100001</if_sid>
+    <match>"type":\s*"SQL Injection"</match>
+    <description>NGINX Security Monitor: SQL injection attempt detected</description>
+    <group>web,attack,sql_injection,nginx_security</group>
+  </rule>
+
+  <!-- XSS attempts -->
+  <rule id="100005" level="11">
+    <if_sid>100001</if_sid>
+    <match>"type":\s*"XSS Attack"</match>
+    <description>NGINX Security Monitor: Cross-site scripting attempt detected</description>
+    <group>web,attack,xss,nginx_security</group>
+  </rule>
+
+  <!-- DDoS attempts -->
+  <rule id="100006" level="10">
+    <if_sid>100001</if_sid>
+    <match>"type":\s*"DDoS Attempt"</match>
+    <description>NGINX Security Monitor: DDoS attempt detected</description>
+    <group>web,attack,ddos,nginx_security</group>
+  </rule>
+
+  <!-- Brute force attempts -->
+  <rule id="100007" level="11">
+    <if_sid>100001</if_sid>
+    <match>"type":\s*"Brute Force"</match>
+    <description>NGINX Security Monitor: Brute force attempt detected</description>
+    <group>web,attack,brute_force,nginx_security</group>
+  </rule>
+
+  <!-- Service protection alerts -->
+  <rule id="100008" level="13">
+    <if_sid>1002</if_sid>
+    <match>Service Protection</match>
+    <description>NGINX Security Monitor: Service protection alert</description>
+    <group>system,nginx_security,service_protection</group>
+  </rule>
+
+  <!-- Emergency service alerts -->
+  <rule id="100009" level="15">
+    <if_sid>100008</if_sid>
+    <match>CRITICAL.*Emergency</match>
+    <description>NGINX Security Monitor: Emergency service protection activated</description>
+    <group>system,nginx_security,service_protection,emergency</group>
+  </rule>
+
+  <!-- Integration framework alerts -->
+  <rule id="100010" level="8">
+    <if_sid>1002</if_sid>
+    <match>Security Framework Alert</match>
+    <description>NGINX Security Monitor: Security framework integration alert</description>
+    <group>system,nginx_security,integration</group>
+  </rule>
+
+</group>
+
+<!--
+Usage Notes:
+1. Restart OSSEC/Wazuh after adding these rules
+2. Rules trigger on syslog entries containing the specified patterns
+3. Adjust levels (1-15) based on your alerting preferences
+4. Add custom actions or email notifications as needed
+
+Example OSSEC configuration to monitor NGINX Security Monitor log:
+<localfile>
+  <log_format>syslog</log_format>
+  <location>/var/log/nginx-security-monitor.log</location>
+</localfile>
+-->

@@ -1,0 +1,661 @@
+#!/usr/bin/env python3
+"""
+NGINX Security Monitor - Integration Setup Tool
+Automate security framework integration and service configuration.
+"""
+
+import os
+import sys
+import argparse
+import subprocess
+import json
+import yaml
+import shutil
+from pathlib import Path
+
+# Add the src directory to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
+
+def print_integration_header():
+    """Print integration setup header."""
+    print("🔗 NGINX Security Monitor - Integration Setup")
+    print("=" * 50)
+
+def detect_security_services():
+    """Detect available security services on the system."""
+    print("🔍 Detecting available security services...")
+    
+    services = {
+        'fail2ban': {'installed': False, 'running': False, 'config_path': '/etc/fail2ban'},
+        'ossec': {'installed': False, 'running': False, 'config_path': '/var/ossec'},
+        'suricata': {'installed': False, 'running': False, 'config_path': '/etc/suricata'},
+        'logwatch': {'installed': False, 'running': False, 'config_path': '/etc/logwatch'},
+        'rsyslog': {'installed': False, 'running': False, 'config_path': '/etc/rsyslog.d'},
+        'nginx': {'installed': False, 'running': False, 'config_path': '/etc/nginx'},
+        'iptables': {'installed': False, 'running': False, 'config_path': '/etc/iptables'},
+        'ufw': {'installed': False, 'running': False, 'config_path': '/etc/ufw'}
+    }
+    
+    # Check for installed services
+    for service_name, service_info in services.items():
+        # Check if binary exists
+        try:
+            result = subprocess.run(['which', service_name], capture_output=True, text=True)
+            if result.returncode == 0:
+                service_info['installed'] = True
+                print(f"   ✅ {service_name}: installed")
+            else:
+                print(f"   ❌ {service_name}: not installed")
+                continue
+        except:
+            print(f"   ❌ {service_name}: not installed")
+            continue
+        
+        # Check if service is running (systemd)
+        try:
+            result = subprocess.run(['systemctl', 'is-active', service_name], 
+                                  capture_output=True, text=True)
+            if result.returncode == 0 and result.stdout.strip() == 'active':
+                service_info['running'] = True
+                print(f"      🟢 Status: running")
+            else:
+                print(f"      🔴 Status: not running")
+        except:
+            pass
+        
+        # Check if config directory exists
+        if os.path.exists(service_info['config_path']):
+            print(f"      📁 Config: {service_info['config_path']}")
+        else:
+            service_info['config_path'] = None
+            print(f"      📁 Config: not found")
+    
+    return services
+
+def setup_fail2ban_integration(config_dir='/etc/fail2ban', dry_run=False):
+    """Set up fail2ban integration."""
+    print("\n🛡️ Setting up Fail2ban integration...")
+    
+    # Check if fail2ban is available
+    if not shutil.which('fail2ban-client'):
+        print("   ❌ Fail2ban not installed")
+        return False
+    
+    # Create custom jail configuration
+    jail_config = """[nginx-security-monitor]
+enabled = true
+port = http,https
+filter = nginx-security-monitor
+logpath = /var/log/nginx/access.log
+maxretry = 3
+findtime = 600
+bantime = 3600
+action = iptables-multiport[name=nginx-security-monitor, port="http,https", protocol=tcp]
+"""
+    
+    # Create custom filter
+    filter_config = """# Fail2Ban filter for NGINX Security Monitor
+# Matches entries from NGINX Security Monitor alerts
+
+[Definition]
+failregex = ^<HOST> .* "(GET|POST|HEAD|PUT|DELETE|PATCH|OPTIONS).*" (403|404|500) .*$
+            ^.*\\[ALERT\\].*Source IP: <HOST>.*$
+            ^.*nginx-security-monitor.*IP: <HOST>.*severity: (high|critical).*$
+
+ignoreregex = ^<HOST> .* "(GET|POST) /(favicon\\.ico|robots\\.txt|sitemap\\.xml)" 200 .*$
+"""
+    
+    jail_file = os.path.join(config_dir, 'jail.d', 'nginx-security-monitor.conf')
+    filter_file = os.path.join(config_dir, 'filter.d', 'nginx-security-monitor.conf')
+    
+    if dry_run:
+        print("   🔍 DRY RUN - Would create:")
+        print(f"      {jail_file}")
+        print(f"      {filter_file}")
+        return True
+    
+    try:
+        # Create jail.d directory if it doesn't exist
+        os.makedirs(os.path.dirname(jail_file), exist_ok=True)
+        
+        # Write jail configuration
+        with open(jail_file, 'w') as f:
+            f.write(jail_config)
+        print(f"   ✅ Created jail: {jail_file}")
+        
+        # Create filter.d directory if it doesn't exist
+        os.makedirs(os.path.dirname(filter_file), exist_ok=True)
+        
+        # Write filter configuration
+        with open(filter_file, 'w') as f:
+            f.write(filter_config)
+        print(f"   ✅ Created filter: {filter_file}")
+        
+        # Reload fail2ban
+        try:
+            subprocess.run(['fail2ban-client', 'reload'], check=True)
+            print("   ✅ Reloaded fail2ban configuration")
+        except subprocess.CalledProcessError:
+            print("   ⚠️  Could not reload fail2ban - manual restart may be needed")
+        
+        return True
+        
+    except Exception as e:
+        print(f"   ❌ Failed to set up fail2ban integration: {e}")
+        return False
+
+def setup_rsyslog_integration(config_dir='/etc/rsyslog.d', dry_run=False):
+    """Set up rsyslog integration."""
+    print("\n📝 Setting up rsyslog integration...")
+    
+    # Create rsyslog configuration for NGINX Security Monitor
+    rsyslog_config = """# NGINX Security Monitor rsyslog configuration
+# Forward security alerts to central logging
+
+# Local logging for NGINX Security Monitor
+local0.*    /var/log/nginx-security-monitor/alerts.log
+
+# Forward critical alerts to remote syslog (uncomment and configure as needed)
+# local0.crit    @@syslog.example.com:514
+
+# Stop processing after handling our logs
+local0.*    stop
+"""
+    
+    config_file = os.path.join(config_dir, '10-nginx-security-monitor.conf')
+    
+    if dry_run:
+        print("   🔍 DRY RUN - Would create:")
+        print(f"      {config_file}")
+        return True
+    
+    try:
+        # Write rsyslog configuration
+        with open(config_file, 'w') as f:
+            f.write(rsyslog_config)
+        print(f"   ✅ Created rsyslog config: {config_file}")
+        
+        # Create log directory
+        log_dir = '/var/log/nginx-security-monitor'
+        os.makedirs(log_dir, exist_ok=True)
+        print(f"   ✅ Created log directory: {log_dir}")
+        
+        # Restart rsyslog
+        try:
+            subprocess.run(['systemctl', 'restart', 'rsyslog'], check=True)
+            print("   ✅ Restarted rsyslog service")
+        except subprocess.CalledProcessError:
+            print("   ⚠️  Could not restart rsyslog - manual restart may be needed")
+        
+        return True
+        
+    except Exception as e:
+        print(f"   ❌ Failed to set up rsyslog integration: {e}")
+        return False
+
+def setup_nginx_integration(config_dir='/etc/nginx', dry_run=False):
+    """Set up NGINX integration."""
+    print("\n🌐 Setting up NGINX integration...")
+    
+    # Create NGINX configuration snippet
+    nginx_config = """# NGINX Security Monitor integration
+# Include this in your server block
+
+# Security headers
+add_header X-Frame-Options DENY always;
+add_header X-Content-Type-Options nosniff always;
+add_header X-XSS-Protection "1; mode=block" always;
+add_header Referrer-Policy strict-origin-when-cross-origin always;
+
+# Rate limiting for security endpoints
+limit_req_zone $binary_remote_addr zone=security:10m rate=10r/m;
+
+location /nginx-security-monitor {
+    limit_req zone=security burst=5 nodelay;
+    access_log /var/log/nginx/security-monitor.log;
+    
+    # Internal monitoring endpoint
+    allow 127.0.0.1;
+    allow ::1;
+    deny all;
+    
+    return 200 "NGINX Security Monitor Active";
+}
+
+# Log format for security monitoring
+log_format security_monitor '$remote_addr - $remote_user [$time_local] '
+                           '"$request" $status $body_bytes_sent '
+                           '"$http_referer" "$http_user_agent" '
+                           '$request_time $upstream_response_time';
+"""
+    
+    config_file = os.path.join(config_dir, 'conf.d', 'nginx-security-monitor.conf')
+    
+    if dry_run:
+        print("   🔍 DRY RUN - Would create:")
+        print(f"      {config_file}")
+        return True
+    
+    try:
+        # Create conf.d directory if it doesn't exist
+        os.makedirs(os.path.dirname(config_file), exist_ok=True)
+        
+        # Write NGINX configuration
+        with open(config_file, 'w') as f:
+            f.write(nginx_config)
+        print(f"   ✅ Created NGINX config: {config_file}")
+        
+        # Test NGINX configuration
+        try:
+            subprocess.run(['nginx', '-t'], check=True, capture_output=True)
+            print("   ✅ NGINX configuration test passed")
+            
+            # Reload NGINX
+            subprocess.run(['systemctl', 'reload', 'nginx'], check=True)
+            print("   ✅ Reloaded NGINX configuration")
+            
+        except subprocess.CalledProcessError as e:
+            print("   ⚠️  NGINX configuration test failed - please check manually")
+            print(f"      Error: {e}")
+        
+        return True
+        
+    except Exception as e:
+        print(f"   ❌ Failed to set up NGINX integration: {e}")
+        return False
+
+def setup_logrotate_integration(dry_run=False):
+    """Set up logrotate for NGINX Security Monitor logs."""
+    print("\n🔄 Setting up log rotation...")
+    
+    logrotate_config = """/var/log/nginx-security-monitor/*.log {
+    daily
+    missingok
+    rotate 52
+    compress
+    delaycompress
+    notifempty
+    create 0644 nginx-monitor nginx-monitor
+    postrotate
+        if [ -f /var/run/nginx-security-monitor.pid ]; then
+            kill -USR1 `cat /var/run/nginx-security-monitor.pid`
+        fi
+        systemctl reload rsyslog > /dev/null 2>&1 || true
+    endscript
+}
+
+/var/log/nginx/security-monitor.log {
+    daily
+    missingok
+    rotate 30
+    compress
+    delaycompress
+    notifempty
+    create 0644 www-data www-data
+    postrotate
+        systemctl reload nginx > /dev/null 2>&1 || true
+    endscript
+}
+"""
+    
+    config_file = '/etc/logrotate.d/nginx-security-monitor'
+    
+    if dry_run:
+        print("   🔍 DRY RUN - Would create:")
+        print(f"      {config_file}")
+        return True
+    
+    try:
+        with open(config_file, 'w') as f:
+            f.write(logrotate_config)
+        print(f"   ✅ Created logrotate config: {config_file}")
+        
+        # Test logrotate configuration
+        try:
+            subprocess.run(['logrotate', '-d', config_file], check=True, capture_output=True)
+            print("   ✅ Logrotate configuration test passed")
+        except subprocess.CalledProcessError:
+            print("   ⚠️  Logrotate configuration test failed - please check manually")
+        
+        return True
+        
+    except Exception as e:
+        print(f"   ❌ Failed to set up logrotate integration: {e}")
+        return False
+
+def create_webhook_integration_script(output_dir='/opt/nginx-security-monitor/integrations', dry_run=False):
+    """Create webhook integration script."""
+    print("\n🔗 Creating webhook integration script...")
+    
+    webhook_script = """#!/bin/bash
+# NGINX Security Monitor Webhook Integration Script
+# This script can be called from the main monitor to send alerts to external systems
+
+WEBHOOK_URL="${WEBHOOK_URL:-}"
+ALERT_LEVEL="${1:-info}"
+ALERT_MESSAGE="${2:-No message provided}"
+SOURCE_IP="${3:-unknown}"
+
+if [ -z "$WEBHOOK_URL" ]; then
+    echo "Error: WEBHOOK_URL environment variable not set"
+    exit 1
+fi
+
+# Create JSON payload
+PAYLOAD=$(cat <<EOF
+{
+    "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+    "service": "nginx-security-monitor",
+    "level": "$ALERT_LEVEL",
+    "message": "$ALERT_MESSAGE",
+    "source_ip": "$SOURCE_IP",
+    "hostname": "$(hostname)"
+}
+EOF
+)
+
+# Send webhook
+curl -X POST "$WEBHOOK_URL" \\
+     -H "Content-Type: application/json" \\
+     -H "User-Agent: NGINX-Security-Monitor/1.0" \\
+     -d "$PAYLOAD" \\
+     --max-time 10 \\
+     --silent \\
+     --show-error
+
+if [ $? -eq 0 ]; then
+    echo "Webhook sent successfully"
+else
+    echo "Failed to send webhook"
+    exit 1
+fi
+"""
+    
+    script_file = os.path.join(output_dir, 'webhook-integration.sh')
+    
+    if dry_run:
+        print("   🔍 DRY RUN - Would create:")
+        print(f"      {script_file}")
+        return True
+    
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+        
+        with open(script_file, 'w') as f:
+            f.write(webhook_script)
+        
+        # Make executable
+        os.chmod(script_file, 0o755)
+        
+        print(f"   ✅ Created webhook script: {script_file}")
+        
+        return True
+        
+    except Exception as e:
+        print(f"   ❌ Failed to create webhook script: {e}")
+        return False
+
+def update_nginx_monitor_config(config_file, integrations, dry_run=False):
+    """Update NGINX Security Monitor configuration with integration settings."""
+    print("\n⚙️ Updating NGINX Security Monitor configuration...")
+    
+    if not os.path.exists(config_file):
+        print(f"   ❌ Configuration file not found: {config_file}")
+        return False
+    
+    if dry_run:
+        print("   🔍 DRY RUN - Would update configuration")
+        return True
+    
+    try:
+        # Load existing configuration
+        with open(config_file, 'r') as f:
+            if config_file.endswith('.yaml') or config_file.endswith('.yml'):
+                config = yaml.safe_load(f)
+            else:
+                config = json.load(f)
+        
+        # Add integration settings
+        if 'integrations' not in config:
+            config['integrations'] = {}
+        
+        # Update integration settings based on what was set up
+        for integration, enabled in integrations.items():
+            if enabled:
+                if integration == 'fail2ban':
+                    config['integrations']['fail2ban'] = {
+                        'enabled': True,
+                        'jail_name': 'nginx-security-monitor',
+                        'action': 'ban'
+                    }
+                elif integration == 'rsyslog':
+                    config['integrations']['rsyslog'] = {
+                        'enabled': True,
+                        'facility': 'local0',
+                        'priority': 'info'
+                    }
+                elif integration == 'webhook':
+                    config['integrations']['webhook'] = {
+                        'enabled': True,
+                        'script_path': '/opt/nginx-security-monitor/integrations/webhook-integration.sh'
+                    }
+        
+        # Save updated configuration
+        with open(config_file, 'w') as f:
+            if config_file.endswith('.yaml') or config_file.endswith('.yml'):
+                yaml.dump(config, f, default_flow_style=False, indent=2)
+            else:
+                json.dump(config, f, indent=2)
+        
+        print(f"   ✅ Updated configuration: {config_file}")
+        return True
+        
+    except Exception as e:
+        print(f"   ❌ Failed to update configuration: {e}")
+        return False
+
+def test_integrations(services, dry_run=False):
+    """Test the configured integrations."""
+    print("\n🧪 Testing integrations...")
+    
+    results = {}
+    
+    # Test fail2ban
+    if services.get('fail2ban', {}).get('installed', False):
+        print("   🛡️ Testing fail2ban integration...")
+        try:
+            result = subprocess.run(['fail2ban-client', 'status', 'nginx-security-monitor'], 
+                                  capture_output=True, text=True)
+            if result.returncode == 0:
+                print("      ✅ Fail2ban jail is active")
+                results['fail2ban'] = True
+            else:
+                print("      ❌ Fail2ban jail not found or inactive")
+                results['fail2ban'] = False
+        except:
+            print("      ❌ Failed to check fail2ban status")
+            results['fail2ban'] = False
+    
+    # Test rsyslog
+    if services.get('rsyslog', {}).get('installed', False):
+        print("   📝 Testing rsyslog integration...")
+        if os.path.exists('/etc/rsyslog.d/10-nginx-security-monitor.conf'):
+            print("      ✅ Rsyslog configuration found")
+            results['rsyslog'] = True
+        else:
+            print("      ❌ Rsyslog configuration not found")
+            results['rsyslog'] = False
+    
+    # Test NGINX
+    if services.get('nginx', {}).get('installed', False):
+        print("   🌐 Testing NGINX integration...")
+        if os.path.exists('/etc/nginx/conf.d/nginx-security-monitor.conf'):
+            print("      ✅ NGINX configuration found")
+            results['nginx'] = True
+        else:
+            print("      ❌ NGINX configuration not found")
+            results['nginx'] = False
+    
+    return results
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Set up security framework integrations for NGINX Security Monitor",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s --detect                     # Detect available services
+  %(prog)s --setup fail2ban rsyslog     # Set up specific integrations
+  %(prog)s --setup-all                  # Set up all available integrations
+  %(prog)s --test                       # Test existing integrations
+  %(prog)s --config /path/to/settings.yaml --dry-run
+        """
+    )
+    
+    parser.add_argument(
+        '--detect',
+        action='store_true',
+        help='Detect available security services'
+    )
+    
+    parser.add_argument(
+        '--setup',
+        nargs='+',
+        choices=['fail2ban', 'rsyslog', 'nginx', 'logrotate', 'webhook'],
+        help='Set up specific integrations'
+    )
+    
+    parser.add_argument(
+        '--setup-all',
+        action='store_true',
+        help='Set up all available integrations'
+    )
+    
+    parser.add_argument(
+        '--test',
+        action='store_true',
+        help='Test existing integrations'
+    )
+    
+    parser.add_argument(
+        '--config',
+        default='config/settings.yaml',
+        help='Path to NGINX Security Monitor configuration file'
+    )
+    
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Show what would be done without making changes'
+    )
+    
+    parser.add_argument(
+        '--verbose', '-v',
+        action='store_true',
+        help='Show detailed output'
+    )
+    
+    args = parser.parse_args()
+    
+    print_integration_header()
+    
+    # Detect services
+    services = detect_security_services()
+    
+    if args.detect:
+        print("\n📊 Service Detection Complete")
+        return
+    
+    # Test integrations
+    if args.test:
+        test_results = test_integrations(services, args.dry_run)
+        
+        print("\n📊 Integration Test Results:")
+        for integration, result in test_results.items():
+            status = "✅ PASS" if result else "❌ FAIL"
+            print(f"   {integration}: {status}")
+        
+        return
+    
+    # Set up integrations
+    integrations_to_setup = []
+    
+    if args.setup_all:
+        # Set up all available integrations
+        for service_name, service_info in services.items():
+            if service_info.get('installed', False) and service_name in ['fail2ban', 'rsyslog', 'nginx']:
+                integrations_to_setup.append(service_name)
+        
+        # Always include logrotate and webhook
+        integrations_to_setup.extend(['logrotate', 'webhook'])
+        
+    elif args.setup:
+        integrations_to_setup = args.setup
+    
+    if not integrations_to_setup:
+        print("❌ No integrations specified. Use --setup, --setup-all, or --detect")
+        sys.exit(1)
+    
+    # Set up each integration
+    integration_results = {}
+    
+    for integration in integrations_to_setup:
+        if integration == 'fail2ban':
+            if services.get('fail2ban', {}).get('installed', False):
+                integration_results['fail2ban'] = setup_fail2ban_integration(
+                    services['fail2ban']['config_path'], args.dry_run)
+            else:
+                print(f"\n❌ {integration} not available")
+                integration_results['fail2ban'] = False
+                
+        elif integration == 'rsyslog':
+            if services.get('rsyslog', {}).get('installed', False):
+                integration_results['rsyslog'] = setup_rsyslog_integration(
+                    services['rsyslog']['config_path'], args.dry_run)
+            else:
+                print(f"\n❌ {integration} not available")
+                integration_results['rsyslog'] = False
+                
+        elif integration == 'nginx':
+            if services.get('nginx', {}).get('installed', False):
+                integration_results['nginx'] = setup_nginx_integration(
+                    services['nginx']['config_path'], args.dry_run)
+            else:
+                print(f"\n❌ {integration} not available")
+                integration_results['nginx'] = False
+                
+        elif integration == 'logrotate':
+            integration_results['logrotate'] = setup_logrotate_integration(args.dry_run)
+            
+        elif integration == 'webhook':
+            integration_results['webhook'] = create_webhook_integration_script(dry_run=args.dry_run)
+    
+    # Update NGINX Security Monitor configuration
+    if not args.dry_run and any(integration_results.values()):
+        update_nginx_monitor_config(args.config, integration_results, args.dry_run)
+    
+    # Results summary
+    print(f"\n" + "="*60)
+    print(f"📊 INTEGRATION SETUP RESULTS")
+    print(f"="*60)
+    
+    for integration, result in integration_results.items():
+        status = "✅ SUCCESS" if result else "❌ FAILED"
+        print(f"   {integration}: {status}")
+    
+    successful_integrations = sum(integration_results.values())
+    total_integrations = len(integration_results)
+    
+    print(f"\n📈 Success Rate: {successful_integrations}/{total_integrations}")
+    
+    if successful_integrations > 0:
+        print("\n💡 Next Steps:")
+        print("   • Restart affected services if needed")
+        print("   • Test integrations with --test flag")
+        print("   • Update firewall rules if necessary")
+        print("   • Configure webhook URL environment variable")
+    
+    print(f"\n🎉 Integration setup complete!")
+
+if __name__ == "__main__":
+    main()

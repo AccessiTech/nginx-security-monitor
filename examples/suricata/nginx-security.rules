@@ -1,0 +1,122 @@
+# Custom Suricata rules for NGINX Security Monitor integration
+# Place this in /etc/suricata/rules/nginx-security.rules
+
+# SQL Injection detection
+alert http any any -> any any (msg:"NGINX Security Monitor - SQL Injection Attempt"; 
+  content:"UNION"; nocase; content:"SELECT"; nocase; distance:0; within:20; 
+  sid:1000001; rev:1; classtype:web-application-attack;)
+
+alert http any any -> any any (msg:"NGINX Security Monitor - SQL Injection - OR 1=1"; 
+  content:"OR"; nocase; content:"1=1"; nocase; distance:0; within:10; 
+  sid:1000002; rev:1; classtype:web-application-attack;)
+
+# XSS detection
+alert http any any -> any any (msg:"NGINX Security Monitor - XSS Script Tag"; 
+  content:"<script"; nocase; 
+  sid:1000003; rev:1; classtype:web-application-attack;)
+
+alert http any any -> any any (msg:"NGINX Security Monitor - XSS JavaScript Event"; 
+  pcre:"/on(load|click|mouse|error|focus)\s*=/i"; 
+  sid:1000004; rev:1; classtype:web-application-attack;)
+
+# Directory traversal
+alert http any any -> any any (msg:"NGINX Security Monitor - Directory Traversal"; 
+  content:"../"; 
+  sid:1000005; rev:1; classtype:web-application-attack;)
+
+alert http any any -> any any (msg:"NGINX Security Monitor - Windows Directory Traversal"; 
+  content:"..\\"; 
+  sid:1000006; rev:1; classtype:web-application-attack;)
+
+# Command injection
+alert http any any -> any any (msg:"NGINX Security Monitor - Command Injection Pipe"; 
+  content:"|"; pcre:"/\|\s*(cat|ls|ps|id|whoami|uname)/i"; 
+  sid:1000007; rev:1; classtype:web-application-attack;)
+
+alert http any any -> any any (msg:"NGINX Security Monitor - Command Injection Semicolon"; 
+  content:";"; pcre:"/;\s*(cat|ls|ps|id|whoami|uname)/i"; 
+  sid:1000008; rev:1; classtype:web-application-attack;)
+
+# Bad User Agents
+alert http any any -> any any (msg:"NGINX Security Monitor - Suspicious Bot User Agent"; 
+  content:"User-Agent|3a| "; content:"bot"; nocase; distance:0; within:20; 
+  content:!"Googlebot"; nocase; content:!"Bingbot"; nocase; 
+  sid:1000009; rev:1; classtype:web-application-attack;)
+
+alert http any any -> any any (msg:"NGINX Security Monitor - Scanner User Agent"; 
+  content:"User-Agent|3a| "; pcre:"/User-Agent\x3a\s+(curl|wget|nikto|sqlmap|nmap)/i"; 
+  sid:1000010; rev:1; classtype:web-application-attack;)
+
+# File inclusion attempts
+alert http any any -> any any (msg:"NGINX Security Monitor - Local File Inclusion"; 
+  content:"file://"; nocase; 
+  sid:1000011; rev:1; classtype:web-application-attack;)
+
+alert http any any -> any any (msg:"NGINX Security Monitor - Remote File Inclusion HTTP"; 
+  content:"http://"; pcre:"/\.(php|asp|jsp)\?.*http\x3a\/\//i"; 
+  sid:1000012; rev:1; classtype:web-application-attack;)
+
+# Brute force detection (high frequency requests)
+alert http any any -> any any (msg:"NGINX Security Monitor - Potential Brute Force"; 
+  content:"POST"; http_method; content:"/login"; http_uri; 
+  threshold:type limit, track by_src, count 10, seconds 60; 
+  sid:1000013; rev:1; classtype:attempted-dos;)
+
+alert http any any -> any any (msg:"NGINX Security Monitor - Admin Panel Brute Force"; 
+  pcre:"/\/(admin|wp-admin|administrator|login|signin)/i"; 
+  threshold:type limit, track by_src, count 20, seconds 300; 
+  sid:1000014; rev:1; classtype:attempted-dos;)
+
+# PHP/ASP specific attacks
+alert http any any -> any any (msg:"NGINX Security Monitor - PHP Code Injection"; 
+  content:"<?php"; nocase; 
+  sid:1000015; rev:1; classtype:web-application-attack;)
+
+alert http any any -> any any (msg:"NGINX Security Monitor - PHP Eval Injection"; 
+  content:"eval("; nocase; 
+  sid:1000016; rev:1; classtype:web-application-attack;)
+
+# WordPress specific
+alert http any any -> any any (msg:"NGINX Security Monitor - WordPress Admin Scanning"; 
+  content:"/wp-admin/"; content:"wp-login.php"; distance:0; within:50; 
+  sid:1000017; rev:1; classtype:web-application-attack;)
+
+alert http any any -> any any (msg:"NGINX Security Monitor - WordPress Plugin Vulnerability Scan"; 
+  content:"/wp-content/plugins/"; pcre:"/readme\.txt|changelog\.txt/i"; 
+  sid:1000018; rev:1; classtype:web-application-attack;)
+
+# Configuration and sensitive file access
+alert http any any -> any any (msg:"NGINX Security Monitor - Sensitive File Access"; 
+  pcre:"/\/(\.env|config\.php|configuration\.php|wp-config\.php)/i"; 
+  sid:1000019; rev:1; classtype:web-application-attack;)
+
+alert http any any -> any any (msg:"NGINX Security Monitor - Backup File Access"; 
+  pcre:"/\.(bak|backup|old|orig|save|~)$/i"; 
+  sid:1000020; rev:1; classtype:web-application-attack;)
+
+# Rules specifically for NGINX Security Monitor alerts integration
+# These trigger on HTTP responses that might indicate successful attacks
+
+alert http any any -> any any (msg:"NGINX Security Monitor - Database Error Response"; 
+  content:"mysql_"; nocase; content:"error"; nocase; distance:0; within:20; 
+  sid:1000021; rev:1; classtype:web-application-attack;)
+
+alert http any any -> any any (msg:"NGINX Security Monitor - PHP Error Disclosure"; 
+  content:"Fatal error"; content:"in"; distance:0; within:30; content:".php"; distance:0; within:50; 
+  sid:1000022; rev:1; classtype:web-application-attack;)
+
+# High-volume scanning detection
+alert http any any -> any any (msg:"NGINX Security Monitor - Directory Scanning"; 
+  content:" 404 "; http_stat_code; 
+  threshold:type limit, track by_src, count 50, seconds 60; 
+  sid:1000023; rev:1; classtype:attempted-recon;)
+
+alert http any any -> any any (msg:"NGINX Security Monitor - Automated Scanning Tool"; 
+  content:"User-Agent|3a| "; pcre:"/User-Agent\x3a\s+(masscan|zmap|nmap|dirb|gobuster|ffuf)/i"; 
+  sid:1000024; rev:1; classtype:attempted-recon;)
+
+# Rules for monitoring response codes that might indicate successful exploitation
+alert http any any -> any any (msg:"NGINX Security Monitor - Successful Admin Access"; 
+  content:" 200 "; http_stat_code; content:"/admin/"; http_uri; 
+  threshold:type limit, track by_src, count 1, seconds 300; 
+  sid:1000025; rev:1; classtype:successful-admin;)

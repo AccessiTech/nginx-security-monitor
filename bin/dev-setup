@@ -1,0 +1,390 @@
+#!/usr/bin/env python3
+"""
+NGINX Security Monitor - Development Environment Setup
+Automates the setup of a development environment.
+"""
+
+import os
+import sys
+import argparse
+import subprocess
+import shutil
+from pathlib import Path
+
+def run_command(command, description, capture_output=False):
+    """Run a shell command with status reporting."""
+    print(f"🔧 {description}...")
+    
+    try:
+        if capture_output:
+            result = subprocess.run(command, shell=True, capture_output=True, text=True)
+            if result.returncode == 0:
+                print(f"  ✅ {description} completed")
+                return True, result.stdout
+            else:
+                print(f"  ❌ {description} failed: {result.stderr}")
+                return False, result.stderr
+        else:
+            result = subprocess.run(command, shell=True)
+            if result.returncode == 0:
+                print(f"  ✅ {description} completed")
+                return True, None
+            else:
+                print(f"  ❌ {description} failed")
+                return False, None
+    except Exception as e:
+        print(f"  ❌ {description} error: {e}")
+        return False, str(e)
+
+def check_python_version():
+    """Check if Python version is compatible."""
+    print("🐍 Checking Python version...")
+    
+    version = sys.version_info
+    if version.major == 3 and version.minor >= 8:
+        print(f"  ✅ Python {version.major}.{version.minor}.{version.micro} is compatible")
+        return True
+    else:
+        print(f"  ❌ Python {version.major}.{version.minor}.{version.micro} is not supported")
+        print("     NGINX Security Monitor requires Python 3.8 or higher")
+        return False
+
+def setup_virtual_environment(force=False):
+    """Create and configure virtual environment."""
+    venv_path = '.venv'
+    
+    if os.path.exists(venv_path):
+        if force:
+            print("🗑️  Removing existing virtual environment...")
+            shutil.rmtree(venv_path)
+        else:
+            print("📦 Virtual environment already exists")
+            return True
+    
+    success, _ = run_command(
+        f"{sys.executable} -m venv {venv_path}",
+        "Creating virtual environment"
+    )
+    
+    if not success:
+        return False
+    
+    # Activate and upgrade pip
+    if os.name == 'nt':  # Windows
+        pip_path = os.path.join(venv_path, 'Scripts', 'pip')
+    else:  # Unix/Linux
+        pip_path = os.path.join(venv_path, 'bin', 'pip')
+    
+    success, _ = run_command(
+        f"{pip_path} install --upgrade pip",
+        "Upgrading pip"
+    )
+    
+    return success
+
+def install_dependencies():
+    """Install project dependencies."""
+    if os.name == 'nt':  # Windows
+        pip_path = os.path.join('.venv', 'Scripts', 'pip')
+    else:  # Unix/Linux
+        pip_path = os.path.join('.venv', 'bin', 'pip')
+    
+    # Install production dependencies
+    success, _ = run_command(
+        f"{pip_path} install -r requirements.txt",
+        "Installing production dependencies"
+    )
+    
+    if not success:
+        return False
+    
+    # Install development dependencies if file exists
+    if os.path.exists('dev-requirements.txt'):
+        success, _ = run_command(
+            f"{pip_path} install -r dev-requirements.txt",
+            "Installing development dependencies"
+        )
+        
+        if not success:
+            return False
+    
+    return True
+
+def setup_configuration_files():
+    """Setup configuration files for development."""
+    print("📋 Setting up configuration files...")
+    
+    # Copy example configurations if they don't exist
+    config_templates = [
+        ('config/settings.yaml', 'config/dev-settings.yaml'),
+        ('config/service-settings.yaml', 'config/dev-service-settings.yaml')
+    ]
+    
+    for source, dest in config_templates:
+        if os.path.exists(source) and not os.path.exists(dest):
+            try:
+                shutil.copy2(source, dest)
+                print(f"  ✅ Created {dest}")
+            except Exception as e:
+                print(f"  ❌ Failed to create {dest}: {e}")
+                return False
+    
+    # Create .env file from template
+    env_template = """# Development Environment Variables
+
+# Email Configuration (for testing)
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your-dev-email@gmail.com
+SMTP_PASSWORD=your-app-password
+
+# SMS Configuration (for testing)
+SMS_API_KEY=your-test-api-key
+
+# Encryption Key (for development - generate new for production)
+NGINX_MONITOR_KEY=dev_test_key_do_not_use_in_production
+
+# Development Settings
+ENVIRONMENT=development
+DEBUG=true
+LOG_LEVEL=DEBUG
+"""
+    
+    if not os.path.exists('.env'):
+        try:
+            with open('.env', 'w') as f:
+                f.write(env_template)
+            print("  ✅ Created .env file with development defaults")
+        except Exception as e:
+            print(f"  ❌ Failed to create .env file: {e}")
+            return False
+    else:
+        print("  ℹ️  .env file already exists")
+    
+    return True
+
+def setup_directories():
+    """Create necessary directories for development."""
+    print("📁 Setting up directories...")
+    
+    dev_dirs = [
+        'logs',
+        'temp',
+        'test-data',
+        'plugins',
+        'keys'
+    ]
+    
+    for directory in dev_dirs:
+        if not os.path.exists(directory):
+            try:
+                os.makedirs(directory)
+                print(f"  ✅ Created directory: {directory}")
+            except Exception as e:
+                print(f"  ❌ Failed to create directory {directory}: {e}")
+                return False
+        else:
+            print(f"  ℹ️  Directory already exists: {directory}")
+    
+    return True
+
+def generate_test_data():
+    """Generate test log files and patterns."""
+    print("🧪 Generating test data...")
+    
+    # Create test log file
+    test_log_content = """127.0.0.1 - - [21/Jul/2025:10:00:00 +0000] "GET / HTTP/1.1" 200 1234 "-" "Mozilla/5.0"
+127.0.0.1 - - [21/Jul/2025:10:01:00 +0000] "GET /test?id=1' OR '1'='1 HTTP/1.1" 200 1234 "-" "curl/7.68.0"
+127.0.0.1 - - [21/Jul/2025:10:02:00 +0000] "GET /search?q=<script>alert('xss')</script> HTTP/1.1" 200 1234 "-" "Mozilla/5.0"
+192.168.1.100 - - [21/Jul/2025:10:03:00 +0000] "GET /admin/login HTTP/1.1" 401 1234 "-" "sqlmap/1.0"
+10.0.0.50 - - [21/Jul/2025:10:04:00 +0000] "POST /wp-login.php HTTP/1.1" 200 1234 "-" "WordPress/5.0"
+"""
+    
+    test_data_dir = 'test-data'
+    test_log_path = os.path.join(test_data_dir, 'test_access.log')
+    
+    try:
+        with open(test_log_path, 'w') as f:
+            f.write(test_log_content)
+        print(f"  ✅ Created test log file: {test_log_path}")
+    except Exception as e:
+        print(f"  ❌ Failed to create test log file: {e}")
+        return False
+    
+    return True
+
+def setup_git_hooks():
+    """Setup pre-commit hooks for development."""
+    print("🪝 Setting up Git hooks...")
+    
+    if not os.path.exists('.git'):
+        print("  ℹ️  Not a Git repository, skipping Git hooks")
+        return True
+    
+    # Check if pre-commit is available
+    if os.name == 'nt':  # Windows
+        precommit_path = os.path.join('.venv', 'Scripts', 'pre-commit')
+    else:  # Unix/Linux
+        precommit_path = os.path.join('.venv', 'bin', 'pre-commit')
+    
+    if os.path.exists(precommit_path):
+        success, _ = run_command(
+            f"{precommit_path} install",
+            "Installing pre-commit hooks"
+        )
+        return success
+    else:
+        print("  ℹ️  pre-commit not installed, skipping hooks setup")
+        return True
+
+def run_initial_tests():
+    """Run initial tests to verify setup."""
+    print("🧪 Running initial tests...")
+    
+    if os.name == 'nt':  # Windows
+        python_path = os.path.join('.venv', 'Scripts', 'python')
+    else:  # Unix/Linux
+        python_path = os.path.join('.venv', 'bin', 'python')
+    
+    # Test installation
+    success, _ = run_command(
+        f"./bin/test-installation --quick",
+        "Running installation tests"
+    )
+    
+    if not success:
+        print("  ⚠️  Some installation tests failed - check output above")
+    
+    # Test configuration validation
+    success, _ = run_command(
+        f"./bin/validate-config config/dev-settings.yaml",
+        "Validating development configuration"
+    )
+    
+    if not success:
+        print("  ⚠️  Configuration validation failed - check config files")
+    
+    return True
+
+def show_next_steps():
+    """Display next steps for the developer."""
+    print("\n" + "="*60)
+    print("🎉 Development Environment Setup Complete!")
+    print("="*60)
+    
+    print("\n📝 Next Steps:")
+    print("1. Activate virtual environment:")
+    if os.name == 'nt':  # Windows
+        print("   .venv\\Scripts\\activate")
+    else:  # Unix/Linux
+        print("   source .venv/bin/activate")
+    
+    print("\n2. Update configuration files:")
+    print("   - Edit config/dev-settings.yaml with your settings")
+    print("   - Update .env with your credentials")
+    
+    print("\n3. Test your setup:")
+    print("   ./bin/test-installation")
+    print("   ./bin/validate-config config/dev-settings.yaml")
+    
+    print("\n4. Start development:")
+    print("   ./bin/nginx-security-monitor start config/dev-settings.yaml")
+    
+    print("\n5. Run tests:")
+    print("   pytest tests/")
+    
+    print("\n📚 Useful commands:")
+    print("   ./bin/nginx-security-monitor --help    # Main CLI help")
+    print("   ./bin/encrypt-config interactive       # Setup encryption")
+    print("   ./bin/generate-docs                    # Generate documentation")
+    
+    print("\n🔧 Development files created:")
+    print("   config/dev-settings.yaml              # Development configuration")
+    print("   config/dev-service-settings.yaml      # Development service config")
+    print("   .env                                   # Environment variables")
+    print("   test-data/test_access.log              # Sample log data")
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Setup NGINX Security Monitor development environment",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s                    # Full development setup
+  %(prog)s --force           # Force recreate virtual environment
+  %(prog)s --skip-tests      # Skip initial test run
+        """
+    )
+    
+    parser.add_argument(
+        '--force', '-f',
+        action='store_true',
+        help='Force recreate virtual environment'
+    )
+    
+    parser.add_argument(
+        '--skip-tests',
+        action='store_true', 
+        help='Skip running initial tests'
+    )
+    
+    parser.add_argument(
+        '--minimal',
+        action='store_true',
+        help='Minimal setup (venv and dependencies only)'
+    )
+    
+    args = parser.parse_args()
+    
+    print("🚀 NGINX Security Monitor Development Setup")
+    print("=" * 50)
+    
+    # Check Python version
+    if not check_python_version():
+        sys.exit(1)
+    
+    # Setup steps
+    setup_steps = [
+        (lambda: setup_virtual_environment(args.force), "Virtual Environment"),
+        (install_dependencies, "Dependencies"),
+    ]
+    
+    if not args.minimal:
+        setup_steps.extend([
+            (setup_configuration_files, "Configuration Files"),
+            (setup_directories, "Directories"),
+            (generate_test_data, "Test Data"),
+            (setup_git_hooks, "Git Hooks"),
+        ])
+        
+        if not args.skip_tests:
+            setup_steps.append((run_initial_tests, "Initial Tests"))
+    
+    # Execute setup steps
+    failed_steps = []
+    for step_func, step_name in setup_steps:
+        try:
+            success = step_func()
+            if not success:
+                failed_steps.append(step_name)
+        except Exception as e:
+            print(f"❌ {step_name} failed with error: {e}")
+            failed_steps.append(step_name)
+        print()
+    
+    # Report results
+    if failed_steps:
+        print("❌ Setup completed with issues:")
+        for step in failed_steps:
+            print(f"   • {step}")
+        print("\nPlease address the issues above and run setup again if needed.")
+    else:
+        print("✅ All setup steps completed successfully!")
+        
+        if not args.minimal:
+            show_next_steps()
+    
+    sys.exit(0 if not failed_steps else 1)
+
+if __name__ == "__main__":
+    main()

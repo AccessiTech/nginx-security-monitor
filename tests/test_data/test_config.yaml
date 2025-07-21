@@ -1,0 +1,24 @@
+# Test configuration for unit tests
+email_service:
+  enabled: false
+  smtp_server: test.smtp.com
+  smtp_port: 587
+  username: test@example.com
+  password: test_password
+  from_address: test@example.com
+  to_address: security@example.com
+
+sms_service:
+  enabled: false
+  account_sid: test_sid
+  auth_token: test_token
+  from_number: +1234567890
+  to_number: +0987654321
+
+monitoring:
+  check_interval: 10
+
+patterns:
+  thresholds:
+    failed_requests_per_minute: 10
+    requests_per_ip_per_minute: 50

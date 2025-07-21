@@ -1,0 +1,569 @@
+#!/usr/bin/env python3
+"""
+NGINX Security Monitor - Configuration Migration Tool
+Migrate configurations between versions and handle schema updates.
+"""
+
+import os
+import sys
+import argparse
+import json
+import yaml
+import shutil
+from datetime import datetime
+from pathlib import Path
+import re
+
+# Add the src directory to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
+
+def print_migration_header():
+    """Print migration header."""
+    print("🔄 NGINX Security Monitor - Configuration Migration")
+    print("=" * 50)
+
+def get_schema_versions():
+    """Define configuration schema versions and their changes."""
+    schema_versions = {
+        '1.0': {
+            'description': 'Initial configuration schema',
+            'required_fields': ['log_file_path', 'patterns_file', 'alerts'],
+            'deprecated_fields': [],
+            'new_fields': []
+        },
+        '1.1': {
+            'description': 'Added plugin system and enhanced alerts',
+            'required_fields': ['log_file_path', 'patterns_file', 'alerts', 'plugin_system'],
+            'deprecated_fields': ['simple_alerts'],
+            'new_fields': ['plugin_system', 'alert_channels', 'performance_settings']
+        },
+        '1.2': {
+            'description': 'Added integration support and security enhancements',
+            'required_fields': ['log_file_path', 'patterns_file', 'alerts', 'plugin_system', 'integrations'],
+            'deprecated_fields': ['legacy_mode', 'old_alert_format'],
+            'new_fields': ['integrations', 'security_settings', 'encryption']
+        },
+        '2.0': {
+            'description': 'Major restructure with advanced monitoring',
+            'required_fields': ['monitoring', 'detection', 'response', 'integrations'],
+            'deprecated_fields': ['log_file_path', 'patterns_file'],
+            'new_fields': ['monitoring.sources', 'detection.engines', 'response.actions']
+        }
+    }
+    
+    return schema_versions
+
+def detect_config_version(config):
+    """Detect the version of a configuration file."""
+    print("🔍 Detecting configuration version...")
+    
+    # Check for explicit version field
+    if 'schema_version' in config:
+        version = config['schema_version']
+        print(f"   ✅ Explicit version found: {version}")
+        return version
+    
+    # Detect version based on structure
+    if 'monitoring' in config and 'detection' in config and 'response' in config:
+        print("   📊 Detected v2.0 structure (monitoring/detection/response)")
+        return '2.0'
+    
+    elif 'integrations' in config and 'security_settings' in config:
+        print("   📊 Detected v1.2 structure (integrations + security)")
+        return '1.2'
+    
+    elif 'plugin_system' in config and 'alert_channels' in config:
+        print("   📊 Detected v1.1 structure (plugins + enhanced alerts)")
+        return '1.1'
+    
+    elif 'log_file_path' in config and 'patterns_file' in config:
+        print("   📊 Detected v1.0 structure (basic configuration)")
+        return '1.0'
+    
+    else:
+        print("   ⚠️  Could not detect version - assuming v1.0")
+        return '1.0'
+
+def validate_config_schema(config, target_version):
+    """Validate configuration against target schema version."""
+    print(f"✅ Validating configuration for schema v{target_version}...")
+    
+    schema_versions = get_schema_versions()
+    
+    if target_version not in schema_versions:
+        print(f"   ❌ Unknown schema version: {target_version}")
+        return False
+    
+    schema = schema_versions[target_version]
+    validation_issues = []
+    
+    # Check required fields
+    for field in schema['required_fields']:
+        if '.' in field:  # Nested field
+            parts = field.split('.')
+            current = config
+            for part in parts:
+                if part not in current:
+                    validation_issues.append(f"Missing required field: {field}")
+                    break
+                current = current[part]
+        else:
+            if field not in config:
+                validation_issues.append(f"Missing required field: {field}")
+    
+    # Check for deprecated fields
+    for field in schema['deprecated_fields']:
+        if field in config:
+            validation_issues.append(f"Deprecated field present: {field}")
+    
+    if validation_issues:
+        print("   ❌ Validation issues found:")
+        for issue in validation_issues:
+            print(f"      • {issue}")
+        return False
+    else:
+        print("   ✅ Configuration validates successfully")
+        return True
+
+def migrate_1_0_to_1_1(config):
+    """Migrate configuration from v1.0 to v1.1."""
+    print("🔄 Migrating v1.0 → v1.1...")
+    
+    new_config = config.copy()
+    
+    # Add plugin system
+    new_config['plugin_system'] = {
+        'enabled': True,
+        'plugin_dirs': ['plugins/'],
+        'auto_load': True,
+        'security_mode': 'strict'
+    }
+    
+    # Migrate simple alerts to alert channels
+    if 'alerts' in config:
+        old_alerts = config['alerts']
+        new_config['alert_channels'] = {}
+        
+        # Migrate email alerts
+        if 'email' in old_alerts:
+            new_config['alert_channels']['email'] = old_alerts['email']
+        
+        # Migrate webhook alerts
+        if 'webhook' in old_alerts:
+            new_config['alert_channels']['webhook'] = old_alerts['webhook']
+        
+        # Remove old simple_alerts if present
+        new_config.pop('simple_alerts', None)
+    
+    # Add performance settings
+    new_config['performance_settings'] = {
+        'max_log_lines_per_batch': 1000,
+        'processing_interval': 5,
+        'memory_limit_mb': 256
+    }
+    
+    # Update schema version
+    new_config['schema_version'] = '1.1'
+    
+    print("   ✅ Migration to v1.1 complete")
+    return new_config
+
+def migrate_1_1_to_1_2(config):
+    """Migrate configuration from v1.1 to v1.2."""
+    print("🔄 Migrating v1.1 → v1.2...")
+    
+    new_config = config.copy()
+    
+    # Add integrations section
+    new_config['integrations'] = {
+        'fail2ban': {
+            'enabled': False,
+            'jail_name': 'nginx-security-monitor'
+        },
+        'rsyslog': {
+            'enabled': False,
+            'facility': 'local0'
+        },
+        'webhook': {
+            'enabled': False,
+            'script_path': '/opt/nginx-security-monitor/integrations/webhook-integration.sh'
+        }
+    }
+    
+    # Add security settings
+    new_config['security_settings'] = {
+        'encryption_enabled': True,
+        'key_rotation_days': 90,
+        'secure_communication': True,
+        'audit_logging': True
+    }
+    
+    # Add encryption configuration
+    new_config['encryption'] = {
+        'master_key_file': 'keys/master.key',
+        'algorithm': 'AES-256-GCM',
+        'key_derivation': 'PBKDF2'
+    }
+    
+    # Remove deprecated fields
+    new_config.pop('legacy_mode', None)
+    new_config.pop('old_alert_format', None)
+    
+    # Update schema version
+    new_config['schema_version'] = '1.2'
+    
+    print("   ✅ Migration to v1.2 complete")
+    return new_config
+
+def migrate_1_2_to_2_0(config):
+    """Migrate configuration from v1.2 to v2.0."""
+    print("🔄 Migrating v1.2 → v2.0...")
+    
+    new_config = {
+        'schema_version': '2.0'
+    }
+    
+    # Restructure into new v2.0 format
+    
+    # Monitoring section (replaces log_file_path and sources)
+    new_config['monitoring'] = {
+        'sources': [
+            {
+                'type': 'nginx_log',
+                'path': config.get('log_file_path', '/var/log/nginx/access.log'),
+                'format': 'combined',
+                'enabled': True
+            }
+        ],
+        'real_time': True,
+        'batch_size': config.get('performance_settings', {}).get('max_log_lines_per_batch', 1000),
+        'interval': config.get('performance_settings', {}).get('processing_interval', 5)
+    }
+    
+    # Detection section (replaces patterns_file and plugin_system)
+    new_config['detection'] = {
+        'engines': [
+            {
+                'type': 'pattern_matching',
+                'patterns_file': config.get('patterns_file', 'config/patterns.json'),
+                'enabled': True
+            },
+            {
+                'type': 'plugin_system',
+                'config': config.get('plugin_system', {
+                    'enabled': True,
+                    'plugin_dirs': ['plugins/'],
+                    'auto_load': True
+                }),
+                'enabled': True
+            }
+        ],
+        'threat_scoring': {
+            'enabled': True,
+            'threshold': 5.0
+        }
+    }
+    
+    # Response section (replaces alerts and integrations)
+    new_config['response'] = {
+        'actions': []
+    }
+    
+    # Migrate alert channels to response actions
+    alert_channels = config.get('alert_channels', config.get('alerts', {}))
+    for channel_type, channel_config in alert_channels.items():
+        if channel_config.get('enabled', False):
+            action = {
+                'type': f'alert_{channel_type}',
+                'config': channel_config,
+                'triggers': ['threat_detected', 'high_severity']
+            }
+            new_config['response']['actions'].append(action)
+    
+    # Migrate integrations to response actions
+    integrations = config.get('integrations', {})
+    for integration_type, integration_config in integrations.items():
+        if integration_config.get('enabled', False):
+            action = {
+                'type': f'integration_{integration_type}',
+                'config': integration_config,
+                'triggers': ['threat_detected']
+            }
+            new_config['response']['actions'].append(action)
+    
+    # Keep security and encryption settings
+    if 'security_settings' in config:
+        new_config['security'] = config['security_settings']
+    
+    if 'encryption' in config:
+        new_config['encryption'] = config['encryption']
+    
+    print("   ✅ Migration to v2.0 complete")
+    return new_config
+
+def apply_migration(config, current_version, target_version):
+    """Apply migration from current version to target version."""
+    print(f"🎯 Planning migration path: v{current_version} → v{target_version}")
+    
+    # Define migration path
+    migration_path = []
+    
+    if current_version == '1.0' and target_version in ['1.1', '1.2', '2.0']:
+        migration_path.append(('1.0', '1.1', migrate_1_0_to_1_1))
+    
+    if current_version in ['1.0', '1.1'] and target_version in ['1.2', '2.0']:
+        migration_path.append(('1.1', '1.2', migrate_1_1_to_1_2))
+    
+    if current_version in ['1.0', '1.1', '1.2'] and target_version == '2.0':
+        migration_path.append(('1.2', '2.0', migrate_1_2_to_2_0))
+    
+    if not migration_path:
+        if current_version == target_version:
+            print(f"   ✅ Already at target version v{target_version}")
+            return config
+        else:
+            print(f"   ❌ No migration path available from v{current_version} to v{target_version}")
+            return None
+    
+    # Apply migrations in sequence
+    migrated_config = config
+    for from_ver, to_ver, migration_func in migration_path:
+        print(f"   📋 Applying migration: v{from_ver} → v{to_ver}")
+        migrated_config = migration_func(migrated_config)
+    
+    return migrated_config
+
+def backup_original_config(config_file):
+    """Create backup of original configuration before migration."""
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    backup_file = f"{config_file}.backup_{timestamp}"
+    
+    try:
+        shutil.copy2(config_file, backup_file)
+        print(f"   ✅ Original config backed up to: {backup_file}")
+        return backup_file
+    except Exception as e:
+        print(f"   ❌ Failed to backup original config: {e}")
+        return None
+
+def save_migrated_config(config, output_file, format='yaml'):
+    """Save migrated configuration to file."""
+    print(f"💾 Saving migrated configuration to: {output_file}")
+    
+    try:
+        with open(output_file, 'w') as f:
+            if format == 'yaml':
+                yaml.dump(config, f, default_flow_style=False, indent=2)
+            else:
+                json.dump(config, f, indent=2)
+        
+        print("   ✅ Configuration saved successfully")
+        return True
+        
+    except Exception as e:
+        print(f"   ❌ Failed to save configuration: {e}")
+        return False
+
+def compare_configurations(old_config, new_config):
+    """Compare old and new configurations to show changes."""
+    print("\n📊 Configuration Changes Summary:")
+    
+    changes = {
+        'added': [],
+        'removed': [],
+        'modified': []
+    }
+    
+    def compare_dict(old_dict, new_dict, path=''):
+        for key in set(old_dict.keys()) | set(new_dict.keys()):
+            current_path = f"{path}.{key}" if path else key
+            
+            if key not in new_dict:
+                changes['removed'].append(current_path)
+            elif key not in old_dict:
+                changes['added'].append(current_path)
+            elif isinstance(old_dict[key], dict) and isinstance(new_dict[key], dict):
+                compare_dict(old_dict[key], new_dict[key], current_path)
+            elif old_dict[key] != new_dict[key]:
+                changes['modified'].append(current_path)
+    
+    compare_dict(old_config, new_config)
+    
+    if changes['added']:
+        print(f"\n   ➕ Added fields ({len(changes['added'])}):")
+        for field in changes['added'][:10]:  # Show first 10
+            print(f"      • {field}")
+        if len(changes['added']) > 10:
+            print(f"      ... and {len(changes['added']) - 10} more")
+    
+    if changes['removed']:
+        print(f"\n   ➖ Removed fields ({len(changes['removed'])}):")
+        for field in changes['removed'][:10]:
+            print(f"      • {field}")
+        if len(changes['removed']) > 10:
+            print(f"      ... and {len(changes['removed']) - 10} more")
+    
+    if changes['modified']:
+        print(f"\n   🔄 Modified fields ({len(changes['modified'])}):")
+        for field in changes['modified'][:10]:
+            print(f"      • {field}")
+        if len(changes['modified']) > 10:
+            print(f"      ... and {len(changes['modified']) - 10} more")
+    
+    return changes
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Migrate NGINX Security Monitor configurations between versions",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s config/settings.yaml --to 2.0           # Migrate to v2.0
+  %(prog)s config/settings.yaml --to 1.2 --output new_config.yaml
+  %(prog)s config/settings.yaml --detect           # Detect current version
+  %(prog)s config/settings.yaml --validate --version 1.1
+  %(prog)s config/settings.yaml --to 2.0 --dry-run # Show changes without migrating
+        """
+    )
+    
+    parser.add_argument(
+        'config_file',
+        help='Path to configuration file to migrate'
+    )
+    
+    parser.add_argument(
+        '--to',
+        choices=['1.1', '1.2', '2.0'],
+        help='Target schema version'
+    )
+    
+    parser.add_argument(
+        '--detect',
+        action='store_true',
+        help='Detect current configuration version'
+    )
+    
+    parser.add_argument(
+        '--validate',
+        action='store_true',
+        help='Validate configuration against schema'
+    )
+    
+    parser.add_argument(
+        '--version',
+        choices=['1.0', '1.1', '1.2', '2.0'],
+        help='Explicit version for validation'
+    )
+    
+    parser.add_argument(
+        '--output', '-o',
+        help='Output file for migrated configuration'
+    )
+    
+    parser.add_argument(
+        '--format',
+        choices=['yaml', 'json'],
+        default='yaml',
+        help='Output format (default: yaml)'
+    )
+    
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Show what would be changed without migrating'
+    )
+    
+    parser.add_argument(
+        '--backup',
+        action='store_true',
+        help='Create backup of original file before migration'
+    )
+    
+    args = parser.parse_args()
+    
+    print_migration_header()
+    
+    # Load configuration file
+    if not os.path.exists(args.config_file):
+        print(f"❌ Configuration file not found: {args.config_file}")
+        sys.exit(1)
+    
+    try:
+        with open(args.config_file, 'r') as f:
+            if args.config_file.endswith('.yaml') or args.config_file.endswith('.yml'):
+                config = yaml.safe_load(f)
+            else:
+                config = json.load(f)
+        
+        print(f"✅ Loaded configuration from: {args.config_file}")
+        
+    except Exception as e:
+        print(f"❌ Failed to load configuration: {e}")
+        sys.exit(1)
+    
+    # Detect version
+    current_version = detect_config_version(config)
+    
+    if args.detect:
+        schema_versions = get_schema_versions()
+        if current_version in schema_versions:
+            print(f"\n📋 Schema Information:")
+            print(f"   Version: {current_version}")
+            print(f"   Description: {schema_versions[current_version]['description']}")
+        return
+    
+    # Validate configuration
+    if args.validate:
+        validation_version = args.version or current_version
+        is_valid = validate_config_schema(config, validation_version)
+        if not is_valid:
+            sys.exit(1)
+        return
+    
+    # Migrate configuration
+    if not args.to:
+        print("❌ Target version required for migration (use --to)")
+        sys.exit(1)
+    
+    target_version = args.to
+    
+    print(f"\n🎯 Migration Plan:")
+    print(f"   Source: {args.config_file} (v{current_version})")
+    print(f"   Target: v{target_version}")
+    
+    # Apply migration
+    migrated_config = apply_migration(config, current_version, target_version)
+    
+    if migrated_config is None:
+        print("❌ Migration failed")
+        sys.exit(1)
+    
+    # Show changes
+    changes = compare_configurations(config, migrated_config)
+    
+    if args.dry_run:
+        print("\n🔍 DRY RUN - No files were modified")
+        return
+    
+    # Create backup if requested
+    if args.backup:
+        backup_original_config(args.config_file)
+    
+    # Save migrated configuration
+    output_file = args.output or args.config_file
+    success = save_migrated_config(migrated_config, output_file, args.format)
+    
+    if success:
+        # Validate migrated configuration
+        if validate_config_schema(migrated_config, target_version):
+            print(f"\n🎉 Migration completed successfully!")
+            print(f"   Configuration updated to v{target_version}")
+        else:
+            print(f"\n⚠️  Migration completed but validation failed")
+            print("   Please review the migrated configuration")
+    else:
+        print(f"\n❌ Migration failed during save")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

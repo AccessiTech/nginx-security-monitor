@@ -1,0 +1,527 @@
+#!/usr/bin/env python3
+"""
+NGINX Security Monitor - Maintenance Tool
+
+Performs routine maintenance tasks including log rotation, cleanup,
+performance optimization, and system health checks.
+"""
+
+import argparse
+import os
+import sys
+import json
+import subprocess
+import shutil
+from pathlib import Path
+from datetime import datetime, timedelta
+import glob
+import gzip
+import time
+
+def setup_paths():
+    """Setup and validate required paths."""
+    script_dir = Path(__file__).parent
+    project_root = script_dir.parent
+    config_dir = project_root / "config"
+    
+    return {
+        'script_dir': script_dir,
+        'project_root': project_root,
+        'config_dir': config_dir,
+        'logs_dir': project_root / "logs",
+        'cache_dir': project_root / "cache",
+        'temp_dir': project_root / "tmp",
+        'backup_dir': project_root / "backups"
+    }
+
+def get_size_human_readable(size_bytes):
+    """Convert bytes to human readable format."""
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if size_bytes < 1024.0:
+            return f"{size_bytes:.1f} {unit}"
+        size_bytes /= 1024.0
+    return f"{size_bytes:.1f} TB"
+
+def cleanup_logs(paths, days_to_keep=30, dry_run=False):
+    """Clean up old log files."""
+    logs_dir = paths['logs_dir']
+    if not logs_dir.exists():
+        print("📁 No logs directory found, skipping log cleanup")
+        return 0
+    
+    cutoff_date = datetime.now() - timedelta(days=days_to_keep)
+    removed_size = 0
+    removed_count = 0
+    
+    print(f"🗂️  Cleaning logs older than {days_to_keep} days...")
+    
+    # Find old log files
+    for pattern in ['*.log', '*.log.*', '*.out', '*.err']:
+        for log_file in logs_dir.glob(f"**/{pattern}"):
+            if log_file.is_file():
+                # Check file modification time
+                file_time = datetime.fromtimestamp(log_file.stat().st_mtime)
+                if file_time < cutoff_date:
+                    size = log_file.stat().st_size
+                    if dry_run:
+                        print(f"  🗑️  Would remove: {log_file.name} ({get_size_human_readable(size)})")
+                    else:
+                        print(f"  🗑️  Removing: {log_file.name} ({get_size_human_readable(size)})")
+                        log_file.unlink()
+                    removed_size += size
+                    removed_count += 1
+    
+    # Compress recent log files that aren't already compressed
+    compressed_count = 0
+    compressed_size = 0
+    
+    print("📦 Compressing recent log files...")
+    for pattern in ['*.log', '*.out', '*.err']:
+        for log_file in logs_dir.glob(f"**/{pattern}"):
+            if log_file.is_file() and log_file.suffix != '.gz':
+                # Only compress files older than 1 day
+                file_time = datetime.fromtimestamp(log_file.stat().st_mtime)
+                if file_time < datetime.now() - timedelta(days=1):
+                    original_size = log_file.stat().st_size
+                    if original_size > 1024:  # Only compress files > 1KB
+                        compressed_file = log_file.with_suffix(log_file.suffix + '.gz')
+                        
+                        if dry_run:
+                            print(f"  📦 Would compress: {log_file.name}")
+                        else:
+                            print(f"  📦 Compressing: {log_file.name}")
+                            with open(log_file, 'rb') as f_in:
+                                with gzip.open(compressed_file, 'wb') as f_out:
+                                    shutil.copyfileobj(f_in, f_out)
+                            log_file.unlink()
+                        
+                        compressed_size += original_size
+                        compressed_count += 1
+    
+    print(f"✅ Log cleanup completed:")
+    print(f"   🗑️  Removed {removed_count} old files ({get_size_human_readable(removed_size)})")
+    print(f"   📦 Compressed {compressed_count} files ({get_size_human_readable(compressed_size)})")
+    
+    return removed_size + compressed_size
+
+def cleanup_cache(paths, dry_run=False):
+    """Clean up cache and temporary files."""
+    cache_dir = paths['cache_dir']
+    temp_dir = paths['temp_dir']
+    
+    removed_size = 0
+    removed_count = 0
+    
+    # Clean cache directory
+    if cache_dir.exists():
+        print("🗂️  Cleaning cache directory...")
+        for item in cache_dir.rglob('*'):
+            if item.is_file():
+                size = item.stat().st_size
+                if dry_run:
+                    print(f"  🗑️  Would remove: {item.relative_to(cache_dir)} ({get_size_human_readable(size)})")
+                else:
+                    print(f"  🗑️  Removing: {item.relative_to(cache_dir)} ({get_size_human_readable(size)})")
+                    item.unlink()
+                removed_size += size
+                removed_count += 1
+    
+    # Clean temp directory
+    if temp_dir.exists():
+        print("🗂️  Cleaning temporary files...")
+        for item in temp_dir.rglob('*'):
+            if item.is_file():
+                size = item.stat().st_size
+                if dry_run:
+                    print(f"  🗑️  Would remove: {item.relative_to(temp_dir)} ({get_size_human_readable(size)})")
+                else:
+                    print(f"  🗑️  Removing: {item.relative_to(temp_dir)} ({get_size_human_readable(size)})")
+                    item.unlink()
+                removed_size += size
+                removed_count += 1
+    
+    # Clean Python cache files
+    print("🗂️  Cleaning Python cache files...")
+    for pattern in ['**/__pycache__', '**/*.pyc', '**/*.pyo']:
+        for item in paths['project_root'].glob(pattern):
+            if item.is_file():
+                size = item.stat().st_size
+                if dry_run:
+                    print(f"  🗑️  Would remove: {item.name} ({get_size_human_readable(size)})")
+                else:
+                    print(f"  🗑️  Removing: {item.name} ({get_size_human_readable(size)})")
+                    item.unlink()
+                removed_size += size
+                removed_count += 1
+            elif item.is_dir() and item.name == '__pycache__':
+                if dry_run:
+                    print(f"  🗑️  Would remove directory: {item.name}")
+                else:
+                    print(f"  🗑️  Removing directory: {item.name}")
+                    shutil.rmtree(item)
+                removed_count += 1
+    
+    print(f"✅ Cache cleanup completed:")
+    print(f"   🗑️  Removed {removed_count} items ({get_size_human_readable(removed_size)})")
+    
+    return removed_size
+
+def cleanup_old_backups(paths, keep_count=10, dry_run=False):
+    """Clean up old backup files, keeping only the most recent ones."""
+    backup_dir = paths['backup_dir']
+    if not backup_dir.exists():
+        print("📁 No backups directory found, skipping backup cleanup")
+        return 0
+    
+    removed_size = 0
+    removed_count = 0
+    
+    print(f"🗂️  Cleaning old backups (keeping {keep_count} most recent)...")
+    
+    # Find all backup files/directories
+    backups = []
+    for item in backup_dir.iterdir():
+        if item.is_file() or item.is_dir():
+            backups.append((item.stat().st_mtime, item))
+    
+    # Sort by modification time (newest first)
+    backups.sort(reverse=True)
+    
+    # Remove old backups
+    for i, (mtime, backup_item) in enumerate(backups):
+        if i >= keep_count:  # Keep only the most recent keep_count backups
+            if backup_item.is_file():
+                size = backup_item.stat().st_size
+            else:
+                size = sum(f.stat().st_size for f in backup_item.rglob('*') if f.is_file())
+            
+            if dry_run:
+                print(f"  🗑️  Would remove: {backup_item.name} ({get_size_human_readable(size)})")
+            else:
+                print(f"  🗑️  Removing: {backup_item.name} ({get_size_human_readable(size)})")
+                if backup_item.is_file():
+                    backup_item.unlink()
+                else:
+                    shutil.rmtree(backup_item)
+            
+            removed_size += size
+            removed_count += 1
+    
+    print(f"✅ Backup cleanup completed:")
+    print(f"   🗑️  Removed {removed_count} old backups ({get_size_human_readable(removed_size)})")
+    
+    return removed_size
+
+def optimize_database(paths, dry_run=False):
+    """Optimize database files (if any)."""
+    print("🗃️  Checking for database optimization opportunities...")
+    
+    db_files = list(paths['project_root'].glob('**/*.db')) + \
+              list(paths['project_root'].glob('**/*.sqlite*'))
+    
+    if not db_files:
+        print("   ℹ️  No database files found")
+        return 0
+    
+    optimized_count = 0
+    for db_file in db_files:
+        if dry_run:
+            print(f"  🔧 Would optimize: {db_file.name}")
+        else:
+            print(f"  🔧 Optimizing: {db_file.name}")
+            try:
+                # Run VACUUM on SQLite databases
+                result = subprocess.run(
+                    ['sqlite3', str(db_file), 'VACUUM;'],
+                    capture_output=True, text=True, timeout=60
+                )
+                if result.returncode == 0:
+                    print(f"     ✅ Optimized successfully")
+                    optimized_count += 1
+                else:
+                    print(f"     ⚠️  Optimization skipped: {result.stderr.strip()}")
+            except subprocess.TimeoutExpired:
+                print(f"     ⚠️  Optimization timeout")
+            except FileNotFoundError:
+                print(f"     ⚠️  sqlite3 not found, skipping optimization")
+                break
+    
+    if optimized_count > 0:
+        print(f"✅ Database optimization completed: {optimized_count} databases optimized")
+    
+    return optimized_count
+
+def system_health_check(paths):
+    """Perform basic system health checks."""
+    print("🔍 Performing system health checks...")
+    
+    issues = []
+    
+    # Check disk space
+    total, used, free = shutil.disk_usage(paths['project_root'])
+    free_percent = (free / total) * 100
+    
+    print(f"  💾 Disk space: {get_size_human_readable(free)} free ({free_percent:.1f}%)")
+    if free_percent < 10:
+        issues.append("Low disk space (< 10% free)")
+    elif free_percent < 20:
+        print("     ⚠️  Warning: Low disk space (< 20% free)")
+    
+    # Check for required directories
+    required_dirs = ['logs', 'config', 'src']
+    for dir_name in required_dirs:
+        dir_path = paths['project_root'] / dir_name
+        if dir_path.exists():
+            print(f"  📁 {dir_name}/: ✅ Present")
+        else:
+            print(f"  📁 {dir_name}/: ❌ Missing")
+            issues.append(f"Missing required directory: {dir_name}")
+    
+    # Check for configuration files
+    config_files = ['settings.yaml', 'patterns.json']
+    for config_file in config_files:
+        config_path = paths['config_dir'] / config_file
+        if config_path.exists():
+            print(f"  ⚙️  {config_file}: ✅ Present")
+        else:
+            print(f"  ⚙️  {config_file}: ❌ Missing")
+            issues.append(f"Missing configuration file: {config_file}")
+    
+    # Check Python environment
+    try:
+        result = subprocess.run([sys.executable, '--version'], 
+                              capture_output=True, text=True)
+        python_version = result.stdout.strip()
+        print(f"  🐍 Python: ✅ {python_version}")
+    except:
+        print(f"  🐍 Python: ❌ Error checking version")
+        issues.append("Python environment issues")
+    
+    # Check for common issues in logs
+    logs_dir = paths['logs_dir']
+    if logs_dir.exists():
+        error_count = 0
+        for log_file in logs_dir.glob('**/*.log'):
+            try:
+                with open(log_file, 'r') as f:
+                    # Only check last 100 lines for efficiency
+                    lines = f.readlines()[-100:]
+                    for line in lines:
+                        if any(keyword in line.lower() for keyword in ['error', 'exception', 'failed', 'critical']):
+                            error_count += 1
+            except:
+                continue
+        
+        print(f"  📝 Recent log errors: {error_count} found")
+        if error_count > 10:
+            issues.append(f"High error count in logs ({error_count})")
+    
+    # Summary
+    if issues:
+        print(f"\n⚠️  Health check found {len(issues)} issues:")
+        for issue in issues:
+            print(f"   ❌ {issue}")
+        return False
+    else:
+        print(f"\n✅ Health check passed - system appears healthy")
+        return True
+
+def generate_maintenance_report(paths, cleanup_stats):
+    """Generate a maintenance report."""
+    report_file = paths['project_root'] / f"maintenance_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    
+    report = {
+        'timestamp': datetime.now().isoformat(),
+        'cleanup_stats': cleanup_stats,
+        'disk_usage': {},
+        'system_info': {}
+    }
+    
+    # Add disk usage info
+    try:
+        total, used, free = shutil.disk_usage(paths['project_root'])
+        report['disk_usage'] = {
+            'total_bytes': total,
+            'used_bytes': used,
+            'free_bytes': free,
+            'free_percent': (free / total) * 100,
+            'total_human': get_size_human_readable(total),
+            'used_human': get_size_human_readable(used),
+            'free_human': get_size_human_readable(free)
+        }
+    except:
+        pass
+    
+    # Add system info
+    try:
+        report['system_info'] = {
+            'python_version': sys.version,
+            'platform': sys.platform,
+            'project_root': str(paths['project_root'])
+        }
+    except:
+        pass
+    
+    with open(report_file, 'w') as f:
+        json.dump(report, f, indent=2)
+    
+    print(f"📊 Maintenance report saved: {report_file}")
+    return report_file
+
+def cleanup_command(args):
+    """Run cleanup operations."""
+    paths = setup_paths()
+    
+    print("🧹 Starting maintenance cleanup...")
+    if args.dry_run:
+        print("🔍 DRY RUN MODE - No files will be actually removed")
+    
+    cleanup_stats = {
+        'logs_cleaned': 0,
+        'cache_cleaned': 0,
+        'backups_cleaned': 0,
+        'total_freed': 0
+    }
+    
+    if args.logs or args.all:
+        cleanup_stats['logs_cleaned'] = cleanup_logs(paths, args.days, args.dry_run)
+    
+    if args.cache or args.all:
+        cleanup_stats['cache_cleaned'] = cleanup_cache(paths, args.dry_run)
+    
+    if args.backups or args.all:
+        cleanup_stats['backups_cleaned'] = cleanup_old_backups(paths, args.keep_backups, args.dry_run)
+    
+    cleanup_stats['total_freed'] = (cleanup_stats['logs_cleaned'] + 
+                                  cleanup_stats['cache_cleaned'] + 
+                                  cleanup_stats['backups_cleaned'])
+    
+    if args.optimize:
+        optimize_database(paths, args.dry_run)
+    
+    print(f"\n🎉 Cleanup completed!")
+    print(f"   💾 Total space freed: {get_size_human_readable(cleanup_stats['total_freed'])}")
+    
+    if args.report and not args.dry_run:
+        generate_maintenance_report(paths, cleanup_stats)
+    
+    return True
+
+def health_command(args):
+    """Run health check."""
+    paths = setup_paths()
+    
+    print("🏥 Starting system health check...")
+    
+    health_ok = system_health_check(paths)
+    
+    if args.report:
+        cleanup_stats = {'health_check_passed': health_ok}
+        generate_maintenance_report(paths, cleanup_stats)
+    
+    return health_ok
+
+def optimize_command(args):
+    """Run optimization tasks."""
+    paths = setup_paths()
+    
+    print("⚡ Starting system optimization...")
+    
+    # Optimize databases
+    db_count = optimize_database(paths, args.dry_run)
+    
+    # Could add more optimization tasks here
+    # - Reindex files
+    # - Optimize configurations
+    # - Clean up redundant data
+    
+    print(f"\n⚡ Optimization completed!")
+    print(f"   🗃️  Databases optimized: {db_count}")
+    
+    return True
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Maintenance tool for NGINX Security Monitor",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s cleanup --all                  # Full cleanup
+  %(prog)s cleanup --logs --days 7       # Clean logs older than 7 days
+  %(prog)s health                         # Run health check
+  %(prog)s optimize                       # Optimize databases
+  %(prog)s cleanup --dry-run --all        # Preview cleanup actions
+        """
+    )
+    
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+    
+    # Cleanup command
+    cleanup_parser = subparsers.add_parser('cleanup', help='Clean up old files and cache')
+    cleanup_parser.add_argument('--all', action='store_true',
+                               help='Clean all types (logs, cache, backups)')
+    cleanup_parser.add_argument('--logs', action='store_true',
+                               help='Clean old log files')
+    cleanup_parser.add_argument('--cache', action='store_true',
+                               help='Clean cache and temporary files')
+    cleanup_parser.add_argument('--backups', action='store_true',
+                               help='Clean old backup files')
+    cleanup_parser.add_argument('--days', type=int, default=30,
+                               help='Days to keep for log files (default: 30)')
+    cleanup_parser.add_argument('--keep-backups', type=int, default=10,
+                               help='Number of backups to keep (default: 10)')
+    cleanup_parser.add_argument('--optimize', action='store_true',
+                               help='Also run optimization tasks')
+    cleanup_parser.add_argument('--dry-run', action='store_true',
+                               help='Show what would be cleaned without actually doing it')
+    cleanup_parser.add_argument('--report', action='store_true',
+                               help='Generate maintenance report')
+    
+    # Health command
+    health_parser = subparsers.add_parser('health', help='Run system health check')
+    health_parser.add_argument('--report', action='store_true',
+                              help='Generate health report')
+    
+    # Optimize command
+    optimize_parser = subparsers.add_parser('optimize', help='Run optimization tasks')
+    optimize_parser.add_argument('--dry-run', action='store_true',
+                                help='Show what would be optimized without actually doing it')
+    
+    # For backward compatibility, also accept some flags directly
+    parser.add_argument('--cleanup', action='store_true',
+                       help='Run cleanup (equivalent to cleanup --all)')
+    parser.add_argument('--health', action='store_true',
+                       help='Run health check')
+    parser.add_argument('--optimize', action='store_true',
+                       help='Run optimization')
+    parser.add_argument('--dry-run', action='store_true',
+                       help='Dry run mode')
+    
+    args = parser.parse_args()
+    
+    try:
+        # Handle subcommands
+        if args.command == 'cleanup' or args.cleanup:
+            if args.cleanup:  # Direct flag
+                args.all = True
+                args.report = True
+            return cleanup_command(args)
+        elif args.command == 'health' or args.health:
+            return health_command(args)
+        elif args.command == 'optimize' or args.optimize:
+            return optimize_command(args)
+        else:
+            # No specific command, show help
+            parser.print_help()
+            return True
+            
+    except KeyboardInterrupt:
+        print("\n❌ Operation cancelled by user")
+        return False
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        return False
+
+if __name__ == "__main__":
+    success = main()
+    sys.exit(0 if success else 1)

@@ -1,0 +1,183 @@
+email_service:
+  smtp_server: smtp.example.com
+  smtp_port: 587
+  username: your_email@example.com
+  password: your_email_password
+  from_address: your_email@example.com
+  to_address: alert_recipient@example.com
+
+sms_service:
+  provider: your_sms_provider
+  api_key: your_sms_api_key
+  from_number: +1234567890
+  to_number: +0987654321
+
+alert_thresholds:
+  high: 10
+  medium: 5
+  low: 1
+
+log_file_path: /var/log/nginx/access.log
+error_log_file_path: /var/log/nginx/error.log
+
+# Security Integrations Configuration
+security_integrations:
+  # Command execution settings
+  command_timeout: 5
+  extended_command_timeout: 10
+  capture_output: true
+  text_output: true
+  success_code: 0
+  default_availability: false
+  error_availability: false
+  success_result: true
+  failure_result: false
+  error_result: false
+  
+  # Fail2ban integration
+  fail2ban:
+    logger_name: "nginx-security-monitor.fail2ban"
+    socket: "/var/run/fail2ban/fail2ban.sock"
+    default_socket: "/var/run/fail2ban/fail2ban.sock"
+    default_jail_files:
+      - "/etc/fail2ban/jail.local"
+      - "/etc/fail2ban/jail.conf"
+      - "/etc/fail2ban/jail.d/"
+    jail_files: null  # Will use default_jail_files if null
+    min_bantime: 600  # 10 minutes minimum
+    
+  # OSSEC integration
+  ossec:
+    logger_name: "nginx-security-monitor.ossec"
+    install_dir: "/var/ossec"
+    default_dir: "/var/ossec"
+    alerts_dir: null  # Will be calculated from install_dir
+    alerts_log: null  # Will be calculated from alerts_dir
+    bin_dir: "bin"
+    control_script: "ossec-control"
+    default_alert_hours: 1
+    timestamp_pattern: "\\d{4} \\w{3} \\d{1,2} \\d{1,2}:\\d{1,2}:\\d{1,2}"
+    
+  # Suricata integration
+  suricata:
+    logger_name: "nginx-security-monitor.suricata"
+    eve_log: "/var/log/suricata/eve.json"
+    rules_dir: "/etc/suricata/rules"
+    
+  # Wazuh integration
+  wazuh:
+    logger_name: "nginx-security-monitor.wazuh"
+    install_dir: "/var/ossec"
+    syslog_facility: "LOG_LOCAL0"
+    
+  # ModSecurity integration
+  modsecurity:
+    logger_name: "nginx-security-monitor.modsecurity"
+    audit_log: "/var/log/modsec_audit.log"
+    rules_dir: "/etc/modsecurity/rules"
+    alt_log_locations:
+      - "/var/log/apache2/modsec_audit.log"
+      - "/var/log/nginx/modsec_audit.log"
+
+# Log Processing Configuration
+log_processing:
+  field_mappings:
+    ip_address: 1  # Group number for IP address extraction in regex
+    timestamp: 0   # Group number for timestamp extraction
+    status_code: 2 # Group number for status code extraction
+    user_agent: 3  # Group number for user agent extraction
+    request_uri: 4 # Group number for request URI extraction
+
+# Network Security Configuration
+network_security:
+  allowed_ips:
+    - "127.0.0.1"
+    - "::1"
+  
+# Security Hardening Configuration
+security:
+  critical_files:
+    "/etc/nginx-security-monitor/settings.yaml":
+      mode: 0o640
+      owner: "root"
+      group: "nginx"
+    "/etc/nginx-security-monitor/.salt":
+      mode: 0o600
+      owner: "root"
+      group: "root"
+    "/opt/nginx-security-monitor/src/":
+      mode: 0o755
+      owner: "root"
+      group: "root"
+    "/var/log/nginx-security-monitor.log":
+      mode: 0o640
+      owner: "nginx"
+      group: "nginx"
+      
+  sensitive_env_vars:
+    - "NGINX_MONITOR_KEY"
+    - "SMTP_PASSWORD"
+    - "API_KEY"
+    - "DB_PASSWORD"
+    - "SECRET_KEY"
+    
+  min_password_length: 16
+  unsafe_file_modes:
+    - 0o777
+    - 0o666
+    - 0o755
+    
+  weak_values:
+    - "test"
+    - "default"
+    - "password"
+    - "123456"
+    - "admin"
+    - "secret"
+    - "changeme"
+    - "letmein"
+    - "please"
+    
+  vulnerable_packages:
+    cryptography:
+      - "2.9.0"
+      - "2.8.0"
+      - "2.7.0"
+    requests:
+      - "2.19.0"
+      - "2.18.0"
+    urllib3:
+      - "1.24.0"
+      - "1.23.0"
+      
+  unsafe_attributes:
+    - "system"
+    - "exec"
+    - "eval"
+    - "compile"
+
+# Plugin System Configuration  
+plugin_system:
+  plugin_dirs:
+    - "plugins"
+    - "/usr/local/share/nginx-security-monitor/plugins"
+    - "/etc/nginx-security-monitor/plugins"
+  plugin_timeout: 30
+  max_plugins: 50
+  auto_reload: false
+  reload_interval: 300  # 5 minutes
+  
+  # Plugin security settings
+  sandbox_enabled: true
+  allowed_imports:
+    - "os"
+    - "sys"
+    - "json"
+    - "re"
+    - "datetime"
+    - "logging"
+    
+# Pattern Detection Configuration
+pattern_detection:
+  thresholds:
+    requests_per_ip_per_minute: 50
