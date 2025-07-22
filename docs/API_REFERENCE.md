@@ -2,7 +2,9 @@
 
 ## 🎯 **Overview**
 
-This document provides comprehensive API documentation for all modules and classes in the NGINX Security Monitor system. Each component is documented with its purpose, methods, parameters, and usage examples.
+This document provides comprehensive API documentation for all modules and classes in the
+NGINX Security Monitor system. Each component is documented with its purpose, methods,
+parameters, and usage examples.
 
 ## 📁 **Module Index**
 
@@ -742,4 +744,5 @@ ______________________________________________________________________
 
 ______________________________________________________________________
 
-*This API reference is maintained as part of the NGINX Security Monitor project. For updates and contributions, see [CONTRIBUTING.md](CONTRIBUTING.md).*
+*This API reference is maintained as part of the NGINX Security Monitor project.
+For updates and contributions, see [CONTRIBUTING.md](CONTRIBUTING.md).*

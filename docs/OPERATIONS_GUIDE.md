@@ -2,7 +2,9 @@
 
 ## 🎯 **Overview**
 
-This guide covers day-to-day operations and maintenance of the NGINX Security Monitor in production environments. It includes service monitoring, health checks, log management, backup procedures, and operational best practices for maintaining a secure and reliable security monitoring infrastructure.
+This guide covers day-to-day operations and maintenance of the NGINX Security Monitor in production environments. It
+includes service monitoring, health checks, log management, backup procedures, and operational best practices for
+maintaining a secure and reliable security monitoring infrastructure.
 
 **💡 Quick CLI Reference**: For command-line operations, see the [CLI Reference Guide](CLI_REFERENCE.md).
 
@@ -379,7 +381,7 @@ ______________________________________________________________________
 
 ### **Log File Structure**
 
-```
+```text
 /var/log/nginx-security/
 ├── main.log                    # Main application log
 ├── threats.log                 # Detected threats
@@ -1184,7 +1186,7 @@ ______________________________________________________________________
 - [Installation Guide](INSTALLATION.md) - Initial setup and installation
 - [Configuration Guide](CONFIGURATION.md) - Configuration options
 - [Troubleshooting Guide](TROUBLESHOOTING.md) - Problem resolution
-- [Performance Tuning](PERFORMANCE_TUNING.md) - Optimization strategies
+- [Performance Tuning](./operations/performance-tuning.md) - Optimization strategies
 - [Security Features](SECURITY_FEATURES.md) - Security considerations
 
 ______________________________________________________________________

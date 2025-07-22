@@ -604,7 +604,7 @@ for pattern in patterns:
 
 ### v1.x to v2.0 Migration (Breaking Changes)
 
-```markdown
+````markdown
 # Migration Guide: v1.x → v2.0
 
 ## Overview
@@ -777,8 +777,9 @@ class DeprecationManager:
     def deprecate_version(self, version: str, reason: str, replacement: str = None):
         """Mark a version as deprecated"""
         deprecation_date = datetime.datetime.now().isoformat()
+        support_years = self.config["deprecation_policy"]["support_period_years"]
         end_of_life = (datetime.datetime.now() + 
-                      datetime.timedelta(days=365 * self.config["deprecation_policy"]["support_period_years"])).isoformat()
+                      datetime.timedelta(days=365 * support_years)).isoformat()
         
         self.config["deprecated_versions"][version] = {
             "deprecation_date": deprecation_date,
@@ -841,7 +842,7 @@ if __name__ == "__main__":
     )
     
     print(manager.generate_deprecation_notice())
-````
+```
 
 ## Automated Testing for API Versions
 

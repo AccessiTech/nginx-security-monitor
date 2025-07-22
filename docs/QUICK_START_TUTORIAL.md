@@ -47,7 +47,7 @@ pip install -r requirements.txt
 
 **Expected output:**
 
-```
+```text
 Successfully installed cryptography-45.0.5 psutil-7.0.0 pyyaml-6.0.2 pytest-8.4.1 ...
 ```
 
@@ -81,7 +81,7 @@ log_file_path: "/var/log/nginx/access.log"
 error_log_file_path: "/var/log/nginx/error.log"
 ```
 
-**Alternative: Use service-settings.yaml for advanced features**
+#### Alternative: Use service-settings.yaml for advanced features
 
 ```bash
 # For more advanced configuration, copy the service template
@@ -95,7 +95,7 @@ cp config/service-settings.yaml config/my-service-settings.yaml
 > - **`service-settings.yaml`** - Production-ready with environment variables and security features
 >
 > For this tutorial, we use `settings.yaml` for simplicity. For production deployment, use `service-settings.yaml`.
-> See the [Configuration File Structure guide](CONFIGURATION.md#configuration-files-explained) for detailed differences.
+> See the [Configuration File Structure guide](CONFIGURATION.md) for detailed differences.
 
 ### **Test Configuration**
 
@@ -142,11 +142,16 @@ ERROR_LOG_FILE_PATH=/var/log/nginx/error.log
 
 ### **Usage**
 
-The application automatically loads environment variables from the `.env` file. Ensure that sensitive information such as API keys, database URLs, and other credentials are stored securely in this file. Avoid committing the `.env` file to version control by adding it to `.gitignore`.
+The application automatically loads environment variables from the `.env` file.
+Ensure that sensitive information such as API keys, database URLs, and other credentials
+are stored securely in this file. Avoid committing the `.env` file to version control
+by adding it to `.gitignore`.
 
 ## 🔍 **Step 3: Test Basic Detection (2 minutes)**
 
 ### **Generate Some Test Traffic**
+
+<!-- markdownlint-disable MD013 -->
 
 ```bash
 # Create a test log file to verify detection works
@@ -166,9 +171,11 @@ for threat in threats:
 "
 ```
 
+<!-- markdownlint-enable MD013 -->
+
 **Expected Output:**
 
-```
+```text
 ✅ Detected 1 potential threats!
   - sql_injection threat detected
 ```
@@ -184,7 +191,7 @@ python3 -m src.monitor_service config/my-settings.yaml
 
 **Expected output:**
 
-```
+```text
 🚀 NGINX Security Monitor Starting...
 📊 Loading configuration from config/my-settings.yaml
 🔍 Pattern detection enabled
@@ -196,6 +203,8 @@ python3 -m src.monitor_service config/my-settings.yaml
 
 Open another terminal and create a suspicious request:
 
+<!-- markdownlint-disable MD013 -->
+
 ```bash
 # If you have NGINX running locally, create a malicious request
 curl "http://localhost/test?id=1' OR '1'='1" 2>/dev/null || echo "SQL injection test sent"
@@ -204,11 +213,13 @@ curl "http://localhost/test?id=1' OR '1'='1" 2>/dev/null || echo "SQL injection 
 echo '127.0.0.1 - - [19/Jul/2025:10:30:45 +0000] "GET /test?id=1%27%20OR%20%271%27=%271 HTTP/1.1" 200 1234 "-" "curl/7.68.0"' | sudo tee -a /var/log/nginx/access.log
 ```
 
+<!-- markdownlint-enable MD013 -->
+
 ### **Check for Alert**
 
 You should see output like:
 
-```
+```text
 🚨 THREAT DETECTED: SQL Injection attempt from 127.0.0.1
 📧 Alert sent to your-email@gmail.com
 ```
@@ -229,6 +240,8 @@ tail -f /var/log/nginx-security-monitor.log
 
 ### **Test Different Attack Types**
 
+<!-- markdownlint-disable MD013 -->
+
 ```bash
 # Test XSS detection
 echo '127.0.0.1 - - [19/Jul/2025:10:31:00 +0000] "GET /test?msg=%3Cscript%3Ealert(%27xss%27)%3C/script%3E HTTP/1.1" 200 1234 "-" "curl/7.68.0"' | sudo tee -a /var/log/nginx/access.log
@@ -236,6 +249,8 @@ echo '127.0.0.1 - - [19/Jul/2025:10:31:00 +0000] "GET /test?msg=%3Cscript%3Ealer
 # Test suspicious user agent
 echo '127.0.0.1 - - [19/Jul/2025:10:31:15 +0000] "GET / HTTP/1.1" 200 1234 "-" "sqlmap/1.0"' | sudo tee -a /var/log/nginx/access.log
 ```
+
+<!-- markdownlint-enable MD013 -->
 
 ## 🎉 **Congratulations! You're Now Monitoring**
 
@@ -380,7 +395,7 @@ When you receive your first email alert, it will contain:
 
 **Body**:
 
-```
+```text
 🚨 Security Threat Detected
 
 Attack Type: sql_injection
@@ -412,7 +427,7 @@ Now that you have the basics working, explore these advanced features:
 ## 🆘 **Need Help?**
 
 - **Documentation**: Check the specific guides in this repository
-- **Issues**: Report problems on [GitHub Issues](https://github.com/nginx-security-monitor/nginx-security-monitor/issues)
+- **Issues**: Report problems on [GitHub Issues](https://github.com/AccessiTech/nginx-security-monitor/issues)
 - **Troubleshooting**: See [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 
 ## 📈 **What's Next?**
@@ -422,5 +437,3 @@ Now that you have the basics working, explore these advanced features:
 1. **Add custom patterns** for your specific application
 1. **Set up integrations** with your existing security tools
 1. **Consider production deployment** with the full installation
-
-**Happy monitoring! 🛡️**

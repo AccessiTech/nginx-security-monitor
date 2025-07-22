@@ -1,6 +1,7 @@
 # Deployment Guide
 
-This guide covers deploying Nginx Security Monitor across different environments with security best practices and configuration templates.
+This guide covers deploying Nginx Security Monitor across different environments
+with security best practices and configuration templates.
 
 ## Overview
 
@@ -45,8 +46,6 @@ sudo systemctl status nginx-security-monitor
 
 - [Development Environment](development.md)
 - [Staging Environment](staging.md)
-- [Production Environment](production.md)
-- [High Availability Setup](high-availability.md)
 
 ## Configuration Management
 

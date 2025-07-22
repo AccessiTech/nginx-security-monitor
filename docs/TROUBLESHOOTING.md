@@ -2,7 +2,9 @@
 
 ## 🎯 **Overview**
 
-This comprehensive troubleshooting guide helps you diagnose and resolve common issues with the NGINX Security Monitor. It includes step-by-step diagnostic procedures, solutions for typical problems, and guidance for when to escalate issues.
+This comprehensive troubleshooting guide helps you diagnose and resolve common issues with the NGINX Security Monitor.
+It includes step-by-step diagnostic procedures, solutions for typical problems,
+and guidance for when to escalate issues.
 
 **💡 Quick CLI Tools**: Use `./bin/health-check` and `./bin/debug-logs` for rapid diagnostics.
 
@@ -1167,7 +1169,7 @@ ______________________________________________________________________
 ## 🔗 **Related Documentation**
 
 - [Operations Guide](OPERATIONS_GUIDE.md) - Day-to-day operations
-- [Performance Tuning](PERFORMANCE_TUNING.md) - Optimization strategies
+- [Performance Tuning](./operations/performance-tuning.md) - Optimization strategies
 - [Configuration Guide](CONFIGURATION.md) - Configuration options
 - [Installation Guide](INSTALLATION.md) - Setup and installation
 - [Integration Cookbook](INTEGRATION_COOKBOOK.md) - Integration examples

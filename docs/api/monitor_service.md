@@ -21,15 +21,15 @@ Main service class for the NGINX Security Monitor.
 
 #### Methods
 
-##### load_config()
+#### load_config()
 
 Load configuration from YAML file.
 
-##### setup_logging()
+#### setup_logging()
 
 Setup logging configuration.
 
-##### signal_handler(signum, frame)
+#### signal_handler(signum, frame)
 
 Handle shutdown signals gracefully.
 
@@ -38,19 +38,19 @@ Handle shutdown signals gracefully.
 - **signum**
 - **frame**
 
-##### run()
+#### run()
 
 Main service entry point - delegates to security coordinator.
 
-##### get_monitoring_status()
+#### get_monitoring_status()
 
 Get current monitoring status.
 
-##### force_check()
+#### force_check()
 
 Force an immediate security check.
 
-##### get_new_log_entries(log_file_path)
+#### get_new_log_entries(log_file_path)
 
 Get new log entries - delegates to log processor with state sync.
 
@@ -58,7 +58,7 @@ Get new log entries - delegates to log processor with state sync.
 
 - **log_file_path**
 
-##### process_threats(detected_patterns)
+#### process_threats(detected_patterns)
 
 Process threats - backward compatibility with test expectations.
 
@@ -68,11 +68,11 @@ Process threats - backward compatibility with test expectations.
 
 ## Functions
 
-##### main()
+### main()
 
 Main entry point.
 
-##### load_config(self)
+### load_config(self)
 
 Load configuration from YAML file.
 
@@ -80,7 +80,7 @@ Load configuration from YAML file.
 
 - **self**
 
-##### setup_logging(self)
+#### setup_logging(self)
 
 Setup logging configuration.
 
@@ -88,7 +88,7 @@ Setup logging configuration.
 
 - **self**
 
-##### signal_handler(self, signum, frame)
+#### signal_handler(self, signum, frame)
 
 Handle shutdown signals gracefully.
 
@@ -98,7 +98,7 @@ Handle shutdown signals gracefully.
 - **signum**
 - **frame**
 
-##### run(self)
+#### run(self)
 
 Main service entry point - delegates to security coordinator.
 
@@ -106,7 +106,7 @@ Main service entry point - delegates to security coordinator.
 
 - **self**
 
-##### get_monitoring_status(self)
+#### get_monitoring_status(self)
 
 Get current monitoring status.
 
@@ -114,7 +114,7 @@ Get current monitoring status.
 
 - **self**
 
-##### force_check(self)
+#### force_check(self)
 
 Force an immediate security check.
 
@@ -122,7 +122,7 @@ Force an immediate security check.
 
 - **self**
 
-##### get_new_log_entries(self, log_file_path)
+#### get_new_log_entries(self, log_file_path)
 
 Get new log entries - delegates to log processor with state sync.
 
@@ -131,7 +131,7 @@ Get new log entries - delegates to log processor with state sync.
 - **self**
 - **log_file_path**
 
-##### process_threats(self, detected_patterns)
+#### process_threats(self, detected_patterns)
 
 Process threats - backward compatibility with test expectations.
 

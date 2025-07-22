@@ -1,16 +1,19 @@
----
+______________________________________________________________________
+
 version: 1.0.0
 last_updated: 2025-07-20
 changelog:
-  - version: 1.0.0
-    date: 2025-07-20
-    changes:
-      - Initial style guide creation
-maintainers:
-  - nginx-security-team
-review_status: current
-applies_to_versions: '>=1.0.0'
----
+
+- version: 1.0.0
+  date: 2025-07-20
+  changes:
+  - Initial style guide creation
+    maintainers:
+- nginx-security-team
+  review_status: current
+  applies_to_versions: '>=1.0.0'
+
+______________________________________________________________________
 
 # 📝 Documentation Style Guide
 
@@ -169,8 +172,8 @@ To install NGINX Security Monitor:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/org/nginx-security-monitor.git
-````
+   git clone https://github.com/AccessiTech/nginx-security-monitor.git
+   ```
 
 2. Install dependencies:
    ```bash
@@ -180,12 +183,13 @@ To install NGINX Security Monitor:
 ````
 
 ### Bad Example
+
 ```markdown
 ## Installation
 
 clone repo
 run pip install
-````
+```
 
 ## Review Process
 

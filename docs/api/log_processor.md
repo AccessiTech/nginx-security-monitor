@@ -11,7 +11,7 @@ Handles log file reading and parsing functionality.
 
 #### Methods
 
-##### get_new_log_entries(log_file_path)
+#### get_new_log_entries(log_file_path)
 
 Get only new log entries since last check.
 
@@ -25,7 +25,7 @@ list: List of parsed log entries
 
 - **log_file_path**
 
-##### parse_log_line(line)
+#### parse_log_line(line)
 
 Parse a single log line into structured data.
 
@@ -39,11 +39,11 @@ dict: Parsed log entry or None if parsing failed
 
 - **line**
 
-##### reset_processed_size()
+#### reset_processed_size()
 
 Reset the last processed size counter.
 
-##### get_processed_size()
+#### get_processed_size()
 
 Get the current processed size.
 
@@ -52,7 +52,7 @@ int: Last processed file size
 
 ## Functions
 
-##### get_new_log_entries(self, log_file_path)
+### get_new_log_entries(self, log_file_path)
 
 Get only new log entries since last check.
 
@@ -67,7 +67,7 @@ list: List of parsed log entries
 - **self**
 - **log_file_path**
 
-##### parse_log_line(self, line)
+#### parse_log_line(self, line)
 
 Parse a single log line into structured data.
 
@@ -82,7 +82,7 @@ dict: Parsed log entry or None if parsing failed
 - **self**
 - **line**
 
-##### reset_processed_size(self)
+#### reset_processed_size(self)
 
 Reset the last processed size counter.
 
@@ -90,7 +90,7 @@ Reset the last processed size counter.
 
 - **self**
 
-##### get_processed_size(self)
+#### get_processed_size(self)
 
 Get the current processed size.
 

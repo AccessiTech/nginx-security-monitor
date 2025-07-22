@@ -1,6 +1,7 @@
 # Network and Connectivity Issues
 
-This guide addresses network-related problems that can affect Nginx Security Monitor's operation, including connectivity issues, firewall problems, and integration failures.
+This guide addresses network-related problems that can affect Nginx Security Monitor's operation,
+including connectivity issues, firewall problems, and integration failures.
 
 ## Network Diagnostic Tools
 
@@ -609,7 +610,7 @@ if __name__ == "__main__":
 
 **Error Messages:**
 
-```
+```text
 [Errno 98] Address already in use
 OSError: [Errno 98] Address already in use: ('0.0.0.0', 8080)
 bind: Address already in use
@@ -637,7 +638,7 @@ sudo systemctl restart nginx-security-monitor
 
 **Error Messages:**
 
-```
+```text
 [Errno 13] Permission denied
 bind: Permission denied
 ```

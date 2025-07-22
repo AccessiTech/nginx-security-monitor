@@ -11,7 +11,7 @@ Manages all alert generation and sending functionality.
 
 #### Methods
 
-##### send_threat_alert(pattern, mitigation_results)
+#### send_threat_alert(pattern, mitigation_results)
 
 Send alerts for detected threats.
 
@@ -24,7 +24,7 @@ mitigation_results: List of mitigation results
 - **pattern**
 - **mitigation_results**
 
-##### send_emergency_alert(critical_threats)
+#### send_emergency_alert(critical_threats)
 
 Send emergency alert for critical service threats.
 
@@ -35,7 +35,7 @@ critical_threats: List of critical threat objects
 
 - **critical_threats**
 
-##### send_service_threat_alert(high_threats)
+#### send_service_threat_alert(high_threats)
 
 Send alert for high-severity service threats.
 
@@ -46,7 +46,7 @@ high_threats: List of high-severity threat objects
 
 - **high_threats**
 
-##### send_integration_alert(threats)
+#### send_integration_alert(threats)
 
 Send alert for threats detected by security integrations.
 
@@ -59,7 +59,7 @@ threats: List of threat objects from security integrations
 
 ## Functions
 
-##### send_threat_alert(self, pattern, mitigation_results)
+### send_threat_alert(self, pattern, mitigation_results)
 
 Send alerts for detected threats.
 
@@ -73,7 +73,7 @@ mitigation_results: List of mitigation results
 - **pattern**
 - **mitigation_results**
 
-##### send_emergency_alert(self, critical_threats)
+#### send_emergency_alert(self, critical_threats)
 
 Send emergency alert for critical service threats.
 
@@ -85,7 +85,7 @@ critical_threats: List of critical threat objects
 - **self**
 - **critical_threats**
 
-##### send_service_threat_alert(self, high_threats)
+#### send_service_threat_alert(self, high_threats)
 
 Send alert for high-severity service threats.
 
@@ -97,7 +97,7 @@ high_threats: List of high-severity threat objects
 - **self**
 - **high_threats**
 
-##### send_integration_alert(self, threats)
+#### send_integration_alert(self, threats)
 
 Send alert for threats detected by security integrations.
 

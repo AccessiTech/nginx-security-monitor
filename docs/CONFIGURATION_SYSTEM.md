@@ -1,18 +1,21 @@
----
+______________________________________________________________________
+
 version: 1.0.0
 last_updated: 2025-07-20
 changelog:
-  - version: 1.0.0
-    date: 2025-07-20
-    changes:
-      - Initial configuration system documentation
-      - Added integration with main configuration guide
-      - Added security features documentation
-maintainers:
-  - nginx-security-team
-review_status: current
-applies_to_versions: '>=1.0.0'
----
+
+- version: 1.0.0
+  date: 2025-07-20
+  changes:
+  - Initial configuration system documentation
+  - Added integration with main configuration guide
+  - Added security features documentation
+    maintainers:
+- nginx-security-team
+  review_status: current
+  applies_to_versions: '>=1.0.0'
+
+______________________________________________________________________
 
 # 🔐 NGINX Security Monitor Configuration System
 
@@ -50,7 +53,8 @@ print(f"Monitoring {log_file} every {check_interval} seconds")
 
 ### Configuration Files
 
-The default configuration file is `/etc/nginx-security-monitor/settings.yaml`. You can specify a different path when initializing the ConfigManager:
+The default configuration file is `/etc/nginx-security-monitor/settings.yaml`. You can specify
+a different path when initializing the ConfigManager:
 
 ```python
 config = ConfigManager(config_path='/path/to/config.yaml')
@@ -58,7 +62,8 @@ config = ConfigManager(config_path='/path/to/config.yaml')
 
 ### Environment Variables
 
-All configuration options can be overridden with environment variables. The environment variable names are defined in the schema. For example:
+All configuration options can be overridden with environment variables. The environment variable
+names are defined in the schema. For example:
 
 ```bash
 # Set the check interval to 30 seconds

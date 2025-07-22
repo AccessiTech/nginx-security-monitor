@@ -2,7 +2,9 @@
 
 ## Overview
 
-The NGINX Security Monitor implements comprehensive self-protection mechanisms to defend against attacks targeting the monitoring service itself. Since security tools are high-value targets, we've implemented multiple layers of protection.
+The NGINX Security Monitor implements comprehensive self-protection mechanisms to defend against attacks targeting
+the monitoring service itself. Since security tools are high-value targets,
+we've implemented multiple layers of protection.
 
 ## Self-Protection Features
 
@@ -66,13 +68,13 @@ The NGINX Security Monitor implements comprehensive self-protection mechanisms t
 
 ### 1. **Install with Self-Protection**
 
-```bash
+````bash
 # Standard installation
 sudo ./install.sh
 
 # Apply additional hardening
 sudo ./harden.sh
-```
+```bash
 
 ### 2. **Configure Protection Settings**
 
@@ -104,7 +106,8 @@ network_security:
     - 80    # HTTP
     - 443   # HTTPS
     - 587   # SMTP TLS
-```
+# Add language identifier to code block at line 107
+```yaml
 
 ### 3. **Enable Additional Monitoring**
 
@@ -114,7 +117,8 @@ sudo apt-get install aide psutil
 
 # Setup integrity monitoring
 sudo aide --init
-```
+# Add language identifier to code block at line 117
+```bash
 
 ## Attack Scenarios and Defenses
 
@@ -192,9 +196,11 @@ The service sends different types of alerts based on threat severity:
 
 #### **Emergency Alerts** (Critical Threats)
 
-```
+# Add language identifier to code block at line 195
+```text
 Subject: 🚨 CRITICAL: Security Monitor Service Under Attack
-```
+# Add language identifier to code block at line 197
+```text
 
 - Sent for file tampering, process hijacking
 - Triggers emergency shutdown procedures
@@ -202,9 +208,11 @@ Subject: 🚨 CRITICAL: Security Monitor Service Under Attack
 
 #### **Service Threat Alerts** (High Threats)
 
-```
+# Add language identifier to code block at line 205
+```text
 Subject: ⚠️ Security Monitor Service Threats Detected  
-```
+# Add language identifier to code block at line 207
+```text
 
 - Sent for high-severity threats
 - Service continues running but requires attention
@@ -233,7 +241,7 @@ sudo aide --check
 # Update and restart service monthly
 sudo apt update && sudo apt upgrade
 sudo systemctl restart nginx-security-monitor
-```
+````
 
 ### **2. Network Isolation**
 
@@ -357,4 +365,6 @@ integrations:
     auto_block: true
 ```
 
-This comprehensive self-protection system ensures that even if your NGINX Security Monitor is publicly available or the source code is known, the actual security measures and the service itself remain protected against sophisticated attacks.
+This comprehensive self-protection system ensures that even if your NGINX Security Monitor is publicly available
+or the source code is known, the actual security measures and the service itself
+remain protected against sophisticated attacks.

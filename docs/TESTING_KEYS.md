@@ -2,7 +2,8 @@
 
 ## Overview
 
-This guide provides information about test master keys and setup for development and testing of the NGINX Security Monitor encryption utilities.
+This guide provides information about test master keys and setup for development and testing of the
+NGINX Security Monitor encryption utilities.
 
 ## Test Master Keys
 
@@ -28,7 +29,7 @@ export NGINX_MONITOR_KEY="test_key"
 
 When the utility prompts for a master key:
 
-```
+```text
 Enter your master key: test_key
 ```
 

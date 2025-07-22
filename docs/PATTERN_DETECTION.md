@@ -4,7 +4,9 @@ Comprehensive guide to understanding, customizing, and extending the pattern det
 
 ## 📋 **Overview**
 
-The pattern detection system is the core of NGINX Security Monitor, analyzing NGINX log entries in real-time to identify potential security threats. It uses a combination of regex patterns, frequency analysis, and behavioral detection to identify various attack types.
+The pattern detection system is the core of NGINX Security Monitor, analyzing NGINX log entries in real-time
+to identify potential security threats. It uses a combination of regex patterns, frequency analysis,
+and behavioral detection to identify various attack types.
 
 ## 🎯 **Built-in Detection Patterns**
 
@@ -569,7 +571,7 @@ python -m src.analytics --false-positive-report
 
 ### **Common Issues and Solutions**
 
-**Issue: Pattern not detecting attacks**
+#### Issue: Pattern not detecting attacks
 
 ```bash
 # Debug pattern matching
@@ -578,7 +580,7 @@ python -m src.pattern_detector --debug \
   --input "test string here"
 ```
 
-**Issue: Too many false positives**
+#### Issue: Too many false positives
 
 ```bash
 # Analyze false positives
@@ -586,7 +588,7 @@ python -m src.analytics --false-positive-analysis \
   --pattern sql_injection --days 7
 ```
 
-**Issue: Poor performance**
+#### Issue: Poor performance
 
 ```bash
 # Profile pattern performance

@@ -11,7 +11,7 @@ Handles threat detection and processing functionality.
 
 #### Methods
 
-##### process_log_entries(log_entries: Any) -> Any
+### process_log_entries(log_entries: Any) -> Any
 
 Process log entries for threats and return detected threats.
 
@@ -29,7 +29,7 @@ list: List of detected threats
 
 - Any
 
-##### get_threat_statistics() -> Any
+### get_threat_statistics() -> Any
 
 Get statistics about processed threats.
 
@@ -42,7 +42,7 @@ dict: Threat statistics
 
 ## Functions
 
-##### process_log_entries(self, log_entries: Any) -> Any
+### process_log_entries(self, log_entries: Any) -> Any
 
 Process log entries for threats and return detected threats.
 
@@ -61,7 +61,7 @@ list: List of detected threats
 
 - Any
 
-##### get_threat_statistics(self) -> Any
+### get_threat_statistics(self) -> Any
 
 Get statistics about processed threats.
 

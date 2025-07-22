@@ -29,7 +29,7 @@ Send SMS via Twilio API
 - **to_number**
 - **message**
 
-##### send_via_aws_sns(access_key, secret_key, phone_number, message)
+#### send_via_aws_sns(access_key, secret_key, phone_number, message)
 
 Send SMS via AWS SNS
 

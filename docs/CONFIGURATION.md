@@ -1,18 +1,21 @@
----
+______________________________________________________________________
+
 version: 1.0.0
 last_updated: 2025-07-20
 changelog:
-  - version: 1.0.0
-    date: 2025-07-20
-    changes:
-      - Initial comprehensive configuration guide
-      - Added cross-references with CONFIGURATION_SYSTEM.md
-      - Enhanced documentation structure and navigation
-maintainers:
-  - nginx-security-team
-review_status: current
-applies_to_versions: '>=1.0.0'
----
+
+- version: 1.0.0
+  date: 2025-07-20
+  changes:
+  - Initial comprehensive configuration guide
+  - Added cross-references with CONFIGURATION_SYSTEM.md
+  - Enhanced documentation structure and navigation
+    maintainers:
+- nginx-security-team
+  review_status: current
+  applies_to_versions: '>=1.0.0'
+
+______________________________________________________________________
 
 # ⚙️ Configuration Guide
 
@@ -23,13 +26,15 @@ Complete configuration reference for NGINX Security Monitor.
 This configuration documentation is split into two parts:
 
 - This file (CONFIGURATION.md): Contains all available configuration options and their descriptions
-- [Configuration System Guide](CONFIGURATION_SYSTEM.md): Details about the secure configuration system, programmatic usage, and advanced features
+- [Configuration System Guide](CONFIGURATION_SYSTEM.md): Details about the secure configuration
+  system, programmatic usage, and advanced features
 
-> **Important**: We recommend reading the [Configuration System Guide](CONFIGURATION_SYSTEM.md) first to understand the secure configuration system's features and best practices.
+> **Important**: We recommend reading the [Configuration System Guide](CONFIGURATION_SYSTEM.md)
+> first to understand the secure configuration system's features and best practices.
 
 ## 📁 **Configuration File Structure**
 
-```
+```text
 config/
 ├── settings.yaml          # Main configuration file
 ├── patterns.json          # Detection patterns
@@ -65,7 +70,8 @@ config/
 | CI/CD Pipelines                 | `service-settings.yaml` | Environment variable support                  |
 | Security-Sensitive Environments | `service-settings.yaml` | Built-in encryption and obfuscation           |
 
-> **💡 Tip**: Start with `settings.yaml` for development, then migrate to `service-settings.yaml` for production deployment with proper environment variable configuration.
+> **💡 Tip**: Start with `settings.yaml` for development, then migrate to `service-settings.yaml`
+> for production deployment with proper environment variable configuration.
 
 ## 🔧 **Main Configuration (settings.yaml)**
 
@@ -550,7 +556,7 @@ detection:
 
 ### **Common Issues**
 
-**Issue: Configuration file not found**
+#### Issue: Configuration file not found
 
 ```bash
 # Check file location and permissions
@@ -558,21 +564,21 @@ ls -la /etc/nginx-security-monitor/settings.yaml
 sudo chmod 644 /etc/nginx-security-monitor/settings.yaml
 ```
 
-**Issue: Invalid YAML syntax**
+#### Issue: Invalid YAML syntax
 
 ```bash
 # Validate YAML
 python -c "import yaml; yaml.safe_load(open('settings.yaml'))"
 ```
 
-**Issue: Email alerts not working**
+#### Issue: Email alerts not working
 
 ```bash
 # Test email configuration
 python -m src.alert_manager --test-email
 ```
 
-**Issue: Log files not accessible**
+#### Issue: Log files not accessible
 
 ```bash
 # Check permissions

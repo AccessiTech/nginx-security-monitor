@@ -2,7 +2,9 @@
 
 ## Overview
 
-The NGINX Security Monitor now supports integration with popular security frameworks and tools, providing a comprehensive defense-in-depth approach. This allows you to leverage existing security infrastructure while enhancing detection and response capabilities.
+The NGINX Security Monitor now supports integration with popular security frameworks and tools,
+providing a comprehensive defense-in-depth approach. This allows you to leverage existing
+security infrastructure while enhancing detection and response capabilities.
 
 ## Supported Security Frameworks
 
@@ -258,7 +260,7 @@ Add custom OSSEC rules for enhanced detection:
 
 Create Suricata rules for specific threats:
 
-```
+```suricata
 # /etc/suricata/rules/nginx-security.rules
 alert http any any -> any any (msg:"NGINX Security Monitor - SQL Injection"; 
   content:"UNION SELECT"; nocase; sid:1000001; rev:1;)
@@ -359,4 +361,6 @@ logging:
 - **Snort**: Additional IDS support
 - **pfSense**: Firewall integration
 
-The security framework integrations provide a powerful foundation for comprehensive security monitoring, enabling your NGINX Security Monitor to work seamlessly with your existing security infrastructure while providing enhanced threat detection and response capabilities.
+The security framework integrations provide a powerful foundation for comprehensive security monitoring,
+enabling your NGINX Security Monitor to work seamlessly with your existing security infrastructure
+while providing enhanced threat detection and response capabilities.

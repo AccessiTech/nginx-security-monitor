@@ -1,6 +1,7 @@
 # Getting Started for Developers
 
-Welcome to the Nginx Security Monitor development environment! This guide will help you set up your development environment, understand the codebase, and make your first contribution.
+Welcome to the Nginx Security Monitor development environment! This guide will help you set up
+your development environment, understand the codebase, and make your first contribution.
 
 ## Prerequisites
 
@@ -15,7 +16,7 @@ Welcome to the Nginx Security Monitor development environment! This guide will h
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/nginx-security-monitor.git
+git clone https://github.com/AccessiTech/nginx-security-monitor.git
 cd nginx-security-monitor
 
 # Use the automated development setup tool
@@ -63,7 +64,7 @@ cp config/settings.yaml.example config/settings.yaml
 
 The project follows a modular architecture:
 
-```
+```text
 src/
 ├── nginx_security_monitor/
 │   ├── core/           # Core monitoring engine
@@ -129,17 +130,18 @@ python -m pytest tests/test_detection.py -v
 
 1. Edit `config/patterns.json`:
 
-```json
-{
-  "sql_injection": {
-    "patterns": ["(?i)(union.*select|select.*from)", "(?i)(drop.*table|delete.*from)"],
-    "severity": "high",
-    "description": "SQL injection attempt detected"
-  }
-}
-```
+   ```json
+   {
+     "sql_injection": {
+       "patterns": ["(?i)(union.*select|select.*from)", "(?i)(drop.*table|delete.*from)"],
+       "severity": "high",
+       "description": "SQL injection attempt detected"
+     }
+   }
+   ```
 
-2. Add corresponding tests in `tests/test_patterns.py`
+1. Add corresponding tests in `tests/test_patterns.py`
+
 1. Update documentation in `docs/PATTERN_DETECTION.md`
 
 ### Creating New Integrations
@@ -220,8 +222,8 @@ See our [Style Guide](STYLE_GUIDE.md) for detailed documentation standards.
 If you encounter issues during development:
 
 1. Check the [troubleshooting guide](troubleshooting/common-issues.md)
-1. Review existing [GitHub issues](https://github.com/nginx-security-monitor/nginx-security-monitor/issues)
-1. Join our [community discussions](https://github.com/nginx-security-monitor/nginx-security-monitor/discussions)
+1. Review existing [GitHub issues](https://github.com/AccessiTech/nginx-security-monitor/issues)
+1. Join our [community discussions](https://github.com/AccessiTech/nginx-security-monitor/discussions)
 1. Consult the [operations guide](OPERATIONS_GUIDE.md) for deployment issues
 
 ## Next Steps

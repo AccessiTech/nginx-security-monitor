@@ -1,6 +1,7 @@
 # Security Best Practices
 
-This guide provides comprehensive security recommendations for deploying and operating Nginx Security Monitor in production environments.
+This guide provides comprehensive security recommendations for deploying and operating Nginx Security Monitor
+in production environments.
 
 ## Security Architecture Overview
 

@@ -11,7 +11,7 @@ Implements network security controls for the service.
 
 #### Methods
 
-##### check_ip_access(ip_address)
+#### check_ip_access(ip_address)
 
 Check if an IP address is allowed to access the service.
 
@@ -19,7 +19,7 @@ Check if an IP address is allowed to access the service.
 
 - **ip_address**
 
-##### track_access_attempt(ip_address, success = True)
+#### track_access_attempt(ip_address, success = True)
 
 Track access attempts for rate limiting and monitoring.
 
@@ -28,7 +28,7 @@ Track access attempts for rate limiting and monitoring.
 - **ip_address**
 - **success** = True
 
-##### block_ip(ip_address, reason = 'Security violation')
+#### block_ip(ip_address, reason = 'Security violation')
 
 Block an IP address using iptables (if available).
 
@@ -37,23 +37,23 @@ Block an IP address using iptables (if available).
 - **ip_address**
 - **reason** = 'Security violation'
 
-##### check_port_security()
+#### check_port_security()
 
 Check for unauthorized network services.
 
-##### monitor_dns_queries()
+#### monitor_dns_queries()
 
 Monitor for suspicious DNS queries that might indicate compromise.
 
-##### check_firewall_status()
+#### check_firewall_status()
 
 Check if firewall is properly configured.
 
-##### validate_tls_configuration()
+#### validate_tls_configuration()
 
 Validate TLS/SSL configuration for secure communications.
 
-##### perform_network_security_check()
+#### perform_network_security_check()
 
 Perform comprehensive network security check.
 
@@ -69,25 +69,25 @@ Implements additional security hardening measures including:
 
 #### Methods
 
-##### check_file_permissions()
+#### check_file_permissions()
 
 Check critical file permissions and ownership.
 
-##### check_environment_security()
+#### check_environment_security()
 
 Check environment for security issues.
 
-##### check_module_security()
+#### check_module_security()
 
 Check for vulnerable packages and unsafe module usage.
 
-##### perform_security_audit()
+#### perform_security_audit()
 
 Perform comprehensive security audit.
 
 ## Functions
 
-##### check_ip_access(self, ip_address)
+### check_ip_access(self, ip_address)
 
 Check if an IP address is allowed to access the service.
 
@@ -96,7 +96,7 @@ Check if an IP address is allowed to access the service.
 - **self**
 - **ip_address**
 
-##### track_access_attempt(self, ip_address, success = True)
+#### track_access_attempt(self, ip_address, success = True)
 
 Track access attempts for rate limiting and monitoring.
 
@@ -106,7 +106,7 @@ Track access attempts for rate limiting and monitoring.
 - **ip_address**
 - **success** = True
 
-##### block_ip(self, ip_address, reason = 'Security violation')
+#### block_ip(self, ip_address, reason = 'Security violation')
 
 Block an IP address using iptables (if available).
 
@@ -116,7 +116,7 @@ Block an IP address using iptables (if available).
 - **ip_address**
 - **reason** = 'Security violation'
 
-##### check_port_security(self)
+#### check_port_security(self)
 
 Check for unauthorized network services.
 
@@ -124,7 +124,7 @@ Check for unauthorized network services.
 
 - **self**
 
-##### monitor_dns_queries(self)
+#### monitor_dns_queries(self)
 
 Monitor for suspicious DNS queries that might indicate compromise.
 
@@ -132,7 +132,7 @@ Monitor for suspicious DNS queries that might indicate compromise.
 
 - **self**
 
-##### check_firewall_status(self)
+#### check_firewall_status(self)
 
 Check if firewall is properly configured.
 
@@ -140,7 +140,7 @@ Check if firewall is properly configured.
 
 - **self**
 
-##### validate_tls_configuration(self)
+#### validate_tls_configuration(self)
 
 Validate TLS/SSL configuration for secure communications.
 
@@ -148,7 +148,7 @@ Validate TLS/SSL configuration for secure communications.
 
 - **self**
 
-##### perform_network_security_check(self)
+#### perform_network_security_check(self)
 
 Perform comprehensive network security check.
 
@@ -156,7 +156,7 @@ Perform comprehensive network security check.
 
 - **self**
 
-##### check_file_permissions(self)
+#### check_file_permissions(self)
 
 Check critical file permissions and ownership.
 
@@ -164,7 +164,7 @@ Check critical file permissions and ownership.
 
 - **self**
 
-##### check_environment_security(self)
+#### check_environment_security(self)
 
 Check environment for security issues.
 
@@ -172,7 +172,7 @@ Check environment for security issues.
 
 - **self**
 
-##### check_module_security(self)
+#### check_module_security(self)
 
 Check for vulnerable packages and unsafe module usage.
 
@@ -180,7 +180,7 @@ Check for vulnerable packages and unsafe module usage.
 
 - **self**
 
-##### perform_security_audit(self)
+#### perform_security_audit(self)
 
 Perform comprehensive security audit.
 

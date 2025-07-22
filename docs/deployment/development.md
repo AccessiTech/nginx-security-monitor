@@ -15,7 +15,7 @@ This guide covers setting up Nginx Security Monitor for local development and te
 
 ```bash
 # Clone repository
-git clone https://github.com/your-org/nginx-security-monitor.git
+git clone https://github.com/AccessiTech/nginx-security-monitor.git
 cd nginx-security-monitor
 
 # Create virtual environment
@@ -159,6 +159,8 @@ python -m pytest tests/integration/test_config.py -v
 
 ### Manual Testing
 
+<!-- markdownlint-disable MD013 -->
+
 ```bash
 # Test pattern detection manually
 echo '192.168.1.100 - - [20/Jul/2025:10:15:30 +0000] "GET /admin.php?id=1 UNION SELECT * FROM users-- HTTP/1.1" 200 1234' >> test-data/nginx-access.log
@@ -169,6 +171,8 @@ tail -f logs/dev-monitor.log
 # Test configuration validation
 python -c "from nginx_security_monitor.config import load_config; print(load_config('./config/development.yaml'))"
 ```
+
+<!-- markdownlint-enable MD013 -->
 
 ## Development Tools
 

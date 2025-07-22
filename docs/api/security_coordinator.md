@@ -11,7 +11,7 @@ Coordinates security operations and manages workflow.
 
 #### Methods
 
-##### start_monitoring() -> None
+### start_monitoring() -> None
 
 Start the security monitoring process.
 
@@ -19,7 +19,7 @@ Start the security monitoring process.
 
 - None
 
-##### stop_monitoring() -> None
+### stop_monitoring() -> None
 
 Stop the security monitoring process.
 
@@ -27,7 +27,7 @@ Stop the security monitoring process.
 
 - None
 
-##### get_monitoring_status() -> Any
+### get_monitoring_status() -> Any
 
 Get current monitoring status and statistics.
 
@@ -38,7 +38,7 @@ dict: Monitoring status information
 
 - Any
 
-##### force_check() -> Any
+### force_check() -> Any
 
 Force an immediate monitoring check.
 
@@ -51,7 +51,7 @@ dict: Check results
 
 ## Functions
 
-##### start_monitoring(self) -> None
+### start_monitoring(self) -> None
 
 Start the security monitoring process.
 
@@ -63,7 +63,7 @@ Start the security monitoring process.
 
 - None
 
-##### stop_monitoring(self) -> None
+### stop_monitoring(self) -> None
 
 Stop the security monitoring process.
 
@@ -75,7 +75,7 @@ Stop the security monitoring process.
 
 - None
 
-##### get_monitoring_status(self) -> Any
+### get_monitoring_status(self) -> Any
 
 Get current monitoring status and statistics.
 
@@ -90,7 +90,7 @@ dict: Monitoring status information
 
 - Any
 
-##### force_check(self) -> Any
+### force_check(self) -> Any
 
 Force an immediate monitoring check.
 

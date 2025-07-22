@@ -1,6 +1,7 @@
 # Common Issues and Solutions
 
-This guide provides solutions to frequently encountered issues with Nginx Security Monitor, organized by category with automated problem detection and troubleshooting decision trees.
+This guide provides solutions to frequently encountered issues with Nginx Security Monitor,
+organized by category with automated problem detection and troubleshooting decision trees.
 
 ## Quick Problem Detection
 
@@ -496,7 +497,7 @@ sudo systemctl stop conflicting-service
 
 **Diagnostic Decision Tree:**
 
-```
+```text
 Service Crashes
 ├── Check Configuration
 │   ├── Invalid YAML → Fix syntax errors
@@ -522,7 +523,7 @@ Service Crashes
 
 **Error Messages:**
 
-```
+```text
 ConfigurationError: Invalid pattern format in patterns.json
 yaml.scanner.ScannerError: mapping values are not allowed here
 FileNotFoundError: [Errno 2] No such file or directory: 'patterns.json'
@@ -895,7 +896,7 @@ class IntegrationTroubleshooter:
 
 **Troubleshooting Decision Tree:**
 
-```
+```text
 Logs Not Processed
 ├── Check File Permissions
 │   ├── Cannot read nginx logs → Fix file permissions

@@ -2,9 +2,13 @@
 
 ## 🎯 **Overview**
 
-This cookbook provides practical, real-world integration examples for the NGINX Security Monitor with popular security tools, SIEM systems, cloud platforms, and enterprise services. Each recipe includes complete configuration examples, troubleshooting tips, and best practices.
+This cookbook provides practical, real-world integration examples for the NGINX Security Monitor
+with popular security tools, SIEM systems, cloud platforms, and enterprise services.
+Each recipe includes complete configuration examples, troubleshooting tips, and best practices.
 
 ## 📚 **Integration Categories**
+
+<!-- markdownlint-disable MD013 -->
 
 | Category                      | Tools                                                         | Purpose                       |
 | ----------------------------- | ------------------------------------------------------------- | ----------------------------- |
@@ -16,6 +20,8 @@ This cookbook provides practical, real-world integration examples for the NGINX 
 | **Incident Response**         | PagerDuty, Opsgenie, ServiceNow, Jira                         | Automated incident management |
 | **Threat Intelligence**       | VirusTotal, AbuseIPDB, OTX, MISP                              | Threat context and reputation |
 
+<!-- markdownlint-enable MD013 -->
+
 ______________________________________________________________________
 
 ## 🚫 **fail2ban Integration**
@@ -26,6 +32,7 @@ Configure fail2ban to work with NGINX Security Monitor:
 
 #### **1. Install and Configure fail2ban**
 
+````bash
 ```bash
 # Install fail2ban
 sudo apt-get install fail2ban
@@ -33,7 +40,7 @@ sudo apt-get install fail2ban
 # Create custom configuration
 sudo mkdir -p /etc/fail2ban/filter.d
 sudo mkdir -p /etc/fail2ban/action.d
-```
+````
 
 #### **2. Create Custom Filter**
 
@@ -476,6 +483,8 @@ af-packet:
 
 #### **2. Custom Suricata Rules**
 
+<!-- markdownlint-disable MD013 -->
+
 ```bash
 # /etc/suricata/rules/nginx-security-monitor.rules
 
@@ -508,6 +517,8 @@ alert http any any -> any any (msg:"NGINX-SEC Malicious File Upload - PHP"; flow
 # Command Injection
 alert http any any -> any any (msg:"NGINX-SEC Command Injection Attempt"; flow:established,to_server; pcre:"/(\||;|`|\$\(|\$\{)/"; classtype:web-application-attack; sid:2000011; rev:1;)
 ```
+
+<!-- markdownlint-enable MD013 -->
 
 #### **3. Integration Code**
 

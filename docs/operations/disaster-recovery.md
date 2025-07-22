@@ -1,6 +1,7 @@
 # Disaster Recovery Procedures
 
-This guide provides comprehensive disaster recovery procedures for Nginx Security Monitor, including backup strategies, recovery procedures, and incident response protocols.
+This guide provides comprehensive disaster recovery procedures for Nginx Security Monitor,
+including backup strategies, recovery procedures, and incident response protocols.
 
 ## Overview
 
@@ -348,6 +349,8 @@ echo "Database recovery completed"
 
 ## Post-Recovery Validation
 
+<!-- markdownlint-disable MD013 -->
+
 ```bash
 #!/bin/bash
 # scripts/post-recovery-validation.sh - Post-recovery system validation
@@ -406,6 +409,8 @@ fi
 
 echo "Post-recovery validation completed"
 ```
+
+<!-- markdownlint-enable MD013 -->
 
 ## High Availability and Failover
 

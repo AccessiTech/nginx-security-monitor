@@ -1112,7 +1112,7 @@ def main():
     parser.add_argument('--api-docs', action='store_true', help='Generate API docs only')
     parser.add_argument('--update-readme', action='store_true', help='Update README only')
     parser.add_argument('--validate-links', action='store_true', help='Validate links only')
-    parser.add_argument('--fix-links', action='store_true', help='Fix broken internal links')
+    # parser.add_argument('--fix-links', action='store_true', help='Fix broken internal links')
     parser.add_argument('--generate-site', action='store_true', help='Generate site only')
     parser.add_argument('--config', help='Configuration file path')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose output')
@@ -1134,9 +1134,9 @@ def main():
     elif args.validate_links:
         result = generator.validate_links()
         print(json.dumps(result, indent=2))
-    elif args.fix_links:
-        result = generator.fix_broken_links()
-        print(json.dumps(result, indent=2))
+    # elif args.fix_links:
+    #     result = generator.fix_broken_links()
+    #     print(json.dumps(result, indent=2))
     elif args.generate_site:
         result = generator.generate_site()
         print(json.dumps(result, indent=2))

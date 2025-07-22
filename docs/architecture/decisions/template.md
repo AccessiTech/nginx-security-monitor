@@ -1,16 +1,16 @@
-# ADR Template
+<!-- # ADR Template
 
 Use this template when creating new Architecture Decision Records.
 
 ## Instructions
 
 1. Copy this file to create a new ADR
-1. Replace `NNNN` with the next sequential number (e.g., 0011)
-1. Replace `Title` with a descriptive title
-1. Fill in all sections with relevant content
-1. Remove placeholder comments before finalizing
+2. Replace `NNNN` with the next sequential number (e.g., 0011)
+3. Replace `Title` with a descriptive title
+4. Fill in all sections with relevant content
+5. Remove placeholder comments before finalizing
 
-______________________________________________________________________
+______________________________________________________________________ -->
 
 # ADR-NNNN: Title
 

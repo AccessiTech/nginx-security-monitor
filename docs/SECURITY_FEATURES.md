@@ -2,7 +2,10 @@
 
 ## Overview
 
-The NGINX Security Monitor includes advanced security features to protect your custom detection patterns and mitigation strategies from being exposed in the open-source codebase. This allows you to keep your specific security measures private while still benefiting from the open-source framework.
+The NGINX Security Monitor includes advanced security features to protect your custom detection patterns and
+mitigation strategies from being exposed in the open-source codebase.
+This allows you to keep your specific security measures private while still
+benefiting from the open-source framework.
 
 ## Key Security Features
 
@@ -266,4 +269,5 @@ If you're upgrading from the basic version:
 1. Update configuration
 1. Restart service
 
-The system is backward compatible - if no encrypted patterns or plugins are found, it will use the default open-source detection methods.
+The system is backward compatible - if no encrypted patterns or plugins are found,
+it will use the default open-source detection methods.

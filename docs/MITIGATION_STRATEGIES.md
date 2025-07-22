@@ -2,7 +2,8 @@
 
 ## 🎯 **Overview**
 
-The NGINX Security Monitor includes a comprehensive mitigation engine that can automatically respond to detected threats. This guide covers configuring, customizing, and extending the automated mitigation capabilities to protect your web infrastructure.
+The NGINX Security Monitor includes a comprehensive mitigation engine that can automatically respond to detected threats.
+This guide covers configuring, customizing, and extending the automated mitigation capabilities to protect your web infrastructure.
 
 ## 🔧 **Mitigation Engine Architecture**
 
@@ -249,6 +250,8 @@ mitigation:
 
 Integrate with fail2ban for advanced IP management:
 
+<!-- markdownlint-disable MD013 -->
+
 ```yaml
 mitigation:
   fail2ban:
@@ -273,6 +276,8 @@ mitigation:
                    ^<HOST> .* "(GET|POST) .*(\?|&)(.*=.*(\\\|'|;|<|>|\(|\)|,|union|select|insert|delete|drop|update|script).*).*" \d+ \d+.*$
         ignoreregex =
 ```
+
+<!-- markdownlint-enable MD013 -->
 
 ### **NGINX Configuration Integration**
 

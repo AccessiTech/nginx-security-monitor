@@ -11,15 +11,15 @@ Integration with fail2ban for jail monitoring and IP blocking.
 
 #### Methods
 
-##### is_available()
+### is_available()
 
 Check if fail2ban is available and running.
 
-##### get_jail_status()
+### get_jail_status()
 
 Get status of all fail2ban jails.
 
-##### get_individual_jail_status(jail_name)
+### get_individual_jail_status(jail_name)
 
 Get detailed status for a specific jail.
 
@@ -27,7 +27,7 @@ Get detailed status for a specific jail.
 
 - **jail_name**
 
-##### ban_ip(jail_name, ip_address)
+### ban_ip(jail_name, ip_address)
 
 Ban an IP address in a specific jail.
 
@@ -36,7 +36,7 @@ Ban an IP address in a specific jail.
 - **jail_name**
 - **ip_address**
 
-##### unban_ip(jail_name, ip_address)
+### unban_ip(jail_name, ip_address)
 
 Unban an IP address from a specific jail.
 
@@ -45,7 +45,7 @@ Unban an IP address from a specific jail.
 - **jail_name**
 - **ip_address**
 
-##### monitor_jail_files()
+### monitor_jail_files()
 
 Monitor fail2ban jail configuration files for changes.
 
@@ -55,11 +55,11 @@ Integration with OSSEC HIDS (Host Intrusion Detection System).
 
 #### Methods
 
-##### is_available()
+### is_available()
 
 Check if OSSEC is available and running.
 
-##### get_recent_alerts(hours = None)
+### get_recent_alerts(hours = None)
 
 Get OSSEC alerts from the last specified hours.
 
@@ -67,7 +67,7 @@ Get OSSEC alerts from the last specified hours.
 
 - **hours** = None
 
-##### add_custom_rule(rule_content)
+### add_custom_rule(rule_content)
 
 Add a custom OSSEC rule for NGINX monitoring.
 
@@ -81,11 +81,11 @@ Integration with Suricata IDS/IPS.
 
 #### Methods
 
-##### is_available()
+### is_available()
 
 Check if Suricata is available and running.
 
-##### get_recent_alerts(hours = 1)
+### get_recent_alerts(hours = 1)
 
 Get Suricata alerts from EVE JSON log.
 
@@ -93,7 +93,7 @@ Get Suricata alerts from EVE JSON log.
 
 - **hours** = 1
 
-##### add_custom_rule(rule_content)
+### add_custom_rule(rule_content)
 
 Add custom Suricata rule for NGINX monitoring.
 
@@ -107,11 +107,11 @@ Integration with Wazuh SIEM.
 
 #### Methods
 
-##### is_available()
+### is_available()
 
 Check if Wazuh agent is available and running.
 
-##### send_custom_event(event_data)
+### send_custom_event(event_data)
 
 Send custom event to Wazuh manager.
 
@@ -125,11 +125,11 @@ Integration with ModSecurity WAF.
 
 #### Methods
 
-##### is_available()
+### is_available()
 
 Check if ModSecurity is available.
 
-##### get_recent_blocks(hours = 1)
+### get_recent_blocks(hours = 1)
 
 Get recent ModSecurity blocks.
 
@@ -143,11 +143,11 @@ Main manager for all security framework integrations.
 
 #### Methods
 
-##### get_integration_status()
+### get_integration_status()
 
 Get status of all security integrations.
 
-##### handle_threat_with_integrations(threat_info)
+### handle_threat_with_integrations(threat_info)
 
 Handle a detected threat using available security integrations.
 
@@ -155,7 +155,7 @@ Handle a detected threat using available security integrations.
 
 - **threat_info**
 
-##### get_aggregated_threats(hours = 1)
+### get_aggregated_threats(hours = 1)
 
 Get aggregated threat information from all available sources.
 
@@ -165,7 +165,7 @@ Get aggregated threat information from all available sources.
 
 ## Functions
 
-##### is_available(self)
+### is_available(self)
 
 Check if fail2ban is available and running.
 
@@ -173,7 +173,7 @@ Check if fail2ban is available and running.
 
 - **self**
 
-##### get_jail_status(self)
+### get_jail_status(self)
 
 Get status of all fail2ban jails.
 
@@ -181,7 +181,7 @@ Get status of all fail2ban jails.
 
 - **self**
 
-##### get_individual_jail_status(self, jail_name)
+### get_individual_jail_status(self, jail_name)
 
 Get detailed status for a specific jail.
 
@@ -190,7 +190,7 @@ Get detailed status for a specific jail.
 - **self**
 - **jail_name**
 
-##### ban_ip(self, jail_name, ip_address)
+### ban_ip(self, jail_name, ip_address)
 
 Ban an IP address in a specific jail.
 
@@ -200,7 +200,7 @@ Ban an IP address in a specific jail.
 - **jail_name**
 - **ip_address**
 
-##### unban_ip(self, jail_name, ip_address)
+### unban_ip(self, jail_name, ip_address)
 
 Unban an IP address from a specific jail.
 
@@ -210,7 +210,7 @@ Unban an IP address from a specific jail.
 - **jail_name**
 - **ip_address**
 
-##### monitor_jail_files(self)
+### monitor_jail_files(self)
 
 Monitor fail2ban jail configuration files for changes.
 
@@ -218,7 +218,7 @@ Monitor fail2ban jail configuration files for changes.
 
 - **self**
 
-##### is_available(self)
+### is_available(self)
 
 Check if OSSEC is available and running.
 
@@ -226,7 +226,7 @@ Check if OSSEC is available and running.
 
 - **self**
 
-##### get_recent_alerts(self, hours = None)
+### get_recent_alerts(self, hours = None)
 
 Get OSSEC alerts from the last specified hours.
 
@@ -235,7 +235,7 @@ Get OSSEC alerts from the last specified hours.
 - **self**
 - **hours** = None
 
-##### add_custom_rule(self, rule_content)
+### add_custom_rule(self, rule_content)
 
 Add a custom OSSEC rule for NGINX monitoring.
 
@@ -244,7 +244,7 @@ Add a custom OSSEC rule for NGINX monitoring.
 - **self**
 - **rule_content**
 
-##### is_available(self)
+### is_available(self)
 
 Check if Suricata is available and running.
 
@@ -252,7 +252,7 @@ Check if Suricata is available and running.
 
 - **self**
 
-##### get_recent_alerts(self, hours = 1)
+### get_recent_alerts(self, hours = 1)
 
 Get Suricata alerts from EVE JSON log.
 
@@ -261,7 +261,7 @@ Get Suricata alerts from EVE JSON log.
 - **self**
 - **hours** = 1
 
-##### add_custom_rule(self, rule_content)
+### add_custom_rule(self, rule_content)
 
 Add custom Suricata rule for NGINX monitoring.
 
@@ -270,7 +270,7 @@ Add custom Suricata rule for NGINX monitoring.
 - **self**
 - **rule_content**
 
-##### is_available(self)
+### is_available(self)
 
 Check if Wazuh agent is available and running.
 
@@ -278,7 +278,7 @@ Check if Wazuh agent is available and running.
 
 - **self**
 
-##### send_custom_event(self, event_data)
+### send_custom_event(self, event_data)
 
 Send custom event to Wazuh manager.
 
@@ -287,7 +287,7 @@ Send custom event to Wazuh manager.
 - **self**
 - **event_data**
 
-##### is_available(self)
+### is_available(self)
 
 Check if ModSecurity is available.
 
@@ -295,7 +295,7 @@ Check if ModSecurity is available.
 
 - **self**
 
-##### get_recent_blocks(self, hours = 1)
+### get_recent_blocks(self, hours = 1)
 
 Get recent ModSecurity blocks.
 
@@ -304,7 +304,7 @@ Get recent ModSecurity blocks.
 - **self**
 - **hours** = 1
 
-##### get_integration_status(self)
+### get_integration_status(self)
 
 Get status of all security integrations.
 
@@ -312,7 +312,7 @@ Get status of all security integrations.
 
 - **self**
 
-##### handle_threat_with_integrations(self, threat_info)
+### handle_threat_with_integrations(self, threat_info)
 
 Handle a detected threat using available security integrations.
 
@@ -321,7 +321,7 @@ Handle a detected threat using available security integrations.
 - **self**
 - **threat_info**
 
-##### get_aggregated_threats(self, hours = 1)
+### get_aggregated_threats(self, hours = 1)
 
 Get aggregated threat information from all available sources.
 

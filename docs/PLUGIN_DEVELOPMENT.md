@@ -2,7 +2,9 @@
 
 ## 🎯 **Overview**
 
-The NGINX Security Monitor features a flexible plugin architecture that allows you to extend its capabilities with custom detection algorithms, mitigation strategies, and integration modules. This guide covers everything you need to know about developing, testing, and deploying custom plugins.
+The NGINX Security Monitor features a flexible plugin architecture that allows you to extend
+its capabilities with custom detection algorithms, mitigation strategies, and integration modules.
+This guide covers everything you need to know about developing, testing, and deploying custom plugins.
 
 ## 🏗️ **Plugin Architecture**
 
@@ -820,7 +822,7 @@ ______________________________________________________________________
 
 Organize plugins for distribution:
 
-```
+```text
 my_security_plugin/
 ├── setup.py
 ├── README.md
@@ -883,7 +885,7 @@ setup(
 pip install my-security-plugin
 
 # Install from source
-git clone https://github.com/username/my-security-plugin.git
+git clone https://github.com/AccessiTech/nginx-security-monitor.git
 cd my-security-plugin
 pip install -e .
 

@@ -2,13 +2,16 @@
 
 ## 📋 **Overview**
 
-This guide presents real-world implementation scenarios for NGINX Security Monitor across different organization types, scales, and requirements. Each use case includes detailed configuration examples, deployment strategies, and best practices tailored to specific environments.
+This guide presents real-world implementation scenarios for NGINX Security Monitor across different organization types,
+scales, and requirements. Each use case includes detailed configuration examples, deployment strategies,
+and best practices tailored to specific environments.
 
 ## 🏢 **Use Case 1: Small Business E-commerce Site**
 
 ### **Scenario**
 
-A small online retailer with a WordPress-based e-commerce site running on a single server, handling ~1,000 visitors per day. Limited IT resources, needs simple but effective security monitoring.
+A small online retailer with a WordPress-based e-commerce site running on a single server, handling ~1,000
+visitors per day. Limited IT resources, needs simple but effective security monitoring.
 
 ### **Requirements**
 
@@ -39,7 +42,6 @@ detection:
     - brute_force         # Protect admin login
     - directory_traversal # Protect system files
     - wordpress_attacks   # WordPress-specific protection
-  
   thresholds:
     failed_requests_per_minute: 20
     requests_per_ip_per_minute: 60
@@ -47,26 +49,43 @@ detection:
 
 # Simple email alerting
 alerts:
+  enabled: true
   email:
     enabled: true
-    smtp_server: "smtp.gmail.com"
-    smtp_port: 587
-    use_tls: true
-    username: "alerts@yourbusiness.com"
-    password: "${EMAIL_APP_PASSWORD}"
-    from_address: "security@yourbusiness.com"
-    to_addresses:
-      - "owner@yourbusiness.com"
-      - "admin@yourbusiness.com"
+    to: "owner@example.com"
+    smtp_server: "smtp.example.com"
+    from_address: "security-monitor@example.com"
+```
 
-# Basic mitigation
-mitigation:
+```yaml
+# config/small-business-settings.yaml
+monitoring:
+  check_interval: 30
+  batch_size: 500
+
+logs:
+  access_log: "/var/log/nginx/access.log"
+  error_log: "/var/log/nginx/error.log"
+
+detection:
+  enabled_patterns:
+    - sql_injection
+    - xss_attacks
+    - brute_force
+    - directory_traversal
+    - wordpress_attacks
+  thresholds:
+    failed_requests_per_minute: 20
+    requests_per_ip_per_minute: 60
+    error_rate_threshold: 0.15
+
+alerts:
   enabled: true
-  auto_mitigation: false  # Manual review for small business
-  strategies:
-    ip_blocking:
-      enabled: true
-      duration: 1800  # 30 minutes
+  email:
+    enabled: true
+    to: "owner@example.com"
+    smtp_server: "smtp.example.com"
+    from_address: "security-monitor@example.com"
 ```
 
 #### **WordPress-Specific Patterns**
@@ -83,12 +102,45 @@ mitigation:
         "/wp-login.php.*force",
         "/xmlrpc.php",
         "wp-config.php",
-        "/wp-content/plugins/.*\\.php"
+        "/wp-content/plugins/.*.php"
       ],
       "threshold": 5,
       "window": 300
     },
-    
+    "ecommerce_attacks": {
+      "enabled": true,
+      "severity": "high",
+      "description": "E-commerce specific attacks",
+      "patterns": [
+        "/checkout.*script",
+        "/payment.*union",
+        "/cart.*drop.*table",
+        "credit.*card.*number"
+      ],
+      "threshold": 1,
+      "window": 60
+    }
+  }
+}
+```
+
+```json
+{
+  "custom_patterns": {
+    "wordpress_attacks": {
+      "enabled": true,
+      "severity": "medium",
+      "description": "WordPress-specific attacks",
+      "patterns": [
+        "/wp-admin/admin-ajax.php",
+        "/wp-login.php.*force",
+        "/xmlrpc.php",
+        "wp-config.php",
+        "/wp-content/plugins/.*.php"
+      ],
+      "threshold": 5,
+      "window": 300
+    },
     "ecommerce_attacks": {
       "enabled": true,
       "severity": "high",
@@ -133,7 +185,8 @@ ______________________________________________________________________
 
 ### **Scenario**
 
-Large corporation with 50+ web applications across multiple data centers. Requires centralized security monitoring, compliance reporting, and integration with existing security infrastructure.
+Large corporation with 50+ web applications across multiple data centers. Requires centralized security monitoring,
+compliance reporting, and integration with existing security infrastructure.
 
 ### **Requirements**
 
@@ -145,7 +198,7 @@ Large corporation with 50+ web applications across multiple data centers. Requir
 
 ### **Architecture**
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                    Central Security Operations             │
 │  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐   │
@@ -287,6 +340,107 @@ compliance:
     retention_days: 2555  # 7 years for compliance
 ```
 
+```yaml
+# config/enterprise-settings.yaml
+monitoring:
+  check_interval: 5
+  batch_size: 2000
+  worker_threads: 4
+
+logs:
+  access_log: "/var/log/nginx/access.log"
+  error_log: "/var/log/nginx/error.log"
+  format: "json"
+
+detection:
+  enabled_patterns:
+    - sql_injection
+    - xss_attacks
+    - ddos_detection
+    - brute_force
+    - directory_traversal
+    - suspicious_user_agents
+    - api_abuse
+    - file_upload_attacks
+  thresholds:
+    failed_requests_per_minute: 100
+    requests_per_ip_per_minute: 500
+    error_rate_threshold: 0.05
+
+alerts:
+  enabled: true
+  channels:
+    - email
+    - sms
+    - webhook
+    - syslog
+  email:
+    enabled: true
+    smtp_server: "smtp.enterprise.com"
+    from_address: "security-monitor@enterprise.com"
+    to_addresses:
+      - "soc@enterprise.com"
+      - "security-team@enterprise.com"
+  webhook:
+    enabled: true
+    endpoints:
+      - name: "splunk_hec"
+        url: "https://splunk.enterprise.com:8088/services/collector/event"
+        headers:
+          Authorization: "Splunk ${SPLUNK_HEC_TOKEN}"
+      - name: "incident_management"
+        url: "https://incidents.enterprise.com/api/alerts"
+        headers:
+          X-API-Key: "${INCIDENT_API_KEY}"
+
+mitigation:
+  enabled: true
+  auto_mitigation: true
+  strategies:
+    ip_blocking:
+      enabled: true
+      duration: 3600
+    firewall_integration:
+      enabled: true
+      endpoint: "https://firewall-api.enterprise.com"
+    load_balancer_integration:
+      enabled: true
+      endpoint: "https://lb-api.enterprise.com"
+
+security_integrations:
+  fail2ban:
+    enabled: true
+  ossec:
+    enabled: true
+    ossec_dir: "/var/ossec"
+  splunk:
+    enabled: true
+    hec_endpoint: "https://splunk.enterprise.com:8088/services/collector"
+    index: "security_events"
+
+security:
+  encryption:
+    enabled: true
+    key_file: "/etc/nginx-security-monitor/enterprise.key"
+  obfuscation:
+    enabled: true
+    timing_variance_percent: 30
+  plugin_security:
+    enabled: true
+    signature_verification: true
+
+compliance:
+  enabled: true
+  standards:
+    - pci_dss
+    - sox
+    - iso27001
+  reporting:
+    generate_reports: true
+    report_frequency: "daily"
+    retention_days: 2555
+```
+
 #### **Site-Specific Configurations**
 
 ```yaml
@@ -303,6 +457,26 @@ detection:
     requests_per_ip_per_minute: 1000
 
 # Site-specific patterns for customer-facing apps
+custom_patterns:
+  customer_portal_attacks:
+    patterns:
+      - "/customer/account.*script"
+      - "/api/customer.*injection"
+    severity: "critical"
+```
+
+```yaml
+# config/site-a-overrides.yaml
+site_identification:
+  site_name: "production-east"
+  environment: "production"
+  datacenter: "us-east-1"
+
+detection:
+  thresholds:
+    failed_requests_per_minute: 200
+    requests_per_ip_per_minute: 1000
+
 custom_patterns:
   customer_portal_attacks:
     patterns:
@@ -342,7 +516,8 @@ ______________________________________________________________________
 
 ### **Scenario**
 
-Tech startup running microservices on Kubernetes with containerized applications. Multiple API gateways, service meshes, and dynamic scaling requirements.
+Tech startup running microservices on Kubernetes with containerized applications. Multiple API gateways,
+service meshes, and dynamic scaling requirements.
 
 ### **Requirements**
 
@@ -353,6 +528,55 @@ Tech startup running microservices on Kubernetes with containerized applications
 - Auto-scaling compatibility
 
 ### **Architecture**
+
+```yaml
+# kubernetes/nginx-security-monitor-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-security-monitor
+  namespace: security
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx-security-monitor
+  template:
+    metadata:
+      labels:
+        app: nginx-security-monitor
+    spec:
+      containers:
+      - name: monitor
+        image: nginx-security-monitor:latest
+        env:
+        - name: CONFIG_PATH
+          value: "/config/cloud-native-settings.yaml"
+        - name: NGINX_MONITOR_KEY
+          valueFrom:
+            secretKeyRef:
+              name: monitor-secrets
+              key: encryption-key
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: nginx-logs
+          mountPath: /var/log/nginx
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: config
+        configMap:
+          name: monitor-config
+      - name: nginx-logs
+        persistentVolumeClaim:
+          claimName: nginx-logs-pvc
+```
 
 ```yaml
 # kubernetes/nginx-security-monitor-deployment.yaml
@@ -484,7 +708,88 @@ observability:
     level: "info"
 ```
 
+```yaml
+# config/cloud-native-settings.yaml
+monitoring:
+  check_interval: 10
+  batch_size: 1000
+
+logs:
+  access_log: "/var/log/nginx/access.log"
+  error_log: "/var/log/nginx/error.log"
+  format: "json"
+
+detection:
+  enabled_patterns:
+    - api_abuse
+    - rate_limiting_bypass
+    - jwt_attacks
+    - graphql_attacks
+    - container_escape_attempts
+  custom_patterns:
+    api_gateway_attacks:
+      patterns:
+        - "/api/v[0-9]+/.*union.*select"
+        - "Authorization:.*script"
+        - "/graphql.*query.*{.*admin"
+      severity: "high"
+    service_mesh_attacks:
+      patterns:
+        - "X-Forwarded-For:.*127.0.0.1"
+        - "X-Real-IP:.*localhost"
+      severity: "medium"
+
+alerts:
+  webhook:
+    enabled: true
+    endpoints:
+      - name: "prometheus_alertmanager"
+        url: "http://alertmanager.monitoring.svc.cluster.local:9093/api/v1/alerts"
+      - name: "slack_webhook"
+        url: "${SLACK_WEBHOOK_URL}"
+
+
+  enabled: true
+  namespace: "security"
+  pod_name: "${HOSTNAME}"
+  service_discovery:
+    enabled: true
+    label_selector: "app=nginx"
+  resource_monitoring:
+    enabled: true
+    metrics_endpoint: ":8080/metrics"
+
+observability:
+  metrics:
+    enabled: true
+    prometheus_endpoint: ":9090/metrics"
+  tracing:
+    enabled: true
+    jaeger_endpoint: "http://jaeger.tracing.svc.cluster.local:14268/api/traces"
+  logging:
+    structured: true
+    format: "json"
+    level: "info"
+```
+
 #### **Service Monitor for Prometheus**
+
+```yaml
+# kubernetes/service-monitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: nginx-security-monitor
+  namespace: security
+spec:
+  selector:
+    matchLabels:
+      app: nginx-security-monitor
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+```
 
 ```yaml
 # kubernetes/service-monitor.yaml
@@ -620,6 +925,82 @@ air_gapped:
     verification: "digital_signature"
 ```
 
+```yaml
+# config/government-settings.yaml
+# CLASSIFICATION: CONTROLLED UNCLASSIFIED INFORMATION (CUI)
+monitoring:
+  check_interval: 5
+  batch_size: 1000
+security:
+  fips_mode: true
+  encryption:
+    enabled: true
+    algorithm: "AES-256-GCM"
+    key_derivation: "PBKDF2-SHA256"
+    key_file: "/etc/nginx-security-monitor/fips-key"
+  integrity:
+    enabled: true
+    hash_algorithm: "SHA-256"
+    verify_frequency: 300
+  audit:
+    enabled: true
+    immutable_logs: true
+    digital_signatures: true
+    retention_years: 7
+detection:
+  enabled_patterns:
+    - all_standard_patterns
+    - advanced_persistent_threats
+    - insider_threats
+    - data_exfiltration
+    - privilege_escalation
+  thresholds:
+    failed_requests_per_minute: 10
+    requests_per_ip_per_minute: 100
+    error_rate_threshold: 0.01
+alerts:
+  classification_aware: true
+  email:
+    enabled: true
+    encryption: "PGP"
+    classification_header: true
+    security_labels:
+      - "CUI"
+      - "CONFIDENTIAL"
+  syslog:
+    enabled: true
+    facility: "LOG_AUTHPRIV"
+    severity_mapping:
+      low: "LOG_INFO"
+      medium: "LOG_WARNING"
+      high: "LOG_ERR"
+      critical: "LOG_CRIT"
+compliance:
+  enabled: true
+  frameworks:
+    - fisma
+    - fedramp
+    - nist_800_53
+    - cis_controls
+  reporting:
+    automated: true
+    formats:
+      - "SCAP"
+      - "STIG"
+      - "CIS-CAT"
+  audit_requirements:
+    log_integrity: true
+    chain_of_custody: true
+    time_synchronization: "ntp"
+    access_control: "mandatory"
+air_gapped:
+  enabled: true
+  offline_updates: true
+  pattern_updates:
+    method: "manual"
+    verification: "digital_signature"
+```
+
 #### **STIG Compliance Script**
 
 ```bash
@@ -662,7 +1043,7 @@ Global media company with CDN infrastructure across 15 regions, handling million
 
 ### **Architecture**
 
-```
+```text
 Global Threat Intelligence Center
             │
     ┌───────┼───────┐
@@ -751,6 +1132,56 @@ compliance:
   local_data_residency: true
 ```
 
+```yaml
+# config/edge-settings.yaml
+monitoring:
+  check_interval: 1
+  batch_size: 5000
+  edge_mode: true
+performance:
+  memory_limit: "512MB"
+  cpu_limit: "1.0"
+  cache_size: 10000
+  async_processing: true
+  queue_size: 50000
+detection:
+  enabled_patterns:
+    - ddos_detection
+    - bot_detection
+    - api_abuse
+    - cache_poisoning
+  thresholds:
+    failed_requests_per_minute: 1000
+    requests_per_ip_per_minute: 10000
+    error_rate_threshold: 0.02
+threat_intelligence:
+  enabled: true
+  sources:
+    - name: "global_intel"
+      endpoint: "https://threat-intel.company.com/api/v1/indicators"
+      region: "global"
+    - name: "regional_intel"
+      endpoint: "https://threat-intel-${REGION}.company.com/api/v1/indicators"
+      region: "${REGION}"
+  sharing:
+    enabled: true
+    share_detected_threats: true
+    anonymize_data: true
+alerts:
+  local:
+    enabled: true
+    threshold_based: true
+  central:
+    enabled: true
+    batch_interval: 300
+    endpoint: "https://central-soc.company.com/api/alerts"
+compliance:
+  region: "${REGION}"
+  gdpr: true
+  ccpa: true
+  local_data_residency: true
+```
+
 #### **Central Correlation Engine**
 
 ```yaml
@@ -797,13 +1228,49 @@ machine_learning:
         - geolocation_data
 ```
 
+```yaml
+# config/central-correlation-settings.yaml
+correlation:
+  enabled: true
+  pattern_correlation:
+    time_window: 3600
+    min_nodes: 3
+    confidence_threshold: 0.8
+  global_patterns:
+    distributed_attack:
+      description: "Coordinated attack across regions"
+      criteria:
+        - same_attack_signature: true
+        - multiple_regions: ">= 3"
+        - time_window: 1800
+    campaign_tracking:
+      description: "Sustained campaign tracking"
+      criteria:
+        - similar_patterns: true
+        - duration: ">= 7200"
+        - escalation: true
+machine_learning:
+  enabled: true
+  models:
+    - name: "anomaly_detection"
+      type: "isolation_forest"
+      training_data: "7_days"
+    - name: "attack_classification"
+      type: "random_forest"
+      features:
+        - request_patterns
+        - timing_analysis
+        - geolocation_data
+```
+
 ______________________________________________________________________
 
 ## 🏥 **Use Case 6: Healthcare HIPAA-Compliant Environment**
 
 ### **Scenario**
 
-Healthcare provider with patient portal, EHR systems, and strict HIPAA compliance requirements for protecting PHI (Protected Health Information).
+Healthcare provider with patient portal, EHR systems, and strict HIPAA compliance requirements
+for protecting PHI (Protected Health Information).
 
 ### **Requirements**
 
@@ -913,6 +1380,78 @@ baa_compliance:
   breach_notification_procedures: true
 ```
 
+```yaml
+# config/healthcare-settings.yaml
+# HIPAA Compliance Configuration
+monitoring:
+  check_interval: 10
+  batch_size: 1000
+security:
+  hipaa_mode: true
+  data_anonymization:
+    enabled: true
+    anonymize_phi: true
+    hash_identifiers: true
+  encryption:
+    enabled: true
+    algorithm: "AES-256-GCM"
+    transit_encryption: "TLS-1.3"
+  access_control:
+    role_based: true
+    minimum_necessary: true
+    audit_access: true
+detection:
+  enabled_patterns:
+    - phi_exposure
+    - hipaa_violations
+    - medical_record_access
+    - patient_data_exfiltration
+  custom_patterns:
+    phi_detection:
+      patterns:
+        - "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+        - "\\b\\d{10}\\b"
+        - "DOB.*\\d{2}/\\d{2}/\\d{4}"
+      severity: "critical"
+      action: "immediate_alert"
+    ehr_attacks:
+      patterns:
+        - "/ehr/patient.*union.*select"
+        - "/portal/records.*script"
+        - "/api/patient.*drop.*table"
+      severity: "high"
+audit:
+  enabled: true
+  hipaa_compliant: true
+  requirements:
+    - access_logs: true
+    - modification_logs: true
+    - disclosure_tracking: true
+    - breach_documentation: true
+  retention:
+    audit_logs: "6_years"
+    security_logs: "6_years"
+    incident_reports: "6_years"
+alerts:
+  email:
+    enabled: true
+    encryption: "required"
+    phi_scrubbing: true
+  incident_management:
+    enabled: true
+    breach_notification: true
+    notification_timeline: "60_seconds"
+  compliance_reporting:
+    enabled: true
+    automated_reports: true
+    regulatory_notifications: true
+baa_compliance:
+  enabled: true
+  data_processing_agreement: true
+  subcontractor_agreements: true
+  breach_notification_procedures: true
+```
+
 ______________________________________________________________________
 
 ## 📊 **Use Case Comparison Matrix**
@@ -990,4 +1529,6 @@ echo "Migration complete. Review $NEW_CONFIG before applying."
 
 ______________________________________________________________________
 
-*This use cases guide provides practical implementation examples for NGINX Security Monitor across various organizational contexts. Each use case includes production-ready configurations and deployment strategies.*
+*This use cases guide provides practical implementation examples for NGINX Security Monitor
+across various organizational contexts. Each use case includes production-ready
+configurations and deployment strategies.*

@@ -13,7 +13,7 @@ A string class that protects its contents in memory as much as possible.
 
 #### Methods
 
-##### get_value() -> str
+#### get_value() -> str
 
 Return the actual string value.
 
@@ -21,7 +21,7 @@ Return the actual string value.
 
 - str
 
-##### clear()
+#### clear()
 
 Securely clear the string value from memory.
 
@@ -52,7 +52,7 @@ Features:
 
 #### Methods
 
-##### get_instance(cls, schema_path = None, config_path = None, lockdown_mode = False)
+#### get_instance(cls, schema_path = None, config_path = None, lockdown_mode = False)
 
 Get or create the singleton instance of ConfigManager.
 
@@ -63,7 +63,7 @@ Get or create the singleton instance of ConfigManager.
 - **config_path** = None
 - **lockdown_mode** = False
 
-##### create_config_signature(file_path: str)
+#### create_config_signature(file_path: str)
 
 Create a signature file for configuration integrity verification.
 
@@ -74,7 +74,7 @@ file_path: Path to the configuration file
 
 - **file_path** (str)
 
-##### get(path: str, default: Any = None) -> Any
+#### get(path: str, default: Any = None) -> Any
 
 Get configuration value by dot-notation path with secure handling.
 
@@ -94,7 +94,7 @@ Configuration value or default
 
 - Any
 
-##### get_raw(path: str, default: Any = None) -> Any
+#### get_raw(path: str, default: Any = None) -> Any
 
 Get raw configuration value without secure wrapping.
 Only use when the actual value is needed for operations.
@@ -115,7 +115,7 @@ Raw configuration value or default
 
 - Any
 
-##### set(path: str, value: Any)
+#### set(path: str, value: Any)
 
 Set configuration value by dot-notation path with audit logging.
 
@@ -128,11 +128,11 @@ value: Value to set
 - **path** (str)
 - **value** (Any)
 
-##### reload()
+#### reload()
 
 Reload configuration from file and reapply environment overrides.
 
-##### save(file_path: str = None)
+#### save(file_path: str = None)
 
 Save current configuration to file.
 
@@ -143,7 +143,7 @@ file_path: Path to save configuration to (defaults to self.config_path)
 
 - **file_path** (str) = None
 
-##### get_schema_info(path: str) -> Dict
+#### get_schema_info(path: str) -> Dict
 
 Get schema information for a configuration path.
 
@@ -161,7 +161,7 @@ Schema information (type, default, description, etc.)
 
 - Dict
 
-##### to_dict() -> Dict
+#### to_dict() -> Dict
 
 Return the complete configuration as a dictionary.
 
@@ -171,7 +171,7 @@ Sensitive values are masked in the returned dictionary.
 
 - Dict
 
-##### get_env_var_name(path: str) -> str
+#### get_env_var_name(path: str) -> str
 
 Get the corresponding environment variable name for a config path.
 
@@ -189,7 +189,7 @@ Environment variable name or None if not defined
 
 - str
 
-##### self_monitor() -> Dict
+#### self_monitor() -> Dict
 
 Monitor the configuration system for security issues.
 
@@ -200,13 +200,13 @@ Dict with monitoring results
 
 - Dict
 
-##### reload_config()
+#### reload_config()
 
 Reload configuration from the config file.
 
 ## Functions
 
-##### get_value(self) -> str
+### get_value(self) -> str
 
 Return the actual string value.
 
@@ -218,7 +218,7 @@ Return the actual string value.
 
 - str
 
-##### clear(self)
+#### clear(self)
 
 Securely clear the string value from memory.
 
@@ -226,7 +226,7 @@ Securely clear the string value from memory.
 
 - **self**
 
-##### get_instance(cls, schema_path = None, config_path = None, lockdown_mode = False)
+#### get_instance(cls, schema_path = None, config_path = None, lockdown_mode = False)
 
 Get or create the singleton instance of ConfigManager.
 
@@ -237,7 +237,7 @@ Get or create the singleton instance of ConfigManager.
 - **config_path** = None
 - **lockdown_mode** = False
 
-##### create_config_signature(self, file_path: str)
+#### create_config_signature(self, file_path: str)
 
 Create a signature file for configuration integrity verification.
 
@@ -249,7 +249,7 @@ file_path: Path to the configuration file
 - **self**
 - **file_path** (str)
 
-##### get(self, path: str, default: Any = None) -> Any
+#### get(self, path: str, default: Any = None) -> Any
 
 Get configuration value by dot-notation path with secure handling.
 
@@ -270,7 +270,7 @@ Configuration value or default
 
 - Any
 
-##### get_raw(self, path: str, default: Any = None) -> Any
+#### get_raw(self, path: str, default: Any = None) -> Any
 
 Get raw configuration value without secure wrapping.
 Only use when the actual value is needed for operations.
@@ -292,7 +292,7 @@ Raw configuration value or default
 
 - Any
 
-##### set(self, path: str, value: Any)
+#### set(self, path: str, value: Any)
 
 Set configuration value by dot-notation path with audit logging.
 
@@ -306,7 +306,7 @@ value: Value to set
 - **path** (str)
 - **value** (Any)
 
-##### reload(self)
+#### reload(self)
 
 Reload configuration from file and reapply environment overrides.
 
@@ -314,7 +314,7 @@ Reload configuration from file and reapply environment overrides.
 
 - **self**
 
-##### save(self, file_path: str = None)
+#### save(self, file_path: str = None)
 
 Save current configuration to file.
 
@@ -326,7 +326,7 @@ file_path: Path to save configuration to (defaults to self.config_path)
 - **self**
 - **file_path** (str) = None
 
-##### get_schema_info(self, path: str) -> Dict
+#### get_schema_info(self, path: str) -> Dict
 
 Get schema information for a configuration path.
 
@@ -345,7 +345,7 @@ Schema information (type, default, description, etc.)
 
 - Dict
 
-##### to_dict(self) -> Dict
+#### to_dict(self) -> Dict
 
 Return the complete configuration as a dictionary.
 
@@ -359,7 +359,7 @@ Sensitive values are masked in the returned dictionary.
 
 - Dict
 
-##### get_env_var_name(self, path: str) -> str
+#### get_env_var_name(self, path: str) -> str
 
 Get the corresponding environment variable name for a config path.
 
@@ -378,7 +378,7 @@ Environment variable name or None if not defined
 
 - str
 
-##### self_monitor(self) -> Dict
+#### self_monitor(self) -> Dict
 
 Monitor the configuration system for security issues.
 
@@ -393,7 +393,7 @@ Dict with monitoring results
 
 - Dict
 
-##### reload_config(self)
+#### reload_config(self)
 
 Reload configuration from the config file.
 
@@ -401,7 +401,7 @@ Reload configuration from the config file.
 
 - **self**
 
-##### scan_schema(schema, path = '')
+#### scan_schema(schema, path = '')
 
 **Parameters:**
 

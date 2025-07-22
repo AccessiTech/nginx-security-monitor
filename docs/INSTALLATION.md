@@ -336,7 +336,9 @@ sudo chmod 600 .env
 
 ### **Usage**
 
-The application automatically loads environment variables from the `.env` file. Ensure that sensitive information such as API keys, database URLs, and other credentials are stored securely in this file. Avoid committing the `.env` file to version control by adding it to `.gitignore`.
+The application automatically loads environment variables from the `.env` file.
+Ensure that sensitive information such as API keys, database URLs, and other credentials are stored securely in this file.
+Avoid committing the `.env` file to version control by adding it to `.gitignore`.
 
 ## 📚 **Next Steps**
 

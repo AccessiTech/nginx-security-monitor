@@ -11,7 +11,7 @@ Manages encrypted configuration and pattern files.
 
 #### Methods
 
-##### encrypt_data(data)
+#### encrypt_data(data)
 
 Encrypt data (dict or string) and return base64 encoded result.
 
@@ -19,7 +19,7 @@ Encrypt data (dict or string) and return base64 encoded result.
 
 - **data**
 
-##### decrypt_data(encrypted_data)
+#### decrypt_data(encrypted_data)
 
 Decrypt base64 encoded data and return original dict/string.
 
@@ -27,7 +27,7 @@ Decrypt base64 encoded data and return original dict/string.
 
 - **encrypted_data**
 
-##### encrypt_file(input_file, output_file)
+#### encrypt_file(input_file, output_file)
 
 Encrypt a file and save to output location.
 
@@ -36,7 +36,7 @@ Encrypt a file and save to output location.
 - **input_file**
 - **output_file**
 
-##### decrypt_file(encrypted_file)
+#### decrypt_file(encrypted_file)
 
 Decrypt a file and return contents.
 
@@ -50,7 +50,7 @@ Adds randomization and obfuscation to detection patterns.
 
 #### Methods
 
-##### randomize_check_interval(base_interval, variance_percent = 20)
+#### randomize_check_interval(base_interval, variance_percent = 20)
 
 Add randomness to check intervals to avoid predictable patterns.
 
@@ -59,7 +59,7 @@ Add randomness to check intervals to avoid predictable patterns.
 - **base_interval**
 - **variance_percent** = 20
 
-##### obfuscate_pattern_order(patterns)
+#### obfuscate_pattern_order(patterns)
 
 Randomize the order of pattern checking to avoid predictable detection.
 
@@ -67,7 +67,7 @@ Randomize the order of pattern checking to avoid predictable detection.
 
 - **patterns**
 
-##### add_decoy_requests(log_entries, decoy_count = None)
+#### add_decoy_requests(log_entries, decoy_count = None)
 
 Add fake log entries to make real patterns harder to identify.
 
@@ -76,7 +76,7 @@ Add fake log entries to make real patterns harder to identify.
 - **log_entries**
 - **decoy_count** = None
 
-##### variable_delay(base_delay = 0.1, max_delay = 1.0)
+#### variable_delay(base_delay = 0.1, max_delay = 1.0)
 
 Add variable delays to make timing analysis harder.
 
@@ -87,11 +87,11 @@ Add variable delays to make timing analysis harder.
 
 ## Functions
 
-##### generate_master_key()
+### generate_master_key()
 
 Generate a secure random master key for encryption.
 
-##### create_encrypted_pattern_file(patterns_dict, output_file, master_key_env = 'NGINX_MONITOR_KEY')
+### create_encrypted_pattern_file(patterns_dict, output_file, master_key_env = 'NGINX_MONITOR_KEY')
 
 Helper function to create encrypted pattern files.
 
@@ -101,7 +101,7 @@ Helper function to create encrypted pattern files.
 - **output_file**
 - **master_key_env** = 'NGINX_MONITOR_KEY'
 
-##### encrypt_data(self, data)
+#### encrypt_data(self, data)
 
 Encrypt data (dict or string) and return base64 encoded result.
 
@@ -110,7 +110,7 @@ Encrypt data (dict or string) and return base64 encoded result.
 - **self**
 - **data**
 
-##### decrypt_data(self, encrypted_data)
+#### decrypt_data(self, encrypted_data)
 
 Decrypt base64 encoded data and return original dict/string.
 
@@ -119,7 +119,7 @@ Decrypt base64 encoded data and return original dict/string.
 - **self**
 - **encrypted_data**
 
-##### encrypt_file(self, input_file, output_file)
+#### encrypt_file(self, input_file, output_file)
 
 Encrypt a file and save to output location.
 
@@ -129,7 +129,7 @@ Encrypt a file and save to output location.
 - **input_file**
 - **output_file**
 
-##### decrypt_file(self, encrypted_file)
+#### decrypt_file(self, encrypted_file)
 
 Decrypt a file and return contents.
 
@@ -138,7 +138,7 @@ Decrypt a file and return contents.
 - **self**
 - **encrypted_file**
 
-##### randomize_check_interval(self, base_interval, variance_percent = 20)
+#### randomize_check_interval(self, base_interval, variance_percent = 20)
 
 Add randomness to check intervals to avoid predictable patterns.
 
@@ -148,7 +148,7 @@ Add randomness to check intervals to avoid predictable patterns.
 - **base_interval**
 - **variance_percent** = 20
 
-##### obfuscate_pattern_order(self, patterns)
+#### obfuscate_pattern_order(self, patterns)
 
 Randomize the order of pattern checking to avoid predictable detection.
 
@@ -157,7 +157,7 @@ Randomize the order of pattern checking to avoid predictable detection.
 - **self**
 - **patterns**
 
-##### add_decoy_requests(self, log_entries, decoy_count = None)
+#### add_decoy_requests(self, log_entries, decoy_count = None)
 
 Add fake log entries to make real patterns harder to identify.
 
@@ -167,7 +167,7 @@ Add fake log entries to make real patterns harder to identify.
 - **log_entries**
 - **decoy_count** = None
 
-##### variable_delay(self, base_delay = 0.1, max_delay = 1.0)
+#### variable_delay(self, base_delay = 0.1, max_delay = 1.0)
 
 Add variable delays to make timing analysis harder.
 

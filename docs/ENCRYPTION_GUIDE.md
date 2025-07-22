@@ -2,7 +2,9 @@
 
 ## 🎯 **Overview**
 
-The NGINX Security Monitor includes comprehensive encryption capabilities to protect sensitive configuration data, pattern definitions, and communication channels. This guide covers implementing encrypted configurations, key management best practices, and security audit considerations.
+The NGINX Security Monitor includes comprehensive encryption capabilities to protect sensitive
+configuration data, pattern definitions, and communication channels. This guide covers implementing
+encrypted configurations, key management best practices, and security audit considerations.
 
 ## 🔑 **Encryption Architecture**
 

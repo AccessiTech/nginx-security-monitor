@@ -1,6 +1,7 @@
 # Monitoring and Logging Guide
 
-This comprehensive guide covers monitoring, logging, and observability for Nginx Security Monitor, including metrics collection, alerting, and log analysis.
+This comprehensive guide covers monitoring, logging, and observability for Nginx Security Monitor,
+including metrics collection, alerting, and log analysis.
 
 ## Overview
 
@@ -151,6 +152,8 @@ filesystem:
 
 ### Prometheus Alert Rules
 
+<!-- markdownlint-disable MD013 -->
+
 ```yaml
 # monitoring/nginx_security_monitor_rules.yml
 groups:
@@ -233,6 +236,8 @@ groups:
           summary: "Low disk space on /var/log"
           description: "Disk space is {{ $value }}% available (threshold: 20%)"
 ```
+
+<!-- markdownlint-enable MD013 -->
 
 ### Alertmanager Configuration
 
@@ -717,6 +722,8 @@ if __name__ == '__main__':
 
 ### Real-time Performance Dashboard
 
+<!-- markdownlint-disable MD013 -->
+
 ```bash
 #!/bin/bash
 # scripts/performance_dashboard.sh
@@ -769,6 +776,8 @@ while true; do
     sleep 5
 done
 ```
+
+<!-- markdownlint-enable MD013 -->
 
 ## Troubleshooting and Diagnostics
 

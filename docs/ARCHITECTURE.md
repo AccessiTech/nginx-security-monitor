@@ -2,11 +2,13 @@
 
 ## 🎯 **Overview**
 
-The NGINX Security Monitor is a comprehensive, modular security monitoring system designed with enterprise-grade architecture principles. This document provides detailed insight into the system's architecture, design decisions, data flow, and extension points.
+The NGINX Security Monitor is a comprehensive, modular security monitoring system designed with
+enterprise-grade architecture principles. This document provides detailed insight into the system's
+architecture, design decisions, data flow, and extension points.
 
 ## 📊 **High-Level Architecture**
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                     NGINX Security Monitor                     │
 │                        Main Service                            │
@@ -159,7 +161,7 @@ The NGINX Security Monitor is a comprehensive, modular security monitoring syste
 
 ### **Primary Monitoring Flow**
 
-```
+```text
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
 │   NGINX     │    │     Log     │    │   Threat    │
 │   Logs      │───▶│  Processor  │───▶│  Processor  │
@@ -182,7 +184,7 @@ The NGINX Security Monitor is a comprehensive, modular security monitoring syste
 
 ### **Security Integration Flow**
 
-```
+```text
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
 │  fail2ban   │    │    OSSEC    │    │  Suricata   │
 │    Logs     │    │    Logs     │    │    Logs     │
@@ -363,7 +365,7 @@ class SlackAlertPlugin:
 
 ### **1. Single Node Deployment**
 
-```
+```text
 ┌─────────────────────────────────────┐
 │           Production Server         │
 │  ┌─────────────────────────────┐    │
@@ -379,7 +381,7 @@ class SlackAlertPlugin:
 
 ### **2. Distributed Monitoring**
 
-```
+```text
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
 │   Web       │    │   Web       │    │   Web       │
 │  Server 1   │    │  Server 2   │    │  Server N   │
@@ -417,7 +419,7 @@ services:
 
 ### **Security Tool Ecosystem**
 
-```
+```text
                 ┌─────────────┐
                 │   NGINX     │
                 │  Security   │
@@ -445,7 +447,7 @@ services:
 
 ### **Configuration Hierarchy**
 
-```
+```text
 /etc/nginx-security-monitor/
 ├── settings.yaml           # Main configuration
 ├── patterns.json          # Detection patterns
@@ -529,4 +531,5 @@ class CustomAlertChannel:
 
 ______________________________________________________________________
 
-*This architecture guide provides a comprehensive view of the NGINX Security Monitor system design. For technical implementation details, refer to the individual module documentation and API reference.*
+*This architecture guide provides a comprehensive view of the NGINX Security Monitor system design.
+For technical implementation details, refer to the individual module documentation and API reference.*

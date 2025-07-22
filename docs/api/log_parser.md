@@ -2,7 +2,7 @@
 
 ## Functions
 
-##### parse_logs(log_file_path)
+### parse_logs(log_file_path)
 
 **Parameters:**
 

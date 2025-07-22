@@ -1,16 +1,15 @@
 # Contributing to Nginx Security Monitor
 
-First off, thank you for considering contributing to Nginx Security Monitor! 
+First off, thank you for considering contributing to Nginx Security Monitor!
 It's people like you that make this tool better for everyone.
 
 ## How Can I Contribute?
 
 ### Reporting Bugs
 
-Before creating bug reports, please check the existing issues to avoid duplicates. 
-When you create a bug report, include as many details as possible:
+Before creating bug reports, please check the existing issues to avoid duplicates.
+When you create a bug report, include as many details as possible:- Use a clear and descriptive title
 
-- Use a clear and descriptive title
 - Describe the exact steps to reproduce the problem
 - Provide specific examples to demonstrate the steps
 - Describe the behavior you observed and what you expected to see
@@ -29,20 +28,20 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
 ### Pull Requests
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Write tests for your changes
-4. Ensure your changes pass all tests
-5. Update documentation to reflect your changes
-6. Commit your changes (`git commit -m 'Add some amazing feature'`)
-7. Push to the branch (`git push origin feature/amazing-feature`)
-8. Open a Pull Request
+1. Create your feature branch (`git checkout -b feature/amazing-feature`)
+1. Write tests for your changes
+1. Ensure your changes pass all tests
+1. Update documentation to reflect your changes
+1. Commit your changes (`git commit -m 'Add some amazing feature'`)
+1. Push to the branch (`git push origin feature/amazing-feature`)
+1. Open a Pull Request
 
 ## Development Setup
 
 1. Clone the repository
-2. Install dependencies: `pip install -r requirements.txt`
-3. Install development dependencies: `pip install -r dev-requirements.txt`
-4. Run tests: `make test`
+1. Install dependencies: `pip install -r requirements.txt`
+1. Install development dependencies: `pip install -r dev-requirements.txt`
+1. Run tests: `make test`
 
 ## Coding Guidelines
 

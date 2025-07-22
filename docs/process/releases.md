@@ -1,6 +1,7 @@
 # Release Process
 
-This document outlines the complete release process for Nginx Security Monitor, including preparation, testing, deployment, and post-release activities.
+This document outlines the complete release process for Nginx Security Monitor, including preparation,
+testing, deployment, and post-release activities.
 
 ## Release Types
 
@@ -499,7 +500,7 @@ echo "Validating release $VERSION..."
 
 # Check GitHub release
 echo "Checking GitHub release..."
-curl -s "https://api.github.com/repos/your-org/nginx-security-monitor/releases/tags/v$VERSION" | jq -r '.name'
+curl -s "https://api.github.com/repos/AccessiTech/nginx-security-monitor/releases/tags/v$VERSION" | jq -r '.name'
 
 # Check PyPI package
 echo "Checking PyPI package..."
@@ -558,7 +559,7 @@ def send_slack_announcement(version, changelog_excerpt):
                             "type": "plain_text",
                             "text": "View Release Notes"
                         },
-                        "url": f"https://github.com/your-org/nginx-security-monitor/releases/tag/v{version}"
+                        "url": f"https://github.com/AccessiTech/nginx-security-monitor/releases/tag/v{version}" 
                     },
                     {
                         "type": "button",
@@ -727,4 +728,4 @@ ______________________________________________________________________
 - [Contributing Guidelines](../CONTRIBUTING.md)
 - [Code Review Guidelines](code-review.md)
 - [Testing Guide](../TESTING.md)
-- [Deployment Guide](../deployment/)
+- [Deployment Guide](../deployment/README.md)

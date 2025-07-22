@@ -2,7 +2,9 @@
 
 ## 🎯 **Overview**
 
-The NGINX Security Monitor includes a comprehensive alert system that can notify you of security threats through multiple channels. This guide covers setting up, configuring, and customizing the alert system to meet your specific needs.
+The NGINX Security Monitor includes a comprehensive alert system that can notify you of security threats
+through multiple channels. This guide covers setting up, configuring, and customizing the alert system
+to meet your specific needs.
 
 ## 📧 **Supported Alert Channels**
 
@@ -52,7 +54,7 @@ alerts:
 For Gmail accounts, you'll need to:
 
 1. **Enable 2-Factor Authentication**
-1. **Generate App Password**:
+   1.1. **Generate App Password**:
    - Go to Google Account settings
    - Security → 2-Step Verification
    - App passwords → Generate password

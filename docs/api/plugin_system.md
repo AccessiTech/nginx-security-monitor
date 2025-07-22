@@ -11,7 +11,7 @@ Abstract base class for mitigation plugins.
 
 #### Methods
 
-##### name() -> str
+#### name() -> str
 
 Return the name of this plugin.
 
@@ -19,7 +19,7 @@ Return the name of this plugin.
 
 - str
 
-##### threat_types() -> Any
+#### threat_types() -> Any
 
 Return list of threat types this plugin can handle.
 
@@ -27,7 +27,7 @@ Return list of threat types this plugin can handle.
 
 - Any
 
-##### can_handle(threat_info: Any) -> bool
+#### can_handle(threat_info: Any) -> bool
 
 Return config.get('mitigation.strategies.ddos.enabled') if this plugin can handle the given threat.
 
@@ -39,7 +39,7 @@ Return config.get('mitigation.strategies.ddos.enabled') if this plugin can handl
 
 - bool
 
-##### mitigate(threat_info: Any) -> Any
+#### mitigate(threat_info: Any) -> Any
 
 Apply mitigation for the threat.
 
@@ -57,7 +57,7 @@ Dictionary with mitigation results
 
 - Any
 
-##### get_priority() -> int
+#### get_priority() -> int
 
 Return priority level (lower number = higher priority).
 
@@ -71,7 +71,7 @@ Manages and executes mitigation plugins.
 
 #### Methods
 
-##### get_available_plugins() -> Any
+#### get_available_plugins() -> Any
 
 Return list of available plugin names.
 
@@ -79,7 +79,7 @@ Return list of available plugin names.
 
 - Any
 
-##### execute_mitigation(threat_info: Any) -> Any
+#### execute_mitigation(threat_info: Any) -> Any
 
 Execute appropriate mitigation plugins for a threat.
 
@@ -103,19 +103,19 @@ Default IP blocking mitigation (example - replace with your own).
 
 #### Methods
 
-##### name() -> str
+#### name() -> str
 
 **Returns:**
 
 - str
 
-##### threat_types() -> Any
+#### threat_types() -> Any
 
 **Returns:**
 
 - Any
 
-##### can_handle(threat_info: Any) -> bool
+#### can_handle(threat_info: Any) -> bool
 
 **Parameters:**
 
@@ -125,7 +125,7 @@ Default IP blocking mitigation (example - replace with your own).
 
 - bool
 
-##### mitigate(threat_info: Any) -> Any
+#### mitigate(threat_info: Any) -> Any
 
 **Parameters:**
 
@@ -141,19 +141,19 @@ Plugin that only logs threats without taking action.
 
 #### Methods
 
-##### name() -> str
+#### name() -> str
 
 **Returns:**
 
 - str
 
-##### threat_types() -> Any
+#### threat_types() -> Any
 
 **Returns:**
 
 - Any
 
-##### can_handle(threat_info: Any) -> bool
+#### can_handle(threat_info: Any) -> bool
 
 **Parameters:**
 
@@ -163,13 +163,13 @@ Plugin that only logs threats without taking action.
 
 - bool
 
-##### get_priority() -> int
+#### get_priority() -> int
 
 **Returns:**
 
 - int
 
-##### mitigate(threat_info: Any) -> Any
+#### mitigate(threat_info: Any) -> Any
 
 **Parameters:**
 
@@ -181,7 +181,7 @@ Plugin that only logs threats without taking action.
 
 ## Functions
 
-##### create_plugin_template(plugin_name: str, output_file: str)
+### create_plugin_template(plugin_name: str, output_file: str)
 
 Create a template for a custom plugin.
 
@@ -190,7 +190,7 @@ Create a template for a custom plugin.
 - **plugin_name** (str)
 - **output_file** (str)
 
-##### name(self) -> str
+#### name(self) -> str
 
 Return the name of this plugin.
 
@@ -202,7 +202,7 @@ Return the name of this plugin.
 
 - str
 
-##### threat_types(self) -> Any
+#### threat_types(self) -> Any
 
 Return list of threat types this plugin can handle.
 
@@ -214,7 +214,7 @@ Return list of threat types this plugin can handle.
 
 - Any
 
-##### can_handle(self, threat_info: Any) -> bool
+#### can_handle(self, threat_info: Any) -> bool
 
 Return config.get('mitigation.strategies.ddos.enabled') if this plugin can handle the given threat.
 
@@ -227,7 +227,7 @@ Return config.get('mitigation.strategies.ddos.enabled') if this plugin can handl
 
 - bool
 
-##### mitigate(self, threat_info: Any) -> Any
+#### mitigate(self, threat_info: Any) -> Any
 
 Apply mitigation for the threat.
 
@@ -246,7 +246,7 @@ Dictionary with mitigation results
 
 - Any
 
-##### get_priority(self) -> int
+#### get_priority(self) -> int
 
 Return priority level (lower number = higher priority).
 
@@ -258,7 +258,7 @@ Return priority level (lower number = higher priority).
 
 - int
 
-##### get_available_plugins(self) -> Any
+#### get_available_plugins(self) -> Any
 
 Return list of available plugin names.
 
@@ -270,7 +270,7 @@ Return list of available plugin names.
 
 - Any
 
-##### execute_mitigation(self, threat_info: Any) -> Any
+#### execute_mitigation(self, threat_info: Any) -> Any
 
 Execute appropriate mitigation plugins for a threat.
 
@@ -289,7 +289,7 @@ List of mitigation results from all applicable plugins
 
 - Any
 
-##### name(self) -> str
+#### name(self) -> str
 
 **Parameters:**
 
@@ -299,7 +299,7 @@ List of mitigation results from all applicable plugins
 
 - str
 
-##### threat_types(self) -> Any
+#### threat_types(self) -> Any
 
 **Parameters:**
 
@@ -309,7 +309,7 @@ List of mitigation results from all applicable plugins
 
 - Any
 
-##### can_handle(self, threat_info: Any) -> bool
+#### can_handle(self, threat_info: Any) -> bool
 
 **Parameters:**
 
@@ -320,7 +320,7 @@ List of mitigation results from all applicable plugins
 
 - bool
 
-##### mitigate(self, threat_info: Any) -> Any
+#### mitigate(self, threat_info: Any) -> Any
 
 **Parameters:**
 
@@ -331,7 +331,7 @@ List of mitigation results from all applicable plugins
 
 - Any
 
-##### name(self) -> str
+#### name(self) -> str
 
 **Parameters:**
 
@@ -341,7 +341,7 @@ List of mitigation results from all applicable plugins
 
 - str
 
-##### threat_types(self) -> Any
+#### threat_types(self) -> Any
 
 **Parameters:**
 
@@ -351,7 +351,7 @@ List of mitigation results from all applicable plugins
 
 - Any
 
-##### can_handle(self, threat_info: Any) -> bool
+#### can_handle(self, threat_info: Any) -> bool
 
 **Parameters:**
 
@@ -362,7 +362,7 @@ List of mitigation results from all applicable plugins
 
 - bool
 
-##### get_priority(self) -> int
+#### get_priority(self) -> int
 
 **Parameters:**
 
@@ -372,7 +372,7 @@ List of mitigation results from all applicable plugins
 
 - int
 
-##### mitigate(self, threat_info: Any) -> Any
+#### mitigate(self, threat_info: Any) -> Any
 
 **Parameters:**
 

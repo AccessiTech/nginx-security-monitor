@@ -1,6 +1,7 @@
 # Testing Guide
 
-This document provides comprehensive information about testing the NGINX Security Monitor, including running tests, understanding coverage, and contributing new tests.
+This document provides comprehensive information about testing the NGINX Security Monitor, including running tests,
+understanding coverage, and contributing new tests.
 
 ## Prerequisites
 
@@ -130,11 +131,9 @@ The project includes comprehensive test coverage across all major components:
 - **🟡 Good (80%+)**: email_alert (82%)
 - **🔴 Needs Improvement**: config_manager (55%), security_coordinator (28%), sms_alert (15%), config_schema (42%)
 
-**📈 Coverage Improvement Plan**: See [ELITE_TEST_COVERAGE_PLAN.md](../ELITE_TEST_COVERAGE_PLAN.md) for detailed roadmap to 95%+ coverage.
-
 ### Test Files Structure
 
-```
+```text
 tests/
 ├── __init__.py
 ├── test_alerts.py              # Email and SMS alerting (3 tests)

@@ -23,7 +23,7 @@ config_path (str): Path to configuration file
 - **alert_details**
 - **config_path** = None
 
-##### create_text_alert_body(alert_details)
+#### create_text_alert_body(alert_details)
 
 Create plain text alert body.
 
@@ -31,7 +31,7 @@ Create plain text alert body.
 
 - **alert_details**
 
-##### create_html_alert_body(alert_details)
+#### create_html_alert_body(alert_details)
 
 Create HTML alert body.
 

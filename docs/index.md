@@ -1,6 +1,7 @@
 # Welcome to Nginx Security Monitor Documentation
 
-Explore the comprehensive documentation for Nginx Security Monitor. This documentation is organized to help you get started quickly and find the information you need.
+Explore the comprehensive documentation for Nginx Security Monitor. This documentation is
+organized to help you get started quickly and find the information you need.
 
 ## 🚀 Getting Started
 
@@ -67,13 +68,16 @@ Explore the comprehensive documentation for Nginx Security Monitor. This documen
 
 ## High-Level Overview
 
-NGINX Security Monitor is a Python-based tool designed to monitor NGINX logs for potential security threats. It provides real-time detection, mitigation, and alerting capabilities, making it ideal for production environments. Key features include:
+NGINX Security Monitor is a Python-based tool designed to monitor NGINX logs for potential security threats.
+It provides real-time detection, mitigation, and alerting capabilities, making it ideal for production environments.
+Key features include:
 
 - **Threat Detection**: Identifies attack patterns such as SQL injection, XSS, DDoS, and brute force (see [Pattern Detection](PATTERN_DETECTION.md)).
 - **Mitigation Strategies**: Applies countermeasures to neutralize threats (see [Mitigation Strategies](MITIGATION_STRATEGIES.md)).
 - **Alerting System**: Sends notifications via email and SMS (see [Alert Systems](ALERT_SYSTEMS.md)).
-- **System Integration**: Works seamlessly with tools like fail2ban, OSSEC/Wazuh, Suricata, and ModSecurity (see [Security Integrations](SECURITY_INTEGRATIONS.md)).
+- **System Integration**: Works seamlessly with tools like fail2ban, OSSEC/Wazuh, Suricata, and
+  ModSecurity (see [Security Integrations](SECURITY_INTEGRATIONS.md)).
 - **Advanced Security**: Includes encrypted pattern storage and a plugin system for custom rules (see [Security Features](SECURITY_FEATURES.md)).
 - **Production-Ready**: Can run as a Linux systemd service with security hardening (see [Service Protection](SERVICE_PROTECTION.md)).
 
-For a complete list of topics, check the [README](README.md) or navigate through the sidebar.
+For a complete list of topics, check the [README](../README.md) or navigate through the sidebar.

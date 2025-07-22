@@ -6,7 +6,7 @@
 
 #### Methods
 
-##### load_patterns_config(config_path)
+#### load_patterns_config(config_path)
 
 Load pattern configuration from file.
 
@@ -14,7 +14,7 @@ Load pattern configuration from file.
 
 - **config_path**
 
-##### load_custom_patterns(custom_patterns_dict)
+#### load_custom_patterns(custom_patterns_dict)
 
 Load custom patterns from decrypted configuration.
 
@@ -22,7 +22,7 @@ Load custom patterns from decrypted configuration.
 
 - **custom_patterns_dict**
 
-##### detect_patterns(parsed_logs)
+#### detect_patterns(parsed_logs)
 
 Detect various attack patterns in logs.
 
@@ -30,17 +30,17 @@ Detect various attack patterns in logs.
 
 - **parsed_logs**
 
-##### get_detected_patterns()
+#### get_detected_patterns()
 
 Get all detected patterns.
 
-##### get_pattern_summary()
+#### get_pattern_summary()
 
 Get a summary of detected patterns.
 
 ## Functions
 
-##### load_patterns_config(self, config_path)
+### load_patterns_config(self, config_path)
 
 Load pattern configuration from file.
 
@@ -49,7 +49,7 @@ Load pattern configuration from file.
 - **self**
 - **config_path**
 
-##### load_custom_patterns(self, custom_patterns_dict)
+#### load_custom_patterns(self, custom_patterns_dict)
 
 Load custom patterns from decrypted configuration.
 
@@ -58,7 +58,7 @@ Load custom patterns from decrypted configuration.
 - **self**
 - **custom_patterns_dict**
 
-##### detect_patterns(self, parsed_logs)
+#### detect_patterns(self, parsed_logs)
 
 Detect various attack patterns in logs.
 
@@ -67,7 +67,7 @@ Detect various attack patterns in logs.
 - **self**
 - **parsed_logs**
 
-##### get_detected_patterns(self)
+#### get_detected_patterns(self)
 
 Get all detected patterns.
 
@@ -75,7 +75,7 @@ Get all detected patterns.
 
 - **self**
 
-##### get_pattern_summary(self)
+#### get_pattern_summary(self)
 
 Get a summary of detected patterns.
 
