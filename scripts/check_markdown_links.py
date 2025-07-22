@@ -10,16 +10,28 @@ from concurrent.futures import ThreadPoolExecutor
 
 def find_links(content):
     """Find all links in markdown content."""
+    # Remove code blocks (``` ... ```) and inline code (`...`)
+    def remove_code(text):
+        # Remove fenced code blocks
+        text = re.sub(r'```[\s\S]*?```', '', text)
+        # Remove indented code blocks (4 spaces or tab)
+        text = re.sub(r'^(    |\t).*$','', text, flags=re.MULTILINE)
+        # Remove inline code
+        text = re.sub(r'`[^`]+`', '', text)
+        return text
+
+    clean_content = remove_code(content)
+
     # Match both [text](url) and bare <url> formats
     link_patterns = [
         r'\[([^\]]+)\]\(([^)]+)\)',  # [text](url)
         r'<(https?://[^>]+)>',       # <url>
     ]
-    
+
     links = []
     for pattern in link_patterns:
-        links.extend(re.findall(pattern, content))
-    
+        links.extend(re.findall(pattern, clean_content))
+
     return [link[1] if len(link) > 1 else link[0] for link in links]
 
 def is_valid_url(url):
