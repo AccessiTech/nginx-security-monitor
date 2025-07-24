@@ -33,3 +33,4 @@ build/
 
 # Copilot files
 copilot-*
+.servers/

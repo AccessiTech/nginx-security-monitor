@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>NGINX Vulnerable</title>
+</head>
+<body>
+  <h1>Welcome to the Vulnerable NGINX Server</h1>
+  <p>This server is intentionally misconfigured for testing purposes.</p>
+  <a href="/secret.txt">Secret File</a>
+  <a href="/../../../etc/passwd">Try Directory Traversal</a>
+  <script>alert('XSS Test');</script>
+</body>
+</html>
