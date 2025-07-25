@@ -85,6 +85,13 @@ jobs:
           path: .
           retention-days: 7
 
+      - name: Upload Documentation Metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-metrics
+          path: docs-metrics.json
+          retention-days: 7
+
   # Job 2: Quality assurance and reporting
   qa-report:
     runs-on: ubuntu-latest
