@@ -78,6 +78,13 @@ jobs:
           echo "files" && echo $(ls -1) && \
           ./bin/generate-docs --config docs/docgen-config.yaml --api-docs
 
+      - name: Upload API Documentation
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-documentation
+          path: docs/api/
+          retention-days: 7
+
   # Job 2: Quality assurance and reporting
   qa-report:
     runs-on: ubuntu-latest
