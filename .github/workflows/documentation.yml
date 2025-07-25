@@ -37,7 +37,7 @@ on:
       deploy_site:
         description: "Deploy documentation site"
         required: true
-        default: "false"
+        default: "true"
 
   # Scheduled runs
   schedule:
@@ -96,6 +96,13 @@ jobs:
         with:
           name: documentation-metrics
           path: docs/metrics-report.json
+          retention-days: 7
+
+      - name: Upload Documentation Site
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-site
+          path: site/
           retention-days: 7
 
   # Job 2: Quality assurance and reporting
