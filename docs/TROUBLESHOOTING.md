@@ -656,7 +656,7 @@ if __name__ == "__main__":
 ```bash
 # Test pattern loading
 python3 -c "
-from src.pattern_detector import PatternDetector
+from nginx_security_monitor.pattern_detector import PatternDetector
 detector = PatternDetector('/etc/nginx-security/patterns.json')
 print('Patterns loaded successfully')
 print(f'Total patterns: {len(detector.patterns)}')
@@ -664,7 +664,7 @@ print(f'Total patterns: {len(detector.patterns)}')
 
 # Test specific pattern
 python3 -c "
-from src.pattern_detector import PatternDetector
+from nginx_security_monitor.pattern_detector import PatternDetector
 detector = PatternDetector('/etc/nginx-security/patterns.json')
 test_entry = {
     'ip': '192.168.1.100',
@@ -688,7 +688,7 @@ for threat in threats:
 
 import json
 import sys
-from src.pattern_detector import PatternDetector
+from nginx_security_monitor.pattern_detector import PatternDetector
 
 def test_patterns():
     """Test patterns with various input scenarios."""
@@ -928,7 +928,7 @@ server.quit()
 "
 
 # Test email sending
-python3 -m src.alerts.email_alert test --config /etc/nginx-security/settings.yaml
+python3 -m nginx_sercurity_monitor.email_alert test --config /etc/nginx-security/settings.yaml
 ```
 
 #### **Common Issues and Solutions:**
@@ -1041,7 +1041,7 @@ logging:
 import logging
 import sys
 import time
-from src.monitor_service import MonitorService
+from nginx_security_monitor.monitor_service import MonitorService
 
 def setup_debug_logging():
     """Configure detailed debug logging."""

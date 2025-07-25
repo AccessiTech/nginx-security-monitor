@@ -159,8 +159,8 @@ echo '127.0.0.1 - - [19/Jul/2025:10:30:45 +0000] "GET /test?id=1%27%20OR%20%271%
 
 # Test the pattern detector directly
 python3 -c "
-from src.pattern_detector import PatternDetector
-from src.log_parser import parse_logs
+from nginx_security_monitor.pattern_detector import PatternDetector
+from nginx_security_monitor.log_parser import parse_logs
 
 detector = PatternDetector()
 logs = parse_logs('test_access.log')
@@ -325,7 +325,7 @@ sudo python3 -m src.monitor_service config/my-settings.yaml
 # Test email configuration
 python3 -c "
 import yaml
-from src.alerts.email_alert import send_email_alert
+from nginx_security_monitor.email_alert import send_email_alert
 
 with open('config/my-settings.yaml') as f:
     config = yaml.safe_load(f)
@@ -349,7 +349,7 @@ except Exception as e:
 ```bash
 # Verify pattern detection is working
 python3 -c "
-from src.pattern_detector import PatternDetector
+from nginx_security_monitor.pattern_detector import PatternDetector
 
 detector = PatternDetector()
 test_log = {
