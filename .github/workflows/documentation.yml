@@ -34,10 +34,10 @@ on:
         description: "Run tests before generating documentation"
         required: true
         default: "true"
-      regenerate_all:
-        description: "Regenerate all documentation"
-        required: true
-        default: "true"
+      # regenerate_all:
+      #   description: "Regenerate all documentation"
+      #   required: true
+      #   default: "true"
 
   # Scheduled runs
   schedule:
