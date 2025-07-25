@@ -2,8 +2,6 @@ name: Run tests workflow
 
 on:
   # Trigger on pushes to main branch
-  push:
-    branches: ['*']  # Trigger on pushes to any branch
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
