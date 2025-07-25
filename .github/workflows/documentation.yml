@@ -75,7 +75,7 @@ jobs:
 
     - name: Generate API documentation
       run: |
-        poetry run python scripts/generate_docs.py --config docs/docgen-config.yaml --output docs
+        poetry run python ../scripts/generate_docs.py --config docs/docgen-config.yaml --output docs
 
   # Job 2: Deploy documentation site
   deploy-docs:
