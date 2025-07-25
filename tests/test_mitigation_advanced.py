@@ -1,12 +1,7 @@
 import unittest
-import os
-import sys
 from unittest.mock import patch, MagicMock
 
-# Add src directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from mitigation import mitigate_threat
+from nginx_security_monitor.mitigation import mitigate_threat
 
 
 class TestMitigationAdvanced(unittest.TestCase):

@@ -24,11 +24,8 @@ import sys
 import logging
 from pathlib import Path
 
-# Add the src directory to path for imports
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from src.config_manager import ConfigManager, SecureString
-from src.config_schema import SCHEMA
+from nginx_security_monitor.config_manager import ConfigManager, SecureString
+from nginx_security_monitor.config_schema import SCHEMA
 
 # Disable logging during tests
 logging.disable(logging.CRITICAL)
@@ -163,7 +160,7 @@ class TestConfigSchema(unittest.TestCase):
 
     def test_schema_regex_patterns(self):
         """Test that regex patterns in schema are valid."""
-        from src.config_schema import SCHEMA
+        from nginx_security_monitor.config_schema import SCHEMA
         import re
 
         # Test log format pattern is valid regex
@@ -250,7 +247,7 @@ class TestConfigSchema(unittest.TestCase):
 
     def test_save_schema_to_file_functionality(self):
         """Test saving schema to file functionality."""
-        from src.config_schema import save_schema_to_file
+        from nginx_security_monitor.config_schema import save_schema_to_file
 
         with tempfile.TemporaryDirectory() as temp_dir:
             schema_path = os.path.join(temp_dir, "test_schema.yaml")
@@ -277,7 +274,7 @@ class TestConfigSchema(unittest.TestCase):
 
     def test_save_schema_to_file_directory_creation(self):
         """Test that save_schema_to_file creates necessary directories."""
-        from src.config_schema import save_schema_to_file
+        from nginx_security_monitor.config_schema import save_schema_to_file
 
         with tempfile.TemporaryDirectory() as temp_dir:
             nested_path = os.path.join(temp_dir, "nested", "directory", "schema.yaml")
@@ -291,7 +288,7 @@ class TestConfigSchema(unittest.TestCase):
 
     def test_save_schema_to_file_permission_error(self):
         """Test handling of permission errors during schema save."""
-        from src.config_schema import save_schema_to_file
+        from nginx_security_monitor.config_schema import save_schema_to_file
 
         with tempfile.TemporaryDirectory() as temp_dir:
             schema_path = os.path.join(temp_dir, "test_schema.yaml")
@@ -305,7 +302,7 @@ class TestConfigSchema(unittest.TestCase):
 
     def test_save_schema_to_file_write_error(self):
         """Test handling of write errors during schema save."""
-        from src.config_schema import save_schema_to_file
+        from nginx_security_monitor.config_schema import save_schema_to_file
 
         with tempfile.TemporaryDirectory() as temp_dir:
             schema_path = os.path.join(temp_dir, "test_schema.yaml")
@@ -317,7 +314,7 @@ class TestConfigSchema(unittest.TestCase):
 
     def test_schema_main_execution(self):
         """Test the __main__ execution block of config_schema."""
-        from src import config_schema
+        from nginx_security_monitor import config_schema
 
         # Mock save_schema_to_file to avoid actual file operations
         with patch.object(config_schema, "save_schema_to_file") as mock_save:
@@ -427,12 +424,12 @@ class TestConfigSchema(unittest.TestCase):
         from unittest.mock import patch
 
         # Test the main execution path directly
-        with patch("src.config_schema.save_schema_to_file") as mock_save:
-            with patch("src.config_schema.logging.basicConfig") as mock_logging:
+        with patch("nginx_security_monitor.config_schema.save_schema_to_file") as mock_save:
+            with patch("nginx_security_monitor.config_schema.logging.basicConfig") as mock_logging:
                 # Simulate the main block execution
                 try:
                     # This simulates: if __name__ == "__main__":
-                    from src.config_schema import logger
+                    from nginx_security_monitor.config_schema import logger
 
                     logger.info("Test main execution")
 
@@ -445,7 +442,7 @@ class TestConfigSchema(unittest.TestCase):
                     )
 
                     # Test save function call
-                    from src.config_schema import save_schema_to_file
+                    from nginx_security_monitor.config_schema import save_schema_to_file
 
                     save_schema_to_file()
 
@@ -462,7 +459,7 @@ class TestConfigSchema(unittest.TestCase):
         import logging
 
         # Mock the save function before importing it
-        with patch("src.config_schema.save_schema_to_file") as mock_save:
+        with patch("nginx_security_monitor.config_schema.save_schema_to_file") as mock_save:
             # Directly execute the main block code to get coverage
             logging.basicConfig(
                 level=logging.INFO,
@@ -470,7 +467,7 @@ class TestConfigSchema(unittest.TestCase):
             )
 
             # Call the mocked function to simulate main block
-            from src import config_schema
+            from nginx_security_monitor import config_schema
 
             config_schema.save_schema_to_file()
 
@@ -1768,13 +1765,13 @@ class TestConfigManager(unittest.TestCase):
     def test_lockdown_mode_initialization(self):
         """Test ConfigManager initialization in lockdown mode."""
         with patch(
-            "src.config_manager.ConfigManager._get_builtin_schema"
+            "nginx_security_monitor.config_manager.ConfigManager._get_builtin_schema"
         ) as mock_schema:
             mock_schema.return_value = {"service": {"name": {"__default": "value"}}}
 
             # Mock validation to pass
             with patch(
-                "src.config_manager.ConfigManager._validate_config"
+                "nginx_security_monitor.config_manager.ConfigManager._validate_config"
             ) as mock_validate:
                 mock_validate.return_value = []  # No validation errors
 

@@ -1,16 +1,13 @@
 import unittest
 import os
-import sys
 import tempfile
 import yaml
 from unittest.mock import patch, MagicMock, mock_open, call
 from io import StringIO
 
-# Add the root directory to Python path to import the utility
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 # Import the utility functions
-import security_integrations_util
+import nginx_security_monitor.security_integrations_util as security_integrations_util
 
 
 class TestSecurityIntegrationsUtility(unittest.TestCase):
@@ -82,8 +79,8 @@ class TestSecurityIntegrationsUtility(unittest.TestCase):
         self.assertEqual(result, {})
         mock_print.assert_called_with("Error loading configuration: File read error")
 
-    @patch("security_integrations_util.load_config")
-    @patch("security_integrations_util.SecurityIntegrationManager")
+    @patch("nginx_security_monitor.security_integrations_util.load_config")
+    @patch("nginx_security_monitor.security_integrations_util.SecurityIntegrationManager")
     @patch("builtins.print")
     def test_check_integrations_all_available(
         self, mock_print, mock_manager_class, mock_load_config
@@ -123,8 +120,8 @@ class TestSecurityIntegrationsUtility(unittest.TestCase):
         mock_print.assert_any_call("🔍 Checking available security integrations...\n")
         mock_print.assert_any_call("Security Framework Status:")
 
-    @patch("security_integrations_util.load_config")
-    @patch("security_integrations_util.SecurityIntegrationManager")
+    @patch("nginx_security_monitor.security_integrations_util.load_config")
+    @patch("nginx_security_monitor.security_integrations_util.SecurityIntegrationManager")
     @patch("builtins.print")
     def test_check_integrations_some_unavailable(
         self, mock_print, mock_manager_class, mock_load_config
@@ -156,8 +153,8 @@ class TestSecurityIntegrationsUtility(unittest.TestCase):
         ]
         self.assertGreater(len(unavailable_calls), 0)
 
-    @patch("security_integrations_util.load_config")
-    @patch("security_integrations_util.SecurityIntegrationManager")
+    @patch("nginx_security_monitor.security_integrations_util.load_config")
+    @patch("nginx_security_monitor.security_integrations_util.SecurityIntegrationManager")
     @patch("builtins.print")
     def test_test_integrations_with_threats(
         self, mock_print, mock_manager_class, mock_load_config
@@ -192,8 +189,8 @@ class TestSecurityIntegrationsUtility(unittest.TestCase):
         mock_manager.handle_threat_with_integrations.assert_called_once()
         mock_manager.get_aggregated_threats.assert_called_once_with(hours=1)
 
-    @patch("security_integrations_util.load_config")
-    @patch("security_integrations_util.SecurityIntegrationManager")
+    @patch("nginx_security_monitor.security_integrations_util.load_config")
+    @patch("nginx_security_monitor.security_integrations_util.SecurityIntegrationManager")
     @patch("builtins.print")
     def test_test_integrations_no_threats(
         self, mock_print, mock_manager_class, mock_load_config
@@ -219,7 +216,8 @@ class TestSecurityIntegrationsUtility(unittest.TestCase):
 
     @patch("subprocess.run")
     @patch("builtins.print")
-    def test_setup_fail2ban_installed_and_working(self, mock_print, mock_subprocess):
+    @patch("nginx_security_monitor.security_integrations_util.SecurityIntegrationManager")
+    def test_setup_fail2ban_installed_and_working(self, mock_manager_class, mock_print, mock_subprocess):
         """Test setup_fail2ban when fail2ban is installed and working"""
         # Arrange
         mock_subprocess.side_effect = [
@@ -229,6 +227,10 @@ class TestSecurityIntegrationsUtility(unittest.TestCase):
                 stdout="Status\n|- Number of jail: 2\n`- Jail list: ssh, apache-auth",
             ),  # Status check
         ]
+        mock_manager = MagicMock()
+        mock_manager.fail2ban.is_available.return_value = True
+        mock_manager.fail2ban.get_jail_status.return_value = {"ssh": {}, "apache": {}}
+        mock_manager_class.return_value = mock_manager
 
         with patch("os.path.exists", return_value=True):
             # Act
@@ -253,10 +255,15 @@ class TestSecurityIntegrationsUtility(unittest.TestCase):
 
     @patch("subprocess.run")
     @patch("builtins.print")
-    def test_setup_fail2ban_not_working(self, mock_print, mock_subprocess):
+    @patch("nginx_security_monitor.security_integrations_util.SecurityIntegrationManager")
+    def test_setup_fail2ban_not_working(self, mock_manager_class, mock_print, mock_subprocess):
         """Test setup_fail2ban when fail2ban is installed but not working"""
         # Arrange
         mock_subprocess.return_value = MagicMock(returncode=1, stdout="")
+        mock_manager = MagicMock()
+        mock_manager.fail2ban.is_available.return_value = True
+        mock_manager.fail2ban.get_jail_status.return_value = None
+        mock_manager_class.return_value = mock_manager
 
         # Act
         security_integrations_util.setup_fail2ban()
@@ -300,30 +307,33 @@ class TestSecurityIntegrationsUtility(unittest.TestCase):
         mock_print.assert_any_call("❌ OSSEC/Wazuh not found")
         mock_print.assert_any_call("\nTo install Wazuh agent:")
 
+
     @patch("sys.argv", ["security_integrations_util.py", "test"])
     def test_main_test_action(self):
         """Test main function with test action"""
-        with patch("security_integrations_util.test_integrations") as mock_test:
+        with patch("nginx_security_monitor.security_integrations_util.test_integrations") as mock_test:
             # Act
             security_integrations_util.main()
 
             # Assert
             mock_test.assert_called_once()
 
+
     @patch("sys.argv", ["security_integrations_util.py", "setup-fail2ban"])
     def test_main_setup_fail2ban_action(self):
         """Test main function with setup-fail2ban action"""
-        with patch("security_integrations_util.setup_fail2ban") as mock_setup:
+        with patch("nginx_security_monitor.security_integrations_util.setup_fail2ban") as mock_setup:
             # Act
             security_integrations_util.main()
 
             # Assert
             mock_setup.assert_called_once()
 
+
     @patch("sys.argv", ["security_integrations_util.py", "setup-ossec"])
     def test_main_setup_ossec_action(self):
         """Test main function with setup-ossec action"""
-        with patch("security_integrations_util.setup_ossec") as mock_setup:
+        with patch("nginx_security_monitor.security_integrations_util.setup_ossec") as mock_setup:
             # Act
             security_integrations_util.main()
 

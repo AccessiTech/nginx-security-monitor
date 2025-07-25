@@ -1,19 +1,14 @@
 import unittest
 from unittest.mock import patch, MagicMock, mock_open
-import sys
-import os
 import yaml
 
-# Add src directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from alerts.email_alert import send_email_alert, load_email_config
-from alerts.sms_alert import send_sms_alert
+from nginx_security_monitor.email_alert import send_email_alert, load_email_config
+from nginx_security_monitor.sms_alert import send_sms_alert
 
 
 class TestAlerts(unittest.TestCase):
 
-    @patch("alerts.email_alert.load_email_config")
+    @patch("nginx_security_monitor.email_alert.load_email_config")
     def test_send_email_alert(self, mock_load_config):
         # Mock email configuration
         mock_load_config.return_value = {
@@ -86,7 +81,7 @@ class TestAlerts(unittest.TestCase):
 
     def test_create_text_alert_body_with_dict_pattern(self):
         """Test text alert body creation with dict pattern."""
-        from src.alerts.email_alert import create_text_alert_body
+        from nginx_security_monitor.email_alert import create_text_alert_body
         from datetime import datetime
 
         alert_details = {
@@ -109,7 +104,7 @@ class TestAlerts(unittest.TestCase):
 
     def test_create_html_alert_body_with_dict_pattern(self):
         """Test HTML alert body creation with dict pattern."""
-        from src.alerts.email_alert import create_html_alert_body
+        from nginx_security_monitor.email_alert import create_html_alert_body
 
         alert_details = {
             "pattern": {
@@ -132,7 +127,7 @@ class TestAlerts(unittest.TestCase):
 
     def test_create_html_alert_body_with_low_severity(self):
         """Test HTML alert body creation with LOW severity for color coverage."""
-        from src.alerts.email_alert import create_html_alert_body
+        from nginx_security_monitor.email_alert import create_html_alert_body
 
         alert_details = {
             "pattern": {
@@ -150,7 +145,7 @@ class TestAlerts(unittest.TestCase):
 
     def test_create_html_alert_body_with_unknown_severity(self):
         """Test HTML alert body creation with unknown severity for default color coverage."""
-        from src.alerts.email_alert import create_html_alert_body
+        from nginx_security_monitor.email_alert import create_html_alert_body
 
         alert_details = {
             "pattern": {
@@ -219,7 +214,7 @@ class TestAlerts(unittest.TestCase):
 
                 self.assertEqual(config, {})
 
-    @patch("alerts.email_alert.load_email_config")
+    @patch("nginx_security_monitor.email_alert.load_email_config")
     def test_send_email_alert_disabled(self, mock_load_config):
         """Test send_email_alert when email is disabled."""
         mock_load_config.return_value = {"enabled": False}
@@ -233,7 +228,7 @@ class TestAlerts(unittest.TestCase):
             self.assertIsNone(result)
             mock_logger.info.assert_called_with("Email alerts are disabled")
 
-    @patch("alerts.email_alert.load_email_config")
+    @patch("nginx_security_monitor.email_alert.load_email_config")
     def test_send_email_alert_missing_sender(self, mock_load_config):
         """Test send_email_alert with missing sender configuration."""
         mock_load_config.return_value = {
@@ -251,7 +246,7 @@ class TestAlerts(unittest.TestCase):
             self.assertIsNone(result)
             mock_logger.error.assert_called_with("Missing email configuration")
 
-    @patch("alerts.email_alert.load_email_config")
+    @patch("nginx_security_monitor.email_alert.load_email_config")
     def test_send_email_alert_missing_recipient(self, mock_load_config):
         """Test send_email_alert with missing recipient configuration."""
         mock_load_config.return_value = {
@@ -274,7 +269,7 @@ class TestAlerts(unittest.TestCase):
             self.assertIsNone(result)
             mock_logger.error.assert_called_with("Missing email configuration")
 
-    @patch("alerts.email_alert.load_email_config")
+    @patch("nginx_security_monitor.email_alert.load_email_config")
     def test_send_email_alert_with_custom_config_path(self, mock_load_config):
         """Test send_email_alert with custom config path."""
         mock_load_config.return_value = {
@@ -289,9 +284,9 @@ class TestAlerts(unittest.TestCase):
         alert_details = {"subject": "Test Alert", "message": "Test message"}
 
         with patch("smtplib.SMTP") as mock_smtp, patch(
-            "alerts.email_alert.create_html_alert_body",
+            "nginx_security_monitor.email_alert.create_html_alert_body",
             return_value="<html>Test</html>",
-        ), patch("alerts.email_alert.create_text_alert_body", return_value="Test text"):
+        ), patch("nginx_security_monitor.email_alert.create_text_alert_body", return_value="Test text"):
 
             mock_server = MagicMock()
             mock_smtp.return_value.__enter__.return_value = mock_server
@@ -302,7 +297,7 @@ class TestAlerts(unittest.TestCase):
             mock_load_config.assert_called_with("/custom/config.yaml")
             self.assertIsNone(result)
 
-    @patch("alerts.email_alert.load_email_config")
+    @patch("nginx_security_monitor.email_alert.load_email_config")
     def test_send_email_alert_smtp_exception(self, mock_load_config):
         """Test send_email_alert with SMTP connection error."""
         mock_load_config.return_value = {
@@ -319,10 +314,10 @@ class TestAlerts(unittest.TestCase):
         with patch(
             "smtplib.SMTP", side_effect=Exception("SMTP connection failed")
         ), patch(
-            "alerts.email_alert.create_html_alert_body",
+            "nginx_security_monitor.email_alert.create_html_alert_body",
             return_value="<html>Test</html>",
         ), patch(
-            "alerts.email_alert.create_text_alert_body", return_value="Test text"
+            "nginx_security_monitor.email_alert.create_text_alert_body", return_value="Test text"
         ), patch(
             "logging.getLogger"
         ) as mock_get_logger:
@@ -336,7 +331,7 @@ class TestAlerts(unittest.TestCase):
             # Should log the error
             mock_logger.error.assert_called()
 
-    @patch("alerts.email_alert.load_email_config")
+    @patch("nginx_security_monitor.email_alert.load_email_config")
     def test_send_email_alert_fallback_username_as_sender(self, mock_load_config):
         """Test send_email_alert using username as sender when from_address is missing."""
         mock_load_config.return_value = {
@@ -350,9 +345,9 @@ class TestAlerts(unittest.TestCase):
         alert_details = {"subject": "Test Alert", "message": "Test message"}
 
         with patch("smtplib.SMTP") as mock_smtp, patch(
-            "alerts.email_alert.create_html_alert_body",
+            "nginx_security_monitor.email_alert.create_html_alert_body",
             return_value="<html>Test</html>",
-        ), patch("alerts.email_alert.create_text_alert_body", return_value="Test text"):
+        ), patch("nginx_security_monitor.email_alert.create_text_alert_body", return_value="Test text"):
 
             mock_server = MagicMock()
             mock_smtp.return_value.__enter__.return_value = mock_server
@@ -363,7 +358,7 @@ class TestAlerts(unittest.TestCase):
             # Verify SMTP was called (meaning username was used as sender)
             mock_smtp.assert_called_once()
 
-    @patch("alerts.email_alert.load_email_config")
+    @patch("nginx_security_monitor.email_alert.load_email_config")
     def test_send_email_alert_recipient_from_alert_details(self, mock_load_config):
         """Test send_email_alert using recipient from alert_details over config."""
         mock_load_config.return_value = {
@@ -380,9 +375,9 @@ class TestAlerts(unittest.TestCase):
         }
 
         with patch("smtplib.SMTP") as mock_smtp, patch(
-            "alerts.email_alert.create_html_alert_body",
+            "nginx_security_monitor.email_alert.create_html_alert_body",
             return_value="<html>Test</html>",
-        ), patch("alerts.email_alert.create_text_alert_body", return_value="Test text"):
+        ), patch("nginx_security_monitor.email_alert.create_text_alert_body", return_value="Test text"):
 
             mock_server = MagicMock()
             mock_smtp.return_value.__enter__.return_value = mock_server

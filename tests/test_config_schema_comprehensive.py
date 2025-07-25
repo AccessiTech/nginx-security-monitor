@@ -13,7 +13,7 @@ import logging
 from unittest.mock import patch, mock_open, MagicMock
 from pathlib import Path
 
-from src.config_schema import SCHEMA, save_schema_to_file
+from nginx_security_monitor.config_schema import SCHEMA, save_schema_to_file
 
 
 class TestConfigSchema(unittest.TestCase):
@@ -119,7 +119,7 @@ class TestConfigSchema(unittest.TestCase):
         self.assertTrue(os.path.exists(nested_path))
         self.assertTrue(os.path.isdir(os.path.dirname(nested_path)))
 
-    @patch("src.config_schema.logger")
+    @patch("nginx_security_monitor.config_schema.logger")
     def test_save_schema_to_file_success_logging(self, mock_logger):
         """Test logging on successful schema save."""
         # Act
@@ -129,7 +129,7 @@ class TestConfigSchema(unittest.TestCase):
         mock_logger.info.assert_called_once_with(f"Schema saved to {self.schema_path}")
 
     @patch("builtins.open", side_effect=PermissionError("Permission denied"))
-    @patch("src.config_schema.logger")
+    @patch("nginx_security_monitor.config_schema.logger")
     def test_save_schema_to_file_permission_error(self, mock_logger, mock_open):
         """Test handling of permission errors."""
         # Act & Assert
@@ -142,7 +142,7 @@ class TestConfigSchema(unittest.TestCase):
         self.assertIn("Permission denied", error_call_args)
 
     @patch("os.makedirs", side_effect=OSError("Cannot create directory"))
-    @patch("src.config_schema.logger")
+    @patch("nginx_security_monitor.config_schema.logger")
     def test_save_schema_to_file_directory_error(self, mock_logger, mock_makedirs):
         """Test handling of directory creation errors."""
         # Act & Assert
@@ -152,7 +152,7 @@ class TestConfigSchema(unittest.TestCase):
         mock_logger.error.assert_called_once()
 
     @patch("yaml.dump", side_effect=yaml.YAMLError("YAML error"))
-    @patch("src.config_schema.logger")
+    @patch("nginx_security_monitor.config_schema.logger")
     def test_save_schema_to_file_yaml_error(self, mock_logger, mock_yaml_dump):
         """Test handling of YAML serialization errors."""
         # Act & Assert
@@ -162,7 +162,7 @@ class TestConfigSchema(unittest.TestCase):
         mock_logger.error.assert_called_once()
 
     @patch("os.chmod", side_effect=OSError("Cannot set permissions"))
-    @patch("src.config_schema.logger") 
+    @patch("nginx_security_monitor.config_schema.logger") 
     def test_save_schema_to_file_chmod_error(self, mock_logger, mock_chmod):
         """Test handling of chmod errors."""
         # Act & Assert
@@ -178,7 +178,7 @@ class TestConfigSchema(unittest.TestCase):
         with patch("os.makedirs") as mock_makedirs:
             with patch("builtins.open", mock_open()) as mock_file:
                 with patch("os.chmod") as mock_chmod:
-                    with patch("src.config_schema.logger") as mock_logger:
+                    with patch("nginx_security_monitor.config_schema.logger") as mock_logger:
                         # Act
                         save_schema_to_file()
                         
@@ -196,19 +196,17 @@ class TestConfigSchema(unittest.TestCase):
         
         # Create a simple test script that imports and runs the main functionality
         test_script = '''
-import sys
-sys.path.insert(0, "/Users/conor/Sites/nginx-security-monitor")
 from unittest.mock import patch
 
-with patch("src.config_schema.save_schema_to_file") as mock_save:
-    with patch("src.config_schema.logging.basicConfig") as mock_logging:
+with patch("nginx_security_monitor.config_schema.save_schema_to_file") as mock_save:
+    with patch("nginx_security_monitor.config_schema.logging.basicConfig") as mock_logging:
         # Simulate main block execution
         import logging
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         )
-        from src.config_schema import save_schema_to_file
+        from nginx_security_monitor.config_schema import save_schema_to_file
         save_schema_to_file()
         print("SUCCESS")
 '''
@@ -229,7 +227,7 @@ with patch("src.config_schema.save_schema_to_file") as mock_save:
         
         # Run the actual module file directly to trigger __main__ block
         result = subprocess.run([
-            sys.executable, "-m", "src.config_schema"
+            sys.executable, "-m", "nginx_security_monitor.config_schema"
         ], capture_output=True, text=True, cwd="/Users/conor/Sites/nginx-security-monitor")
         
         # Should execute without error (may have permission errors but shouldn't crash)

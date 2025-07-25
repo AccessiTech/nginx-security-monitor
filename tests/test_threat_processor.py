@@ -5,13 +5,8 @@ Tests for ThreatProcessor module
 
 import unittest
 from unittest.mock import patch, MagicMock, call
-import sys
-import os
 
-# Add src directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from threat_processor import ThreatProcessor
+from nginx_security_monitor.threat_processor import ThreatProcessor
 
 
 class TestThreatProcessor(unittest.TestCase):

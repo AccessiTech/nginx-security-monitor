@@ -9,10 +9,8 @@ import os
 import tempfile
 
 # Add src directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
 try:
-    from plugin_system import (
+    from nginx_security_monitor.plugin_system import (
         PluginManager,
         MitigationPlugin,
         DefaultIPBlockPlugin,
@@ -179,7 +177,7 @@ class TestPluginManager(unittest.TestCase):
         threat_info = {"type": "SQL Injection", "ip": "192.168.1.100"}
 
         # Manually add a plugin for testing since directories don't exist
-        from plugin_system import DefaultIPBlockPlugin
+        from nginx_security_monitor.plugin_system import DefaultIPBlockPlugin
 
         manager.plugins["default_ip_block"] = DefaultIPBlockPlugin()
 
@@ -197,7 +195,7 @@ class TestPluginManager(unittest.TestCase):
         threat_info = {"severity": "LOW", "type": "Suspicious Scanning"}
 
         # Manually add a plugin for testing
-        from plugin_system import AlertOnlyPlugin
+        from nginx_security_monitor.plugin_system import AlertOnlyPlugin
 
         manager.plugins["alert_only"] = AlertOnlyPlugin()
 
@@ -220,7 +218,7 @@ class TestPluginManager(unittest.TestCase):
     def test_custom_plugin_loading(self):
         # Create a custom plugin file
         custom_plugin_code = """
-from plugin_system import MitigationPlugin
+from nginx_security_monitor.plugin_system import MitigationPlugin
 
 class CustomTestPlugin(MitigationPlugin):
     @property
@@ -284,7 +282,7 @@ class TestPlugin(
 
         # Create a plugin that raises an exception in mitigate
         error_plugin_code = """
-from plugin_system import MitigationPlugin
+from nginx_security_monitor.plugin_system import MitigationPlugin
 
 class ErrorTestPlugin(MitigationPlugin):
     @property
@@ -323,7 +321,7 @@ class ErrorTestPlugin(MitigationPlugin):
 
     def test_create_plugin_template(self):
         """Test the plugin template creation function"""
-        from plugin_system import create_plugin_template
+        from nginx_security_monitor.plugin_system import create_plugin_template
         import tempfile
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
@@ -369,7 +367,7 @@ class ErrorTestPlugin(MitigationPlugin):
 
     def test_abstract_base_plugin_cannot_instantiate(self):
         """Test that abstract base plugin cannot be instantiated directly"""
-        from plugin_system import MitigationPlugin
+        from nginx_security_monitor.plugin_system import MitigationPlugin
 
         # Should raise TypeError due to abstract methods
         with self.assertRaises(TypeError):
@@ -377,7 +375,7 @@ class ErrorTestPlugin(MitigationPlugin):
 
     def test_abstract_methods_implementation_required(self):
         """Test that all abstract methods must be implemented"""
-        from plugin_system import MitigationPlugin
+        from nginx_security_monitor.plugin_system import MitigationPlugin
 
         # Test partial implementation that still can't be instantiated
 
@@ -429,7 +427,7 @@ class ErrorTestPlugin(MitigationPlugin):
 
     def test_abstract_method_pass_statements(self):
         """Test to force execution of abstract method pass statements"""
-        from plugin_system import MitigationPlugin
+        from nginx_security_monitor.plugin_system import MitigationPlugin
 
         # Create a class that calls super() to execute the pass statements
         class TestCallsSuper(MitigationPlugin):
@@ -465,7 +463,7 @@ class ErrorTestPlugin(MitigationPlugin):
 
     def test_abstract_property_pass_statements(self):
         """Test to force execution of abstract property pass statements"""
-        from plugin_system import MitigationPlugin
+        from nginx_security_monitor.plugin_system import MitigationPlugin
 
         # Create a class that calls super() for properties to execute pass statements
         class TestPropertySuper(MitigationPlugin):
@@ -508,7 +506,7 @@ class ErrorTestPlugin(MitigationPlugin):
         import os
 
         # Get the plugin_system module path
-        spec = importlib.util.find_spec("plugin_system")
+        spec = importlib.util.find_spec("nginx_security_monitor.plugin_system")
         module_path = spec.origin
 
         with tempfile.TemporaryDirectory() as temp_dir:

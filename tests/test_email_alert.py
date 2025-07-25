@@ -22,12 +22,8 @@ import smtplib
 from unittest.mock import patch, MagicMock, mock_open
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-import sys
 
-# Add the src directory to path for imports
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from src.alerts.email_alert import (
+from nginx_security_monitor.email_alert import (
     load_email_config,
     send_email_alert,
     create_text_alert_body,
@@ -75,7 +71,7 @@ class TestEmailAlert(unittest.TestCase):
             with open(config_file, "w") as f:
                 yaml.dump(config_data, f)
 
-            with patch("src.alerts.email_alert.ConfigManager") as mock_cm:
+            with patch("nginx_security_monitor.email_alert.ConfigManager") as mock_cm:
                 mock_cm.get_instance.return_value.get.return_value = config_file
 
                 result = load_email_config(config_file)
@@ -93,7 +89,7 @@ class TestEmailAlert(unittest.TestCase):
             with open(config_file, "w") as f:
                 yaml.dump(config_data, f)
 
-            with patch("src.alerts.email_alert.ConfigManager") as mock_cm:
+            with patch("nginx_security_monitor.email_alert.ConfigManager") as mock_cm:
                 mock_cm.get_instance.return_value.get.return_value = config_file
 
                 # Call without config_path parameter to trigger default path logic
@@ -103,12 +99,12 @@ class TestEmailAlert(unittest.TestCase):
 
     def test_load_email_config_file_not_found(self):
         """Test email configuration loading when file doesn't exist."""
-        with patch("src.alerts.email_alert.ConfigManager") as mock_cm:
+        with patch("nginx_security_monitor.email_alert.ConfigManager") as mock_cm:
             mock_cm.get_instance.return_value.get.return_value = (
                 "/nonexistent/config.yaml"
             )
 
-            with patch("src.alerts.email_alert.logging") as mock_logging:
+            with patch("nginx_security_monitor.email_alert.logging") as mock_logging:
                 result = load_email_config("/nonexistent/config.yaml")
                 self.assertEqual(result, {})
                 mock_logging.error.assert_called_once()
@@ -121,30 +117,30 @@ class TestEmailAlert(unittest.TestCase):
             with open(config_file, "w") as f:
                 f.write("invalid: yaml: content: [")  # Invalid YAML
 
-            with patch("src.alerts.email_alert.ConfigManager") as mock_cm:
+            with patch("nginx_security_monitor.email_alert.ConfigManager") as mock_cm:
                 mock_cm.get_instance.return_value.get.return_value = config_file
 
-                with patch("src.alerts.email_alert.logging") as mock_logging:
+                with patch("nginx_security_monitor.email_alert.logging") as mock_logging:
                     result = load_email_config(config_file)
                     self.assertEqual(result, {})
                     mock_logging.error.assert_called_once()
 
-    @patch("src.alerts.email_alert.load_email_config")
-    @patch("src.alerts.email_alert.ConfigManager")
+    @patch("nginx_security_monitor.email_alert.load_email_config")
+    @patch("nginx_security_monitor.email_alert.ConfigManager")
     def test_send_email_alert_disabled(self, mock_cm, mock_load_config):
         """Test email sending when alerts are disabled."""
         mock_load_config.return_value = {"enabled": False}
         mock_cm.get_instance.return_value.get.return_value = False
 
-        with patch("src.alerts.email_alert.logging") as mock_logging:
+        with patch("nginx_security_monitor.email_alert.logging") as mock_logging:
             result = send_email_alert(self.sample_alert)
             self.assertIsNone(result)
             mock_logging.getLogger.return_value.info.assert_called_with(
                 "Email alerts are disabled"
             )
 
-    @patch("src.alerts.email_alert.load_email_config")
-    @patch("src.alerts.email_alert.ConfigManager")
+    @patch("nginx_security_monitor.email_alert.load_email_config")
+    @patch("nginx_security_monitor.email_alert.ConfigManager")
     def test_send_email_alert_missing_config(self, mock_cm, mock_load_config):
         """Test email sending with missing configuration."""
         mock_load_config.return_value = {"enabled": True}
@@ -155,18 +151,18 @@ class TestEmailAlert(unittest.TestCase):
             "alert_system.email.to_address": None,
         }.get(key, default)
 
-        with patch("src.alerts.email_alert.logging") as mock_logging:
+        with patch("nginx_security_monitor.email_alert.logging") as mock_logging:
             result = send_email_alert(self.sample_alert)
             self.assertIsNone(result)
             mock_logging.getLogger.return_value.error.assert_called_with(
                 "Missing email configuration"
             )
 
-    @patch("src.alerts.email_alert.load_email_config")
-    @patch("src.alerts.email_alert.ConfigManager")
-    @patch("src.alerts.email_alert.smtplib.SMTP")
-    @patch("src.alerts.email_alert.create_html_alert_body")
-    @patch("src.alerts.email_alert.create_text_alert_body")
+    @patch("nginx_security_monitor.email_alert.load_email_config")
+    @patch("nginx_security_monitor.email_alert.ConfigManager")
+    @patch("nginx_security_monitor.email_alert.smtplib.SMTP")
+    @patch("nginx_security_monitor.email_alert.create_html_alert_body")
+    @patch("nginx_security_monitor.email_alert.create_text_alert_body")
     def test_send_email_alert_success(
         self, mock_text_body, mock_html_body, mock_smtp, mock_cm, mock_load_config
     ):
@@ -196,7 +192,7 @@ class TestEmailAlert(unittest.TestCase):
         mock_server = MagicMock()
         mock_smtp.return_value.__enter__.return_value = mock_server
 
-        with patch("src.alerts.email_alert.logging") as mock_logging:
+        with patch("nginx_security_monitor.email_alert.logging") as mock_logging:
             result = send_email_alert(self.sample_alert)
 
             # Verify SMTP calls
@@ -211,11 +207,11 @@ class TestEmailAlert(unittest.TestCase):
                 "Email alert sent successfully to admin@example.com"
             )
 
-    @patch("src.alerts.email_alert.load_email_config")
-    @patch("src.alerts.email_alert.ConfigManager")
-    @patch("src.alerts.email_alert.smtplib.SMTP")
-    @patch("src.alerts.email_alert.create_html_alert_body")
-    @patch("src.alerts.email_alert.create_text_alert_body")
+    @patch("nginx_security_monitor.email_alert.load_email_config")
+    @patch("nginx_security_monitor.email_alert.ConfigManager")
+    @patch("nginx_security_monitor.email_alert.smtplib.SMTP")
+    @patch("nginx_security_monitor.email_alert.create_html_alert_body")
+    @patch("nginx_security_monitor.email_alert.create_text_alert_body")
     def test_send_email_alert_with_invalid_attachments(
         self, mock_text_body, mock_html_body, mock_smtp, mock_cm, mock_load_config
     ):
@@ -247,7 +243,7 @@ class TestEmailAlert(unittest.TestCase):
             "/nonexistent/file2.txt",
         ]
 
-        with patch("src.alerts.email_alert.logging") as mock_logging:
+        with patch("nginx_security_monitor.email_alert.logging") as mock_logging:
             result = send_email_alert(alert_with_invalid_attachments)
 
             # Verify error was logged for attachment failures
@@ -256,11 +252,11 @@ class TestEmailAlert(unittest.TestCase):
             # Verify email was still sent despite attachment failures
             mock_server.send_message.assert_called_once()
 
-    @patch("src.alerts.email_alert.load_email_config")
-    @patch("src.alerts.email_alert.ConfigManager")
-    @patch("src.alerts.email_alert.smtplib.SMTP")
-    @patch("src.alerts.email_alert.create_html_alert_body")
-    @patch("src.alerts.email_alert.create_text_alert_body")
+    @patch("nginx_security_monitor.email_alert.load_email_config")
+    @patch("nginx_security_monitor.email_alert.ConfigManager")
+    @patch("nginx_security_monitor.email_alert.smtplib.SMTP")
+    @patch("nginx_security_monitor.email_alert.create_html_alert_body")
+    @patch("nginx_security_monitor.email_alert.create_text_alert_body")
     def test_send_email_alert_with_invalid_single_attachment(
         self, mock_text_body, mock_html_body, mock_smtp, mock_cm, mock_load_config
     ):
@@ -289,7 +285,7 @@ class TestEmailAlert(unittest.TestCase):
         alert_with_invalid_attachment = self.sample_alert.copy()
         alert_with_invalid_attachment["attachment"] = "/nonexistent/file.txt"
 
-        with patch("src.alerts.email_alert.logging") as mock_logging:
+        with patch("nginx_security_monitor.email_alert.logging") as mock_logging:
             result = send_email_alert(alert_with_invalid_attachment)
 
             # Verify error was logged for attachment failure
@@ -298,11 +294,11 @@ class TestEmailAlert(unittest.TestCase):
             # Verify email was still sent despite attachment failure
             mock_server.send_message.assert_called_once()
 
-    @patch("src.alerts.email_alert.load_email_config")
-    @patch("src.alerts.email_alert.ConfigManager")
-    @patch("src.alerts.email_alert.smtplib.SMTP")
-    @patch("src.alerts.email_alert.create_html_alert_body")
-    @patch("src.alerts.email_alert.create_text_alert_body")
+    @patch("nginx_security_monitor.email_alert.load_email_config")
+    @patch("nginx_security_monitor.email_alert.ConfigManager")
+    @patch("nginx_security_monitor.email_alert.smtplib.SMTP")
+    @patch("nginx_security_monitor.email_alert.create_html_alert_body")
+    @patch("nginx_security_monitor.email_alert.create_text_alert_body")
     def test_send_email_alert_with_attachments(
         self, mock_text_body, mock_html_body, mock_smtp, mock_cm, mock_load_config
     ):
@@ -385,11 +381,11 @@ class TestEmailAlert(unittest.TestCase):
             # Verify SMTP calls
             mock_server.send_message.assert_called_once()
 
-    @patch("src.alerts.email_alert.load_email_config")
-    @patch("src.alerts.email_alert.ConfigManager")
-    @patch("src.alerts.email_alert.smtplib.SMTP")
-    @patch("src.alerts.email_alert.create_html_alert_body")
-    @patch("src.alerts.email_alert.create_text_alert_body")
+    @patch("nginx_security_monitor.email_alert.load_email_config")
+    @patch("nginx_security_monitor.email_alert.ConfigManager")
+    @patch("nginx_security_monitor.email_alert.smtplib.SMTP")
+    @patch("nginx_security_monitor.email_alert.create_html_alert_body")
+    @patch("nginx_security_monitor.email_alert.create_text_alert_body")
     def test_send_email_alert_single_attachment(
         self, mock_text_body, mock_html_body, mock_smtp, mock_cm, mock_load_config
     ):
@@ -430,11 +426,11 @@ class TestEmailAlert(unittest.TestCase):
             # Verify SMTP calls
             mock_server.send_message.assert_called_once()
 
-    @patch("src.alerts.email_alert.load_email_config")
-    @patch("src.alerts.email_alert.ConfigManager")
-    @patch("src.alerts.email_alert.smtplib.SMTP")
-    @patch("src.alerts.email_alert.create_html_alert_body")
-    @patch("src.alerts.email_alert.create_text_alert_body")
+    @patch("nginx_security_monitor.email_alert.load_email_config")
+    @patch("nginx_security_monitor.email_alert.ConfigManager")
+    @patch("nginx_security_monitor.email_alert.smtplib.SMTP")
+    @patch("nginx_security_monitor.email_alert.create_html_alert_body")
+    @patch("nginx_security_monitor.email_alert.create_text_alert_body")
     @patch("time.sleep")
     def test_send_email_alert_retry_logic(
         self,
@@ -472,7 +468,7 @@ class TestEmailAlert(unittest.TestCase):
             None,  # Success on third attempt
         ]
 
-        with patch("src.alerts.email_alert.logging") as mock_logging:
+        with patch("nginx_security_monitor.email_alert.logging") as mock_logging:
             result = send_email_alert(self.sample_alert)
 
             # Verify retries
@@ -484,11 +480,11 @@ class TestEmailAlert(unittest.TestCase):
                 "Email alert sent successfully to admin@example.com"
             )
 
-    @patch("src.alerts.email_alert.load_email_config")
-    @patch("src.alerts.email_alert.ConfigManager")
-    @patch("src.alerts.email_alert.smtplib.SMTP")
-    @patch("src.alerts.email_alert.create_html_alert_body")
-    @patch("src.alerts.email_alert.create_text_alert_body")
+    @patch("nginx_security_monitor.email_alert.load_email_config")
+    @patch("nginx_security_monitor.email_alert.ConfigManager")
+    @patch("nginx_security_monitor.email_alert.smtplib.SMTP")
+    @patch("nginx_security_monitor.email_alert.create_html_alert_body")
+    @patch("nginx_security_monitor.email_alert.create_text_alert_body")
     @patch("time.sleep")
     def test_send_email_alert_all_retries_fail(
         self,
@@ -524,7 +520,7 @@ class TestEmailAlert(unittest.TestCase):
             "Persistent failure"
         )
 
-        with patch("src.alerts.email_alert.logging") as mock_logging:
+        with patch("nginx_security_monitor.email_alert.logging") as mock_logging:
             result = send_email_alert(self.sample_alert)
 
             # Verify all retries attempted
@@ -536,11 +532,11 @@ class TestEmailAlert(unittest.TestCase):
                 "Failed to send email alert after 3 attempts"
             )
 
-    @patch("src.alerts.email_alert.load_email_config")
-    @patch("src.alerts.email_alert.ConfigManager")
-    @patch("src.alerts.email_alert.smtplib.SMTP")
-    @patch("src.alerts.email_alert.create_html_alert_body")
-    @patch("src.alerts.email_alert.create_text_alert_body")
+    @patch("nginx_security_monitor.email_alert.load_email_config")
+    @patch("nginx_security_monitor.email_alert.ConfigManager")
+    @patch("nginx_security_monitor.email_alert.smtplib.SMTP")
+    @patch("nginx_security_monitor.email_alert.create_html_alert_body")
+    @patch("nginx_security_monitor.email_alert.create_text_alert_body")
     @patch("time.sleep")
     def test_send_email_alert_fallback_notification(
         self,
@@ -577,7 +573,7 @@ class TestEmailAlert(unittest.TestCase):
             "Persistent failure"
         )
 
-        with patch("src.alerts.email_alert.logging") as mock_logging:
+        with patch("nginx_security_monitor.email_alert.logging") as mock_logging:
             result = send_email_alert(self.sample_alert)
 
             # Verify fallback notification was attempted
@@ -585,11 +581,11 @@ class TestEmailAlert(unittest.TestCase):
                 "Attempting to send to fallback address: backup@example.com"
             )
 
-    @patch("src.alerts.email_alert.load_email_config")
-    @patch("src.alerts.email_alert.ConfigManager")
-    @patch("src.alerts.email_alert.smtplib.SMTP")
-    @patch("src.alerts.email_alert.create_html_alert_body")
-    @patch("src.alerts.email_alert.create_text_alert_body")
+    @patch("nginx_security_monitor.email_alert.load_email_config")
+    @patch("nginx_security_monitor.email_alert.ConfigManager")
+    @patch("nginx_security_monitor.email_alert.smtplib.SMTP")
+    @patch("nginx_security_monitor.email_alert.create_html_alert_body")
+    @patch("nginx_security_monitor.email_alert.create_text_alert_body")
     @patch("time.sleep")
     def test_send_email_alert_fallback_error(
         self,
@@ -632,7 +628,7 @@ class TestEmailAlert(unittest.TestCase):
             "Persistent failure"
         )
 
-        with patch("src.alerts.email_alert.logging") as mock_logging:
+        with patch("nginx_security_monitor.email_alert.logging") as mock_logging:
             result = send_email_alert(self.sample_alert)
 
             # Verify fallback error was logged
@@ -698,11 +694,11 @@ class TestEmailAlert(unittest.TestCase):
         self.assertIn("Test Alert", result)
         self.assertIn("2025-01-20 15:30:00", result)
 
-    @patch("src.alerts.email_alert.load_email_config")
-    @patch("src.alerts.email_alert.ConfigManager")
-    @patch("src.alerts.email_alert.smtplib.SMTP")
-    @patch("src.alerts.email_alert.create_html_alert_body")
-    @patch("src.alerts.email_alert.create_text_alert_body")
+    @patch("nginx_security_monitor.email_alert.load_email_config")
+    @patch("nginx_security_monitor.email_alert.ConfigManager")
+    @patch("nginx_security_monitor.email_alert.smtplib.SMTP")
+    @patch("nginx_security_monitor.email_alert.create_html_alert_body")
+    @patch("nginx_security_monitor.email_alert.create_text_alert_body")
     def test_send_email_alert_no_tls(
         self, mock_text_body, mock_html_body, mock_smtp, mock_cm, mock_load_config
     ):
@@ -735,11 +731,11 @@ class TestEmailAlert(unittest.TestCase):
         # Verify message was still sent
         mock_server.send_message.assert_called_once()
 
-    @patch("src.alerts.email_alert.load_email_config")
-    @patch("src.alerts.email_alert.ConfigManager")
-    @patch("src.alerts.email_alert.smtplib.SMTP")
-    @patch("src.alerts.email_alert.create_html_alert_body")
-    @patch("src.alerts.email_alert.create_text_alert_body")
+    @patch("nginx_security_monitor.email_alert.load_email_config")
+    @patch("nginx_security_monitor.email_alert.ConfigManager")
+    @patch("nginx_security_monitor.email_alert.smtplib.SMTP")
+    @patch("nginx_security_monitor.email_alert.create_html_alert_body")
+    @patch("nginx_security_monitor.email_alert.create_text_alert_body")
     def test_send_email_alert_no_auth(
         self, mock_text_body, mock_html_body, mock_smtp, mock_cm, mock_load_config
     ):

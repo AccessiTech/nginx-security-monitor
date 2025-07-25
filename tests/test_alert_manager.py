@@ -5,14 +5,9 @@ Tests for AlertManager module
 
 import unittest
 from unittest.mock import patch, MagicMock, call
-import sys
-import os
 from datetime import datetime
 
-# Add src directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from alert_manager import AlertManager
+from nginx_security_monitor.alert_manager import AlertManager
 
 
 class TestAlertManager(unittest.TestCase):
@@ -32,8 +27,8 @@ class TestAlertManager(unittest.TestCase):
         self.assertEqual(self.alert_manager.config, self.config)
         self.assertEqual(self.alert_manager.logger, self.mock_logger)
 
-    @patch("alert_manager.send_email_alert")
-    @patch("alert_manager.send_sms_alert")
+    @patch("nginx_security_monitor.alert_manager.send_email_alert")
+    @patch("nginx_security_monitor.alert_manager.send_sms_alert")
     def test_send_threat_alert_email_enabled(self, mock_sms, mock_email):
         """Test sending threat alert with email enabled."""
         pattern = {
@@ -62,8 +57,8 @@ class TestAlertManager(unittest.TestCase):
         # Check logging
         self.mock_logger.info.assert_called_with("Threat alert sent via email")
 
-    @patch("alert_manager.send_email_alert")
-    @patch("alert_manager.send_sms_alert")
+    @patch("nginx_security_monitor.alert_manager.send_email_alert")
+    @patch("nginx_security_monitor.alert_manager.send_sms_alert")
     def test_send_threat_alert_sms_enabled(self, mock_sms, mock_email):
         """Test sending threat alert with SMS enabled."""
         # Enable SMS in config
@@ -85,7 +80,7 @@ class TestAlertManager(unittest.TestCase):
         ]
         self.mock_logger.info.assert_has_calls(expected_calls)
 
-    @patch("alert_manager.send_email_alert")
+    @patch("nginx_security_monitor.alert_manager.send_email_alert")
     def test_send_threat_alert_email_disabled(self, mock_email):
         """Test threat alert when email is disabled."""
         self.alert_manager.config["email_service"]["enabled"] = False
@@ -98,7 +93,7 @@ class TestAlertManager(unittest.TestCase):
         # Email should not be sent
         mock_email.assert_not_called()
 
-    @patch("alert_manager.send_email_alert")
+    @patch("nginx_security_monitor.alert_manager.send_email_alert")
     def test_send_threat_alert_exception_handling(self, mock_email):
         """Test exception handling in send_threat_alert."""
         mock_email.side_effect = Exception("Email service down")
@@ -113,8 +108,8 @@ class TestAlertManager(unittest.TestCase):
             "Failed to send threat alert: Email service down"
         )
 
-    @patch("alert_manager.send_email_alert")
-    @patch("alert_manager.datetime")
+    @patch("nginx_security_monitor.alert_manager.send_email_alert")
+    @patch("nginx_security_monitor.alert_manager.datetime")
     def test_send_emergency_alert(self, mock_datetime, mock_email):
         """Test sending emergency alert."""
         mock_datetime.now.return_value.isoformat.return_value = "2025-01-01T12:00:00"
@@ -140,7 +135,7 @@ class TestAlertManager(unittest.TestCase):
         # Check logging
         self.mock_logger.info.assert_called_with("Emergency alert sent")
 
-    @patch("alert_manager.send_email_alert")
+    @patch("nginx_security_monitor.alert_manager.send_email_alert")
     def test_send_emergency_alert_email_disabled(self, mock_email):
         """Test emergency alert when email is disabled."""
         self.alert_manager.config["email_service"]["enabled"] = False
@@ -150,7 +145,7 @@ class TestAlertManager(unittest.TestCase):
         # Email should not be sent
         mock_email.assert_not_called()
 
-    @patch("alert_manager.send_email_alert")
+    @patch("nginx_security_monitor.alert_manager.send_email_alert")
     def test_send_emergency_alert_exception_handling(self, mock_email):
         """Test exception handling in send_emergency_alert."""
         mock_email.side_effect = Exception("Network error")
@@ -162,7 +157,7 @@ class TestAlertManager(unittest.TestCase):
             "Failed to send emergency alert: Network error"
         )
 
-    @patch("alert_manager.send_email_alert")
+    @patch("nginx_security_monitor.alert_manager.send_email_alert")
     def test_send_service_threat_alert(self, mock_email):
         """Test sending service threat alert."""
         high_threats = [
@@ -188,7 +183,7 @@ class TestAlertManager(unittest.TestCase):
         # Check logging
         self.mock_logger.info.assert_called_with("Service threat alert sent")
 
-    @patch("alert_manager.send_email_alert")
+    @patch("nginx_security_monitor.alert_manager.send_email_alert")
     def test_send_service_threat_alert_exception_handling(self, mock_email):
         """Test exception handling in send_service_threat_alert."""
         mock_email.side_effect = Exception("SMTP error")
@@ -200,7 +195,7 @@ class TestAlertManager(unittest.TestCase):
             "Failed to send service threat alert: SMTP error"
         )
 
-    @patch("alert_manager.send_email_alert")
+    @patch("nginx_security_monitor.alert_manager.send_email_alert")
     def test_send_integration_alert(self, mock_email):
         """Test sending security integration alert."""
         threats = [
@@ -238,7 +233,7 @@ class TestAlertManager(unittest.TestCase):
         # Check logging
         self.mock_logger.info.assert_called_with("Security integration alert sent")
 
-    @patch("alert_manager.send_email_alert")
+    @patch("nginx_security_monitor.alert_manager.send_email_alert")
     def test_send_integration_alert_exception_handling(self, mock_email):
         """Test exception handling in send_integration_alert."""
         mock_email.side_effect = Exception("Connection timeout")
@@ -285,8 +280,8 @@ class TestAlertManager(unittest.TestCase):
         self.assertIn("0 countermeasure(s) applied", body)
         self.assertIn("0 successful response(s)", body)
 
-    @patch("alert_manager.socket.gethostname")
-    @patch("alert_manager.datetime")
+    @patch("nginx_security_monitor.alert_manager.socket.gethostname")
+    @patch("nginx_security_monitor.alert_manager.datetime")
     def test_create_emergency_alert_body(self, mock_datetime, mock_hostname):
         """Test emergency alert body creation."""
         mock_datetime.now.return_value.strftime.return_value = "2025-01-01 12:00:00"
@@ -316,7 +311,7 @@ class TestAlertManager(unittest.TestCase):
         self.assertIn("security-server-01", body)
         self.assertIn("IMMEDIATE ACTION REQUIRED", body)
 
-    @patch("alert_manager.datetime")
+    @patch("nginx_security_monitor.alert_manager.datetime")
     def test_create_service_threat_alert_body(self, mock_datetime):
         """Test service threat alert body creation."""
         mock_datetime.now.return_value.strftime.return_value = "2025-01-01 12:00:00"

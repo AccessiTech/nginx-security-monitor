@@ -1,16 +1,11 @@
 import unittest
-import os
-import sys
 import ipaddress
 import subprocess
 from datetime import datetime, timedelta
 from unittest.mock import patch, mock_open, MagicMock, call
 from collections import defaultdict, deque
 
-# Add src directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from network_security import NetworkSecurity, SecurityHardening
+from nginx_security_monitor.network_security import NetworkSecurity, SecurityHardening
 
 
 class TestNetworkSecurity(unittest.TestCase):
@@ -54,7 +49,7 @@ class TestNetworkSecurity(unittest.TestCase):
         # When no config, allowed_interfaces gets default from config_manager
         self.assertEqual(set(net_sec.allowed_interfaces), {"127.0.0.1", "localhost"})
 
-    @patch("network_security.logging.getLogger")
+    @patch("nginx_security_monitor.network_security.logging.getLogger")
     def test_load_network_config_invalid_ip(self, mock_logger):
         """Test loading config with invalid IP addresses"""
         config = {
@@ -114,7 +109,7 @@ class TestNetworkSecurity(unittest.TestCase):
         self.assertFalse(net_sec.check_ip_access("8.8.8.8"))
         self.assertFalse(net_sec.check_ip_access("1.1.1.1"))
 
-    @patch("network_security.logging.getLogger")
+    @patch("nginx_security_monitor.network_security.logging.getLogger")
     def test_check_ip_access_invalid_ip(self, mock_logger):
         """Test IP access check with invalid IP address"""
         mock_logger_instance = MagicMock()
@@ -140,7 +135,7 @@ class TestNetworkSecurity(unittest.TestCase):
         attempts = net_sec.ip_attempt_counts["192.168.1.1"]
         self.assertEqual(len(attempts), 2)
 
-    @patch("network_security.NetworkSecurity.block_ip")
+    @patch("nginx_security_monitor.network_security.NetworkSecurity.block_ip")
     def test_track_access_attempt_too_many_failures(self, mock_block_ip):
         """Test tracking too many failed access attempts"""
         net_sec = NetworkSecurity()
@@ -152,7 +147,7 @@ class TestNetworkSecurity(unittest.TestCase):
         # Should have called block_ip
         mock_block_ip.assert_called_with("192.168.1.1", "Too many failed attempts: 11")
 
-    @patch("network_security.logging.getLogger")
+    @patch("nginx_security_monitor.network_security.logging.getLogger")
     def test_track_access_attempt_rate_limiting(self, mock_logger):
         """Test rate limiting for high frequency access"""
         mock_logger_instance = MagicMock()
@@ -186,8 +181,8 @@ class TestNetworkSecurity(unittest.TestCase):
         self.assertEqual(len(attempts), 1)
         self.assertGreater(attempts[0][0], old_time)
 
-    @patch("network_security.subprocess.run")
-    @patch("network_security.logging.getLogger")
+    @patch("nginx_security_monitor.network_security.subprocess.run")
+    @patch("nginx_security_monitor.network_security.logging.getLogger")
     def test_block_ip_success(self, mock_logger, mock_subprocess):
         """Test successful IP blocking with iptables"""
         mock_logger_instance = MagicMock()
@@ -210,8 +205,8 @@ class TestNetworkSecurity(unittest.TestCase):
             "Successfully added iptables rule for 192.168.1.1"
         )
 
-    @patch("network_security.subprocess.run")
-    @patch("network_security.logging.getLogger")
+    @patch("nginx_security_monitor.network_security.subprocess.run")
+    @patch("nginx_security_monitor.network_security.logging.getLogger")
     def test_block_ip_iptables_failure(self, mock_logger, mock_subprocess):
         """Test IP blocking when iptables fails"""
         mock_logger_instance = MagicMock()
@@ -237,8 +232,8 @@ class TestNetworkSecurity(unittest.TestCase):
             "Failed to add iptables rule: Permission denied"
         )
 
-    @patch("network_security.subprocess.run")
-    @patch("network_security.logging.getLogger")
+    @patch("nginx_security_monitor.network_security.subprocess.run")
+    @patch("nginx_security_monitor.network_security.logging.getLogger")
     def test_block_ip_iptables_exception(self, mock_logger, mock_subprocess):
         """Test IP blocking when iptables command raises exception"""
         mock_logger_instance = MagicMock()
@@ -255,7 +250,7 @@ class TestNetworkSecurity(unittest.TestCase):
             "Cannot use iptables: Command 'iptables' timed out after 10 seconds"
         )
 
-    @patch("network_security.logging.getLogger")
+    @patch("nginx_security_monitor.network_security.logging.getLogger")
     def test_block_ip_invalid_ip(self, mock_logger):
         """Test blocking invalid IP address"""
         mock_logger_instance = MagicMock()
@@ -269,7 +264,7 @@ class TestNetworkSecurity(unittest.TestCase):
             "Invalid IP address for blocking: invalid-ip"
         )
 
-    @patch("network_security.subprocess.run")
+    @patch("nginx_security_monitor.network_security.subprocess.run")
     def test_check_port_security_success(self, mock_subprocess):
         """Test successful port security check"""
         netstat_output = """Active Internet connections (only servers)
@@ -301,8 +296,8 @@ tcp6       0      0 [::1]:3306             [::]:*                  LISTEN      9
         self.assertEqual(ipv6_threat["port"], "3306")
         self.assertEqual(ipv6_threat["protocol"], "tcp6")
 
-    @patch("network_security.subprocess.run")
-    @patch("network_security.logging.getLogger")
+    @patch("nginx_security_monitor.network_security.subprocess.run")
+    @patch("nginx_security_monitor.network_security.logging.getLogger")
     def test_check_port_security_command_failure(self, mock_logger, mock_subprocess):
         """Test port security check when netstat command fails"""
         mock_logger_instance = MagicMock()
@@ -316,8 +311,8 @@ tcp6       0      0 [::1]:3306             [::]:*                  LISTEN      9
         # Should return empty list when command fails
         self.assertEqual(len(threats), 0)
 
-    @patch("network_security.subprocess.run")
-    @patch("network_security.logging.getLogger")
+    @patch("nginx_security_monitor.network_security.subprocess.run")
+    @patch("nginx_security_monitor.network_security.logging.getLogger")
     def test_check_port_security_exception(self, mock_logger, mock_subprocess):
         """Test port security check exception handling"""
         mock_logger_instance = MagicMock()
@@ -369,7 +364,7 @@ tcp6       0      0 [::1]:3306             [::]:*                  LISTEN      9
         self.assertFalse(net_sec._is_expected_service("8080"))
         self.assertFalse(net_sec._is_expected_service("9999"))
 
-    @patch("network_security.subprocess.run")
+    @patch("nginx_security_monitor.network_security.subprocess.run")
     def test_monitor_dns_queries_suspicious_found(self, mock_subprocess):
         """Test DNS monitoring when suspicious queries are found"""
         syslog_content = """Jul 19 10:30:25 server systemd-resolved[123]: DNS query for evil.onion
@@ -387,7 +382,7 @@ Jul 19 10:32:27 server systemd-resolved[123]: DNS query for abcdef1234567890abcd
         threat_types = [t["type"] for t in threats]
         self.assertIn("Suspicious DNS Query", threat_types)
 
-    @patch("network_security.subprocess.run")
+    @patch("nginx_security_monitor.network_security.subprocess.run")
     def test_monitor_dns_queries_no_suspicious(self, mock_subprocess):
         """Test DNS monitoring when no suspicious queries found"""
         syslog_content = """Jul 19 10:30:25 server systemd-resolved[123]: DNS query for google.com
@@ -402,8 +397,8 @@ Jul 19 10:31:26 server systemd-resolved[123]: DNS query for github.com
         # Should not detect any threats
         self.assertEqual(len(threats), 0)
 
-    @patch("network_security.subprocess.run")
-    @patch("network_security.logging.getLogger")
+    @patch("nginx_security_monitor.network_security.subprocess.run")
+    @patch("nginx_security_monitor.network_security.logging.getLogger")
     def test_monitor_dns_queries_exception(self, mock_logger, mock_subprocess):
         """Test DNS monitoring exception handling"""
         mock_logger_instance = MagicMock()
@@ -420,7 +415,7 @@ Jul 19 10:31:26 server systemd-resolved[123]: DNS query for github.com
             "DNS monitoring failed: Command failed"
         )
 
-    @patch("network_security.subprocess.run")
+    @patch("nginx_security_monitor.network_security.subprocess.run")
     def test_check_firewall_status_permissive_rules(self, mock_subprocess):
         """Test firewall check detecting permissive rules"""
         iptables_output = """Chain INPUT (policy ACCEPT)
@@ -447,7 +442,7 @@ target     prot opt source               destination
         )
         self.assertIsNotNone(threat)
 
-    @patch("network_security.subprocess.run")
+    @patch("nginx_security_monitor.network_security.subprocess.run")
     def test_check_firewall_status_command_failure(self, mock_subprocess):
         """Test firewall check when iptables command fails"""
         mock_subprocess.return_value = MagicMock(
@@ -463,8 +458,8 @@ target     prot opt source               destination
         self.assertEqual(threats[0]["type"], "Firewall Check Failed")
         self.assertEqual(threats[0]["severity"], "HIGH")
 
-    @patch("network_security.subprocess.run")
-    @patch("network_security.logging.getLogger")
+    @patch("nginx_security_monitor.network_security.subprocess.run")
+    @patch("nginx_security_monitor.network_security.logging.getLogger")
     def test_check_firewall_status_exception(self, mock_logger, mock_subprocess):
         """Test firewall check exception handling"""
         mock_logger_instance = MagicMock()
@@ -537,7 +532,7 @@ target     prot opt source               destination
         # Should not detect any threats when email is disabled
         self.assertEqual(len(threats), 0)
 
-    @patch("network_security.logging.getLogger")
+    @patch("nginx_security_monitor.network_security.logging.getLogger")
     def test_validate_tls_configuration_exception(self, mock_logger):
         """Test TLS validation exception handling"""
         mock_logger_instance = MagicMock()
@@ -553,11 +548,11 @@ target     prot opt source               destination
         self.assertEqual(len(threats), 0)
         mock_logger_instance.error.assert_called()
 
-    @patch("network_security.NetworkSecurity.validate_tls_configuration")
-    @patch("network_security.NetworkSecurity.monitor_dns_queries")
-    @patch("network_security.NetworkSecurity.check_firewall_status")
-    @patch("network_security.NetworkSecurity.check_port_security")
-    @patch("network_security.logging.getLogger")
+    @patch("nginx_security_monitor.network_security.NetworkSecurity.validate_tls_configuration")
+    @patch("nginx_security_monitor.network_security.NetworkSecurity.monitor_dns_queries")
+    @patch("nginx_security_monitor.network_security.NetworkSecurity.check_firewall_status")
+    @patch("nginx_security_monitor.network_security.NetworkSecurity.check_port_security")
+    @patch("nginx_security_monitor.network_security.logging.getLogger")
     def test_perform_network_security_check_with_threats(
         self,
         mock_logger,
@@ -589,8 +584,8 @@ target     prot opt source               destination
             "Network security check found 4 issues"
         )
 
-    @patch("network_security.NetworkSecurity.check_port_security")
-    @patch("network_security.logging.getLogger")
+    @patch("nginx_security_monitor.network_security.NetworkSecurity.check_port_security")
+    @patch("nginx_security_monitor.network_security.logging.getLogger")
     def test_perform_network_security_check_exception(
         self, mock_logger, mock_port_check
     ):
@@ -652,10 +647,10 @@ class TestSecurityHardening(unittest.TestCase):
         self.assertGreater(len(hardening.sensitive_env_vars), 0)
         self.assertGreaterEqual(hardening.min_password_length, 16)
 
-    @patch("network_security.os.path.exists")
-    @patch("network_security.os.stat")
-    @patch("network_security.pwd.getpwuid")
-    @patch("network_security.grp.getgrgid")
+    @patch("nginx_security_monitor.network_security.os.path.exists")
+    @patch("nginx_security_monitor.network_security.os.stat")
+    @patch("nginx_security_monitor.network_security.pwd.getpwuid")
+    @patch("nginx_security_monitor.network_security.grp.getgrgid")
     def test_check_file_permissions_correct(
         self, mock_grp, mock_pwd, mock_stat, mock_exists
     ):
@@ -707,11 +702,11 @@ class TestSecurityHardening(unittest.TestCase):
         # Should not detect any threats with correct permissions and ownership
         self.assertEqual(len(threats), 0)
 
-    @patch("network_security.os.path.exists")
-    @patch("network_security.os.stat")
-    @patch("network_security.pwd.getpwuid")
-    @patch("network_security.grp.getgrgid")
-    @patch("network_security.os.geteuid")
+    @patch("nginx_security_monitor.network_security.os.path.exists")
+    @patch("nginx_security_monitor.network_security.os.stat")
+    @patch("nginx_security_monitor.network_security.pwd.getpwuid")
+    @patch("nginx_security_monitor.network_security.grp.getgrgid")
+    @patch("nginx_security_monitor.network_security.os.geteuid")
     def test_check_file_permissions_incorrect(
         self, mock_geteuid, mock_grp, mock_pwd, mock_stat, mock_exists
     ):
@@ -738,7 +733,7 @@ class TestSecurityHardening(unittest.TestCase):
         self.assertIn("Incorrect File Owner", threat_types)
         self.assertIn("Unsafe File Permissions", threat_types)
 
-    @patch("network_security.os.path.exists")
+    @patch("nginx_security_monitor.network_security.os.path.exists")
     def test_check_file_permissions_file_not_exists(self, mock_exists):
         """Test file permissions check when file doesn't exist"""
         mock_exists.return_value = False
@@ -749,9 +744,9 @@ class TestSecurityHardening(unittest.TestCase):
         # Should not detect threats for non-existent files
         self.assertEqual(len(threats), 0)
 
-    @patch("network_security.os.path.exists")
-    @patch("network_security.os.stat")
-    @patch("network_security.logging.getLogger")
+    @patch("nginx_security_monitor.network_security.os.path.exists")
+    @patch("nginx_security_monitor.network_security.os.stat")
+    @patch("nginx_security_monitor.network_security.logging.getLogger")
     def test_check_file_permissions_exception(
         self, mock_logger, mock_stat, mock_exists
     ):
@@ -770,7 +765,7 @@ class TestSecurityHardening(unittest.TestCase):
         mock_logger_instance.error.assert_called()
 
     @patch(
-        "network_security.os.environ",
+        "nginx_security_monitor.network_security.os.environ",
         {
             "NGINX_MONITOR_KEY": "Strong_Key_123!@#",
             "SMTP_PASSWORD": "StrongPassword123!",
@@ -788,7 +783,7 @@ class TestSecurityHardening(unittest.TestCase):
         self.assertEqual(len(threats), 0)
 
     @patch(
-        "network_security.os.environ",
+        "nginx_security_monitor.network_security.os.environ",
         {
             "NGINX_MONITOR_KEY": "weakpass",
             "SMTP_PASSWORD": "weak",
@@ -820,7 +815,7 @@ class TestSecurityHardening(unittest.TestCase):
         self.assertIn("HIGH", severities)
         self.assertIn("MEDIUM", severities)
 
-    @patch("network_security.os.environ", {"NGINX_MONITOR_KEY": "password"})
+    @patch("nginx_security_monitor.network_security.os.environ", {"NGINX_MONITOR_KEY": "password"})
     def test_check_environment_security_default_value(self):
         """Test environment security check with default/weak value"""
         hardening = SecurityHardening(self.config)
@@ -834,7 +829,7 @@ class TestSecurityHardening(unittest.TestCase):
         self.assertEqual(threat_types.count("Weak Environment Variable"), 2)
         self.assertEqual(threat_types.count("Default Environment Variable"), 1)
 
-    @patch("network_security.os.environ", {})
+    @patch("nginx_security_monitor.network_security.os.environ", {})
     def test_check_environment_security_missing_vars(self):
         """Test environment security check with missing required variables"""
         hardening = SecurityHardening(self.config)
@@ -847,8 +842,8 @@ class TestSecurityHardening(unittest.TestCase):
         )
         self.assertTrue(all(t["severity"] == "HIGH" for t in threats))
 
-    @patch("network_security.sys.modules")
-    @patch("network_security.distributions")
+    @patch("nginx_security_monitor.network_security.sys.modules")
+    @patch("nginx_security_monitor.network_security.distributions")
     def test_check_module_security_vulnerable_packages(
         self, mock_distributions, mock_modules
     ):
@@ -872,8 +867,8 @@ class TestSecurityHardening(unittest.TestCase):
         self.assertEqual(threat["severity"], "HIGH")
         self.assertEqual(threat["package"], "cryptography")
 
-    @patch("network_security.distributions")
-    @patch("network_security.sys.modules")
+    @patch("nginx_security_monitor.network_security.distributions")
+    @patch("nginx_security_monitor.network_security.sys.modules")
     def test_check_module_security_unsafe_attributes(
         self, mock_modules, mock_distributions
     ):
