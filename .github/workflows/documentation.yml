@@ -4,26 +4,28 @@ on:
   # Trigger on pushes to main branch
   push:
     branches: [ main ]
-    paths:
-      - 'nginx_security_monitor/**'
-      - 'bin/**'
-      - 'docs/**'
-      - 'README.md'
-      - 'mkdocs.yml'
-      - 'scripts/generate_docs.py'
-      - 'docs/docgen-config.yaml'
+    # paths:
+    #   - 'nginx_security_monitor/**'
+    #   - 'src/**' # Ignored in the final version
+    #   - 'bin/**'
+    #   - 'docs/**'
+    #   - 'README.md'
+    #   - 'mkdocs.yml'
+    #   - 'scripts/generate_docs.py'
+    #   - 'docs/docgen-config.yaml'
   
   # Trigger on pull requests
   pull_request:
     branches: [ main ]
-    paths:
-      - 'nginx_security_monitor/**'
-      - 'bin/**'
-      - 'docs/**'
-      - 'README.md'
-      - 'mkdocs.yml'
-      - 'scripts/generate_docs.py'
-      - 'docs/docgen-config.yaml'
+    # paths:
+    #   - 'nginx_security_monitor/**'
+    #   - 'bin/**'
+    #   - 'src/**' # Ignored in the final version
+    #   - 'docs/**'
+    #   - 'README.md'
+    #   - 'mkdocs.yml'
+    #   - 'scripts/generate_docs.py'
+    #   - 'docs/docgen-config.yaml'
   
   # Allow manual trigger
   workflow_dispatch:
