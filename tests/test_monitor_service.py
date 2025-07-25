@@ -256,7 +256,8 @@ class TestNginxSecurityMonitor(unittest.TestCase):
             monitor = NginxSecurityMonitor(self.temp_config.name)
 
             with patch(
-                "nginx_security_monitor.monitor_service.os.path.getsize", side_effect=FileNotFoundError()
+                "nginx_security_monitor.monitor_service.os.path.getsize",
+                side_effect=FileNotFoundError(),
             ):
                 entries = monitor.get_new_log_entries("/nonexistent/log.log")
                 self.assertEqual(len(entries), 0)
@@ -531,7 +532,10 @@ class TestNginxSecurityMonitor(unittest.TestCase):
         with patch(
             "builtins.open", mock_open(read_data=yaml.dump(config_with_encrypted))
         ):
-            with patch("nginx_security_monitor.monitor_service.os.path.exists", return_value=True):
+            with patch(
+                "nginx_security_monitor.monitor_service.os.path.exists",
+                return_value=True,
+            ):
                 monitor = NginxSecurityMonitor(self.temp_config.name)
 
                 # Verify encrypted patterns were loaded
@@ -551,13 +555,22 @@ class TestNginxSecurityMonitor(unittest.TestCase):
 
         mock_security_mgr_instance = MagicMock()
         mock_security_mgr.return_value = mock_security_mgr_instance
-        mock_security_mgr_instance.decrypt_file.side_effect = Exception("Decryption failed")
+        mock_security_mgr_instance.decrypt_file.side_effect = Exception(
+            "Decryption failed"
+        )
 
         config_with_encrypted = self.config_data.copy()
-        config_with_encrypted["security"]["encrypted_patterns_file"] = "/tmp/patterns.enc"
+        config_with_encrypted["security"][
+            "encrypted_patterns_file"
+        ] = "/tmp/patterns.enc"
 
-        with patch("builtins.open", mock_open(read_data=yaml.dump(config_with_encrypted))):
-            with patch("nginx_security_monitor.monitor_service.os.path.exists", return_value=True):
+        with patch(
+            "builtins.open", mock_open(read_data=yaml.dump(config_with_encrypted))
+        ):
+            with patch(
+                "nginx_security_monitor.monitor_service.os.path.exists",
+                return_value=True,
+            ):
                 # Should not raise exception, just log error
                 monitor = NginxSecurityMonitor(self.temp_config.name)
 
@@ -630,11 +643,16 @@ class TestNginxSecurityMonitor(unittest.TestCase):
     def test_import_error_handling(self, mock_signal, mock_pattern_detector):
         """Test handling of ImportError during security feature imports."""
         # Simulate ImportError during imports by patching the module level
-        with patch("nginx_security_monitor.monitor_service.logging.warning") as mock_warning:
+        with patch(
+            "nginx_security_monitor.monitor_service.logging.warning"
+        ) as mock_warning:
             # We can't easily test the actual ImportError at module level,
             # but we can test the fallback behavior when SECURITY_FEATURES_AVAILABLE is False
 
-            @patch("nginx_security_monitor.monitor_service.SECURITY_FEATURES_AVAILABLE", True)
+            @patch(
+                "nginx_security_monitor.monitor_service.SECURITY_FEATURES_AVAILABLE",
+                True,
+            )
             @patch("nginx_security_monitor.monitor_service.SecurityConfigManager")
             @patch("nginx_security_monitor.monitor_service.PatternDetector")
             def test_load_encrypted_patterns_failure(
@@ -647,7 +665,6 @@ class TestNginxSecurityMonitor(unittest.TestCase):
         mock_pattern_detector_instance = MagicMock()
         mock_pattern_detector.return_value = mock_pattern_detector_instance
 
-
         config_with_encrypted = self.config_data.copy()
         config_with_encrypted["security"][
             "encrypted_patterns_file"
@@ -656,7 +673,10 @@ class TestNginxSecurityMonitor(unittest.TestCase):
         with patch(
             "builtins.open", mock_open(read_data=yaml.dump(config_with_encrypted))
         ):
-            with patch("nginx_security_monitor.monitor_service.os.path.exists", return_value=True):
+            with patch(
+                "nginx_security_monitor.monitor_service.os.path.exists",
+                return_value=True,
+            ):
                 # Should not raise exception, just log error
                 monitor = NginxSecurityMonitor(self.temp_config.name)
 
@@ -868,7 +888,9 @@ class TestNginxSecurityMonitor(unittest.TestCase):
 
             pattern = {"type": "TestThreat", "ip": "192.168.1.1", "severity": "HIGH"}
 
-            with patch("nginx_security_monitor.monitor_service.send_email_alert") as mock_email:
+            with patch(
+                "nginx_security_monitor.monitor_service.send_email_alert"
+            ) as mock_email:
                 monitor.process_threats([pattern])
 
                 # Verify security integrations were called

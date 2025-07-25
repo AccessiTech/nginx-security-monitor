@@ -120,7 +120,9 @@ class TestEmailAlert(unittest.TestCase):
             with patch("nginx_security_monitor.email_alert.ConfigManager") as mock_cm:
                 mock_cm.get_instance.return_value.get.return_value = config_file
 
-                with patch("nginx_security_monitor.email_alert.logging") as mock_logging:
+                with patch(
+                    "nginx_security_monitor.email_alert.logging"
+                ) as mock_logging:
                     result = load_email_config(config_file)
                     self.assertEqual(result, {})
                     mock_logging.error.assert_called_once()

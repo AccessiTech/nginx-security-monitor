@@ -16,10 +16,10 @@ Test Organization:
 Usage:
     # Run all integration tests
     python -m pytest tests/integration/ -v
-    
+
     # Run specific phase
     python -m pytest tests/integration/test_phase1_core.py -v
-    
+
     # Run with integration test markers
     python -m pytest -m integration tests/
 """
@@ -30,4 +30,4 @@ __author__ = "NGINX Security Monitor Team"
 # Import base classes for easy access
 from .test_framework import BaseIntegrationTest, IntegrationTestDataFactory
 
-__all__ = ['BaseIntegrationTest', 'IntegrationTestDataFactory']
+__all__ = ["BaseIntegrationTest", "IntegrationTestDataFactory"]

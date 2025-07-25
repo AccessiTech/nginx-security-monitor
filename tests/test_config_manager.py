@@ -424,8 +424,12 @@ class TestConfigSchema(unittest.TestCase):
         from unittest.mock import patch
 
         # Test the main execution path directly
-        with patch("nginx_security_monitor.config_schema.save_schema_to_file") as mock_save:
-            with patch("nginx_security_monitor.config_schema.logging.basicConfig") as mock_logging:
+        with patch(
+            "nginx_security_monitor.config_schema.save_schema_to_file"
+        ) as mock_save:
+            with patch(
+                "nginx_security_monitor.config_schema.logging.basicConfig"
+            ) as mock_logging:
                 # Simulate the main block execution
                 try:
                     # This simulates: if __name__ == "__main__":
@@ -459,7 +463,9 @@ class TestConfigSchema(unittest.TestCase):
         import logging
 
         # Mock the save function before importing it
-        with patch("nginx_security_monitor.config_schema.save_schema_to_file") as mock_save:
+        with patch(
+            "nginx_security_monitor.config_schema.save_schema_to_file"
+        ) as mock_save:
             # Directly execute the main block code to get coverage
             logging.basicConfig(
                 level=logging.INFO,

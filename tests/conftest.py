@@ -1,13 +1,15 @@
 import pytest
 import os
 
+
 def pytest_addoption(parser):
     parser.addoption(
         "--test-master-key",
         action="store",
         default=None,
-        help="Master key for encryption tests"
+        help="Master key for encryption tests",
     )
+
 
 @pytest.fixture
 def test_master_key(request):

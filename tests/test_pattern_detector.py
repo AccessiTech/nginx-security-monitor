@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from nginx_security_monitor.pattern_detector import PatternDetector
 
+
 class TestPatternDetector(unittest.TestCase):
 
     def setUp(self):

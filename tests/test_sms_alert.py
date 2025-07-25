@@ -7,7 +7,11 @@ import unittest
 from unittest.mock import patch, MagicMock, call
 import time
 
-from nginx_security_monitor.sms_alert import send_sms_alert, send_via_twilio, send_via_aws_sns
+from nginx_security_monitor.sms_alert import (
+    send_sms_alert,
+    send_via_twilio,
+    send_via_aws_sns,
+)
 
 
 class TestSMSAlert(unittest.TestCase):
@@ -271,7 +275,9 @@ class TestSMSAlert(unittest.TestCase):
     def test_send_via_twilio_missing_package(self):
         """Test Twilio SMS when package is not installed."""
         with patch("importlib.util.find_spec", return_value=None):
-            with patch("nginx_security_monitor.sms_alert.logging.getLogger") as mock_logger:
+            with patch(
+                "nginx_security_monitor.sms_alert.logging.getLogger"
+            ) as mock_logger:
                 mock_log = MagicMock()
                 mock_logger.return_value = mock_log
 
@@ -303,7 +309,9 @@ class TestSMSAlert(unittest.TestCase):
             # Mock the Client class
             sys.modules["twilio.rest"].Client = MagicMock(return_value=mock_client)
 
-            with patch("nginx_security_monitor.sms_alert.logging.getLogger") as mock_logger:
+            with patch(
+                "nginx_security_monitor.sms_alert.logging.getLogger"
+            ) as mock_logger:
                 mock_log = MagicMock()
                 mock_logger.return_value = mock_log
 
@@ -336,7 +344,9 @@ class TestSMSAlert(unittest.TestCase):
                 side_effect=Exception("Twilio API error")
             )
 
-            with patch("nginx_security_monitor.sms_alert.logging.getLogger") as mock_logger:
+            with patch(
+                "nginx_security_monitor.sms_alert.logging.getLogger"
+            ) as mock_logger:
                 mock_log = MagicMock()
                 mock_logger.return_value = mock_log
 
@@ -350,7 +360,9 @@ class TestSMSAlert(unittest.TestCase):
     def test_send_via_aws_sns_missing_package(self):
         """Test AWS SNS SMS when boto3 package is not installed."""
         with patch("importlib.util.find_spec", return_value=None):
-            with patch("nginx_security_monitor.sms_alert.logging.getLogger") as mock_logger:
+            with patch(
+                "nginx_security_monitor.sms_alert.logging.getLogger"
+            ) as mock_logger:
                 mock_log = MagicMock()
                 mock_logger.return_value = mock_log
 
@@ -384,7 +396,9 @@ class TestSMSAlert(unittest.TestCase):
             mock_client.publish.return_value = mock_response
             sys.modules["boto3"].client.return_value = mock_client
 
-            with patch("nginx_security_monitor.sms_alert.logging.getLogger") as mock_logger:
+            with patch(
+                "nginx_security_monitor.sms_alert.logging.getLogger"
+            ) as mock_logger:
                 mock_log = MagicMock()
                 mock_logger.return_value = mock_log
 
@@ -461,7 +475,9 @@ class TestSMSAlert(unittest.TestCase):
             # Mock boto3 client that raises an exception during creation
             sys.modules["boto3"].client.side_effect = Exception("AWS API error")
 
-            with patch("nginx_security_monitor.sms_alert.logging.getLogger") as mock_logger:
+            with patch(
+                "nginx_security_monitor.sms_alert.logging.getLogger"
+            ) as mock_logger:
                 mock_log = MagicMock()
                 mock_logger.return_value = mock_log
 
@@ -495,7 +511,9 @@ class TestSMSAlert(unittest.TestCase):
         mock_send_twilio.side_effect = [Exception("Network error"), True]
 
         with patch("time.sleep") as mock_sleep:
-            with patch("nginx_security_monitor.sms_alert.logging.getLogger") as mock_logger:
+            with patch(
+                "nginx_security_monitor.sms_alert.logging.getLogger"
+            ) as mock_logger:
                 mock_log = MagicMock()
                 mock_logger.return_value = mock_log
 

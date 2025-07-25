@@ -548,10 +548,18 @@ target     prot opt source               destination
         self.assertEqual(len(threats), 0)
         mock_logger_instance.error.assert_called()
 
-    @patch("nginx_security_monitor.network_security.NetworkSecurity.validate_tls_configuration")
-    @patch("nginx_security_monitor.network_security.NetworkSecurity.monitor_dns_queries")
-    @patch("nginx_security_monitor.network_security.NetworkSecurity.check_firewall_status")
-    @patch("nginx_security_monitor.network_security.NetworkSecurity.check_port_security")
+    @patch(
+        "nginx_security_monitor.network_security.NetworkSecurity.validate_tls_configuration"
+    )
+    @patch(
+        "nginx_security_monitor.network_security.NetworkSecurity.monitor_dns_queries"
+    )
+    @patch(
+        "nginx_security_monitor.network_security.NetworkSecurity.check_firewall_status"
+    )
+    @patch(
+        "nginx_security_monitor.network_security.NetworkSecurity.check_port_security"
+    )
     @patch("nginx_security_monitor.network_security.logging.getLogger")
     def test_perform_network_security_check_with_threats(
         self,
@@ -584,7 +592,9 @@ target     prot opt source               destination
             "Network security check found 4 issues"
         )
 
-    @patch("nginx_security_monitor.network_security.NetworkSecurity.check_port_security")
+    @patch(
+        "nginx_security_monitor.network_security.NetworkSecurity.check_port_security"
+    )
     @patch("nginx_security_monitor.network_security.logging.getLogger")
     def test_perform_network_security_check_exception(
         self, mock_logger, mock_port_check
@@ -815,7 +825,10 @@ class TestSecurityHardening(unittest.TestCase):
         self.assertIn("HIGH", severities)
         self.assertIn("MEDIUM", severities)
 
-    @patch("nginx_security_monitor.network_security.os.environ", {"NGINX_MONITOR_KEY": "password"})
+    @patch(
+        "nginx_security_monitor.network_security.os.environ",
+        {"NGINX_MONITOR_KEY": "password"},
+    )
     def test_check_environment_security_default_value(self):
         """Test environment security check with default/weak value"""
         hardening = SecurityHardening(self.config)

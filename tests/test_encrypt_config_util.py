@@ -54,7 +54,10 @@ class TestEncryptConfigUtility(unittest.TestCase):
             mock_manager.encrypt_file.return_value = True
             mock_manager_class.return_value = mock_manager
 
-            with patch("nginx_security_monitor.encrypt_config.generate_master_key", return_value="test_key_123"):
+            with patch(
+                "nginx_security_monitor.encrypt_config.generate_master_key",
+                return_value="test_key_123",
+            ):
                 with patch("builtins.open", mock_open()):
                     with patch("json.dump") as mock_json_dump:
                         # Act
@@ -94,15 +97,18 @@ class TestEncryptConfigUtility(unittest.TestCase):
             encrypt_config.encrypt_patterns_file()
 
             # Assert: check for the success message about saving the encrypted patterns file
-            found = any("Encrypted patterns saved to" in str(call) for call in mock_print.call_args_list)
-            assert found, f"Expected success print output not found. Actual calls: {[str(call) for call in mock_print.call_args_list]}"
+            found = any(
+                "Encrypted patterns saved to" in str(call)
+                for call in mock_print.call_args_list
+            )
+            assert (
+                found
+            ), f"Expected success print output not found. Actual calls: {[str(call) for call in mock_print.call_args_list]}"
 
     @patch("nginx_security_monitor.encrypt_config.CRYPTO_AVAILABLE", True)
     @patch("builtins.input")
     @patch("builtins.print")
-    def test_encrypt_patterns_file_value_error_thresholds(
-        self, mock_print, mock_input
-    ):
+    def test_encrypt_patterns_file_value_error_thresholds(self, mock_print, mock_input):
         test_master_key = "test_key"
         """Test handling invalid threshold values"""
         # Arrange
@@ -220,7 +226,9 @@ class TestEncryptConfigUtility(unittest.TestCase):
                 encrypt_config.decrypt_and_view()
 
                 # Assert
-                mock_manager.decrypt_file.assert_called_once_with("/path/to/encrypted.file")
+                mock_manager.decrypt_file.assert_called_once_with(
+                    "/path/to/encrypted.file"
+                )
                 mock_json_dumps.assert_called_once()
 
     @patch("nginx_security_monitor.encrypt_config.CRYPTO_AVAILABLE", True)
@@ -263,7 +271,9 @@ class TestEncryptConfigUtility(unittest.TestCase):
             "",  # End threat types
         ]
 
-        with patch("nginx_security_monitor.plugin_system.create_plugin_template") as mock_create:
+        with patch(
+            "nginx_security_monitor.plugin_system.create_plugin_template"
+        ) as mock_create:
             mock_create.return_value = None  # Success
 
             # Act
@@ -292,7 +302,9 @@ class TestEncryptConfigUtility(unittest.TestCase):
     @patch("sys.argv", ["encrypt_config.py", "encrypt-patterns"])
     def test_main_encrypt_patterns(self):
         """Test main function with encrypt-patterns action"""
-        with patch("nginx_security_monitor.encrypt_config.encrypt_patterns_file") as mock_encrypt:
+        with patch(
+            "nginx_security_monitor.encrypt_config.encrypt_patterns_file"
+        ) as mock_encrypt:
             # Act
             encrypt_config.main()
 
@@ -303,7 +315,9 @@ class TestEncryptConfigUtility(unittest.TestCase):
     @patch("sys.argv", ["encrypt_config.py", "decrypt"])
     def test_main_decrypt(self):
         """Test main function with decrypt action"""
-        with patch("nginx_security_monitor.encrypt_config.decrypt_and_view") as mock_decrypt:
+        with patch(
+            "nginx_security_monitor.encrypt_config.decrypt_and_view"
+        ) as mock_decrypt:
             # Act
             encrypt_config.main()
 
@@ -414,23 +428,23 @@ class TestEncryptConfigUtility(unittest.TestCase):
         """Test main function with create-plugin action"""
         # Arrange - provide enough inputs for the create_plugin_template function
         mock_input.side_effect = [
-            "test_plugin",      # plugin name
-            "Test Plugin",      # display name
-            "A test plugin",    # description
-            "xss",             # threat type
-            "<script>",        # pattern
-            "",                # empty to finish patterns
-            "1",               # severity
-            ""                 # end input
+            "test_plugin",  # plugin name
+            "Test Plugin",  # display name
+            "A test plugin",  # description
+            "xss",  # threat type
+            "<script>",  # pattern
+            "",  # empty to finish patterns
+            "1",  # severity
+            "",  # end input
         ]
-        
+
         with patch("sys.argv", ["encrypt_config.py", "create-plugin"]):
             # Act
             encrypt_config.main()
-            
+
         # Assert - main should execute without error
         mock_print.assert_called()
-        
+
     @patch("nginx_security_monitor.encrypt_config.CRYPTO_AVAILABLE", True)
     @patch("builtins.input")
     @patch("builtins.print")
@@ -440,90 +454,96 @@ class TestEncryptConfigUtility(unittest.TestCase):
         with patch("sys.argv", ["encrypt_config.py", "invalid-action"]):
             # Act
             encrypt_config.main()
-            
+
         # Assert - should exit with error code
         mock_exit.assert_called_with(2)
-        
+
     @patch("nginx_security_monitor.encrypt_config.CRYPTO_AVAILABLE", True)
     @patch("builtins.input")
-    @patch("builtins.print")  
+    @patch("builtins.print")
     @patch("nginx_security_monitor.encrypt_config.SecurityConfigManager")
-    def test_encrypt_patterns_file_save_failure(self, mock_manager_class, mock_print, mock_input):
+    def test_encrypt_patterns_file_save_failure(
+        self, mock_manager_class, mock_print, mock_input
+    ):
         """Test encrypt_patterns_file when file save fails"""
         # Arrange - provide all needed inputs including output file
         mock_input.side_effect = [
-            "",    # SQL pattern (empty to skip)
-            "",    # XSS pattern (empty to skip)
-            "",    # File inclusion pattern (empty to skip)
+            "",  # SQL pattern (empty to skip)
+            "",  # XSS pattern (empty to skip)
+            "",  # File inclusion pattern (empty to skip)
             "50",  # Failed requests per minute
-            "100", # Suspicious requests per minute
+            "100",  # Suspicious requests per minute
             "10",  # Block duration
-            ""     # Output file (empty to use default)
+            "",  # Output file (empty to use default)
         ]
         mock_manager = mock_manager_class.return_value
         mock_manager.encrypt_file.return_value = False
-        
+
         with patch("os.environ.get", return_value="test_key"):
             # Act
             encrypt_config.encrypt_patterns_file()
-            
+
         # Assert
         mock_print.assert_any_call("❌ Encryption failed")
-        
+
     @patch("nginx_security_monitor.encrypt_config.CRYPTO_AVAILABLE", True)
     @patch("builtins.input")
     @patch("builtins.print")
     @patch("nginx_security_monitor.encrypt_config.SecurityConfigManager")
-    def test_encrypt_patterns_file_exception_during_save(self, mock_manager_class, mock_print, mock_input):
+    def test_encrypt_patterns_file_exception_during_save(
+        self, mock_manager_class, mock_print, mock_input
+    ):
         """Test encrypt_patterns_file when exception occurs during save"""
         # Arrange - provide all needed inputs including output file
         mock_input.side_effect = [
-            "",    # SQL pattern (empty to skip)
-            "",    # XSS pattern (empty to skip)
-            "",    # File inclusion pattern (empty to skip)  
+            "",  # SQL pattern (empty to skip)
+            "",  # XSS pattern (empty to skip)
+            "",  # File inclusion pattern (empty to skip)
             "50",  # Failed requests per minute
-            "100", # Suspicious requests per minute
+            "100",  # Suspicious requests per minute
             "10",  # Block duration
-            ""     # Output file (empty to use default)
+            "",  # Output file (empty to use default)
         ]
         mock_manager = mock_manager_class.return_value
         mock_manager.encrypt_file.side_effect = Exception("Save failed")
-        
+
         with patch("os.environ.get", return_value="test_key"):
             # Act
             encrypt_config.encrypt_patterns_file()
-            
+
         # Assert
         mock_print.assert_any_call("❌ Error: Save failed")
-        
+
     @patch("builtins.input")
     @patch("builtins.print")
-    def test_decrypt_and_view_with_path_traversal_patterns(self, mock_print, mock_input):
+    def test_decrypt_and_view_with_path_traversal_patterns(
+        self, mock_print, mock_input
+    ):
         """Test decrypt_and_view with path traversal patterns"""
         # Arrange
         mock_input.side_effect = ["../../../etc/passwd", ""]
-        
+
         with patch("os.environ.get", return_value="test_key"):
             # Act
             encrypt_config.decrypt_and_view()
-            
+
         # Assert - should handle path traversal attempt safely
         mock_print.assert_called()
-        
+
     @patch("builtins.input")
     @patch("builtins.print")
     def test_decrypt_and_view_special_characters(self, mock_print, mock_input):
         """Test decrypt_and_view with special characters in input"""
         # Arrange
         mock_input.side_effect = ["test@#$%^&*()", ""]
-        
+
         with patch("os.environ.get", return_value="test_key"):
             # Act
             encrypt_config.decrypt_and_view()
-            
+
         # Assert
         mock_print.assert_called()
-        
+
     @patch("nginx_security_monitor.encrypt_config.CRYPTO_AVAILABLE", False)
     @patch("builtins.print")
     @patch("sys.exit")

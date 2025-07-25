@@ -286,7 +286,10 @@ class TestAlerts(unittest.TestCase):
         with patch("smtplib.SMTP") as mock_smtp, patch(
             "nginx_security_monitor.email_alert.create_html_alert_body",
             return_value="<html>Test</html>",
-        ), patch("nginx_security_monitor.email_alert.create_text_alert_body", return_value="Test text"):
+        ), patch(
+            "nginx_security_monitor.email_alert.create_text_alert_body",
+            return_value="Test text",
+        ):
 
             mock_server = MagicMock()
             mock_smtp.return_value.__enter__.return_value = mock_server
@@ -317,7 +320,8 @@ class TestAlerts(unittest.TestCase):
             "nginx_security_monitor.email_alert.create_html_alert_body",
             return_value="<html>Test</html>",
         ), patch(
-            "nginx_security_monitor.email_alert.create_text_alert_body", return_value="Test text"
+            "nginx_security_monitor.email_alert.create_text_alert_body",
+            return_value="Test text",
         ), patch(
             "logging.getLogger"
         ) as mock_get_logger:
@@ -347,7 +351,10 @@ class TestAlerts(unittest.TestCase):
         with patch("smtplib.SMTP") as mock_smtp, patch(
             "nginx_security_monitor.email_alert.create_html_alert_body",
             return_value="<html>Test</html>",
-        ), patch("nginx_security_monitor.email_alert.create_text_alert_body", return_value="Test text"):
+        ), patch(
+            "nginx_security_monitor.email_alert.create_text_alert_body",
+            return_value="Test text",
+        ):
 
             mock_server = MagicMock()
             mock_smtp.return_value.__enter__.return_value = mock_server
@@ -377,7 +384,10 @@ class TestAlerts(unittest.TestCase):
         with patch("smtplib.SMTP") as mock_smtp, patch(
             "nginx_security_monitor.email_alert.create_html_alert_body",
             return_value="<html>Test</html>",
-        ), patch("nginx_security_monitor.email_alert.create_text_alert_body", return_value="Test text"):
+        ), patch(
+            "nginx_security_monitor.email_alert.create_text_alert_body",
+            return_value="Test text",
+        ):
 
             mock_server = MagicMock()
             mock_smtp.return_value.__enter__.return_value = mock_server

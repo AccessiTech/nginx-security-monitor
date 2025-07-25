@@ -366,8 +366,11 @@ class TestCryptoUtilsFunctions(unittest.TestCase):
         test_patterns = {"test": "data"}
 
         with patch.dict(os.environ, {}, clear=True), patch(
-            "nginx_security_monitor.crypto_utils.generate_master_key", return_value="generated_key"
-        ), patch("nginx_security_monitor.crypto_utils.SecurityConfigManager") as mock_manager_class:
+            "nginx_security_monitor.crypto_utils.generate_master_key",
+            return_value="generated_key",
+        ), patch(
+            "nginx_security_monitor.crypto_utils.SecurityConfigManager"
+        ) as mock_manager_class:
 
             mock_manager = mock_manager_class.return_value
             mock_manager.encrypt_file.return_value = True
@@ -413,9 +416,11 @@ class TestCryptoUtilsFunctions(unittest.TestCase):
 
                 # Set up mocks for the main execution
                 with patch.dict(os.environ, {}, clear=True), patch(
-                    "nginx_security_monitor.crypto_utils.generate_master_key", return_value="test_key"
+                    "nginx_security_monitor.crypto_utils.generate_master_key",
+                    return_value="test_key",
                 ), patch(
-                    "nginx_security_monitor.crypto_utils.create_encrypted_pattern_file", return_value=True
+                    "nginx_security_monitor.crypto_utils.create_encrypted_pattern_file",
+                    return_value=True,
                 ), patch(
                     "builtins.open", mock_open()
                 ), patch(
@@ -434,7 +439,9 @@ class TestCryptoUtilsFunctions(unittest.TestCase):
                         # Execute the main block by importing as __main__
                         import importlib.util
 
-                        spec = importlib.util.find_spec("nginx_security_monitor.crypto_utils")
+                        spec = importlib.util.find_spec(
+                            "nginx_security_monitor.crypto_utils"
+                        )
                         module_path = spec.origin
 
                         # Load and execute the module

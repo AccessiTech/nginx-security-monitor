@@ -43,7 +43,9 @@ class TestCryptoUtilsAdvanced(unittest.TestCase):
         """Test line 53-54: Warning when using default test key."""
         # Clear environment to force default key usage
         with patch.dict(os.environ, {}, clear=True):
-            with patch("nginx_security_monitor.crypto_utils.SecurityConfigManager") as mock_manager:
+            with patch(
+                "nginx_security_monitor.crypto_utils.SecurityConfigManager"
+            ) as mock_manager:
                 # Mock the config manager to avoid dependencies
                 mock_config = MagicMock()
                 mock_config.get.side_effect = lambda key, default: default
@@ -200,7 +202,9 @@ class TestCryptoUtilsAdvanced(unittest.TestCase):
         output_file = os.path.join(self.temp_dir, "test_fail.enc")
 
         with patch.dict(os.environ, {"NGINX_MONITOR_KEY": "test_key"}):
-            with patch("nginx_security_monitor.crypto_utils.SecurityConfigManager") as mock_manager:
+            with patch(
+                "nginx_security_monitor.crypto_utils.SecurityConfigManager"
+            ) as mock_manager:
                 mock_instance = MagicMock()
                 mock_instance.encrypt_file.return_value = False  # Encryption fails
                 mock_manager.return_value = mock_instance
@@ -228,7 +232,11 @@ class TestCryptoUtilsAdvanced(unittest.TestCase):
                                 ):
                                     # Import to trigger main execution
                                     try:
-                                        exec(open("nginx_security_monitor/crypto_utils.py").read())
+                                        exec(
+                                            open(
+                                                "nginx_security_monitor/crypto_utils.py"
+                                            ).read()
+                                        )
                                     except SystemExit:
                                         pass  # Expected for main execution
                                     except Exception:
