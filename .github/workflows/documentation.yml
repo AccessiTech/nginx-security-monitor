@@ -22,7 +22,6 @@ jobs:
   # Job 0.1: Install Dependencies
   install-dependencies:
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.install_dependencies }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
