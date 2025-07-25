@@ -3,11 +3,8 @@ name: Documentation Generation and Deployment
 on:
   # Trigger on pushes to main branch
   push:
-    branches: [main]
+    branches: ['*']  # Trigger on pushes to any branch
 
-  # Trigger on pull requests
-  pull_request:
-    branches: [main]
 
   # Allow manual trigger
   workflow_dispatch:
@@ -59,7 +56,7 @@ jobs:
   run-tests:
     runs-on: ubuntu-latest
     needs: [install-dependencies]
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.install_dependencies }}
+    # No if condition, run for all events
     steps:
       - name: Run tests
         run: |
