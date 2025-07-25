@@ -16,6 +16,8 @@ def test_plugin_loading():
         if not os.path.exists(plugin_path):
             # Fallback: try from project root if running in CI or different cwd
             plugin_path = os.path.join(os.getcwd(), 'plugins', 'test_plugin.py')
+        if not os.path.exists(plugin_path):
+            raise FileNotFoundError(f"Could not find test_plugin.py at {plugin_path}")
         spec = __import__('importlib.util').util.spec_from_file_location("test_plugin", plugin_path)
         module = __import__('importlib.util').util.module_from_spec(spec)
         spec.loader.exec_module(module)
@@ -41,6 +43,8 @@ def test_plugin_mitigation():
         if not os.path.exists(plugin_path):
             # Fallback: try from project root if running in CI or different cwd
             plugin_path = os.path.join(os.getcwd(), 'plugins', 'test_plugin.py')
+        if not os.path.exists(plugin_path):
+            raise FileNotFoundError(f"Could not find test_plugin.py at {plugin_path}")
         spec = __import__('importlib.util').util.spec_from_file_location("test_plugin", plugin_path)
         module = __import__('importlib.util').util.module_from_spec(spec)
         spec.loader.exec_module(module)
