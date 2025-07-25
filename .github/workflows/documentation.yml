@@ -78,6 +78,12 @@ jobs:
           echo "files" && echo $(ls -1) && \
           ./bin/generate-docs --config docs/docgen-config.yaml --api-docs
 
+      - name: Ensure metrics-report.json exists
+        run: |
+          if [ ! -f "docs/metrics-report.json" ]; then
+            echo '{"status": "placeholder", "message": "No metrics generated."}' > docs/metrics-report.json
+          fi
+
       - name: Upload API Documentation
         uses: actions/upload-artifact@v4
         with:
@@ -89,7 +95,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: documentation-metrics
-          path: docs-metrics.json
+          path: docs/metrics-report.json
           retention-days: 7
 
   # Job 2: Quality assurance and reporting
@@ -106,6 +112,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: documentation-metrics
+          path: docs/
         continue-on-error: true
 
       - name: Generate QA report
@@ -128,13 +135,13 @@ jobs:
 
           EOF
 
-          if [ -f "docs-metrics.json" ]; then
+          if [ -f "docs/metrics-report.json" ]; then
             echo "### Generated Metrics" >> qa-report.md
             python3 << 'PYTHON'
           import json
 
           try:
-              with open('docs-metrics.json', 'r') as f:
+              with open('docs/metrics-report.json', 'r') as f:
                   metrics = json.load(f)
               
               print("| Metric | Value |")
@@ -217,6 +224,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: documentation-metrics
+          path: docs/
 
       - name: Check for changes
         id: verify-changes
