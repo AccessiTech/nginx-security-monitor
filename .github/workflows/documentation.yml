@@ -134,14 +134,14 @@ jobs:
         python scripts/generate_docs.py --generate-site
         
     - name: Upload documentation artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: documentation-site
         path: site/
         retention-days: 30
         
     - name: Upload API documentation
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: api-documentation
         path: docs/api/
@@ -152,7 +152,7 @@ jobs:
         python scripts/generate_docs.py --config docs/docgen-config.yaml > docs-metrics.json
         
     - name: Upload metrics report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: documentation-metrics
         path: |
@@ -317,7 +317,7 @@ jobs:
         echo "- Visit the deployed documentation site" >> qa-report.md
         
     - name: Upload QA report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: qa-report
         path: qa-report.md
