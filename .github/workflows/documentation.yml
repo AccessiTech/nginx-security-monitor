@@ -77,8 +77,7 @@ jobs:
       run: |
         echo "Current directory: $(pwd)" && \
         echo "files" && echo $(ls -1) && \
-        ./bin/generate-docs --config docs/docgen-config.yaml --output docs
-
+        ./bin/generate-docs --config docs/docgen-config.yaml --api-docs
   # Job 2: Deploy documentation site
   deploy-docs:
     runs-on: ubuntu-latest
