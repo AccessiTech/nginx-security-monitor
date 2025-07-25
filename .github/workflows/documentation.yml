@@ -58,7 +58,7 @@ jobs:
       with:
         fetch-depth: 0  # Full history for git-based features
     - name: Run install.sh
-      run: ./install.sh
+      run: sudo ./install.sh
         
     - name: Set up Python
       uses: actions/setup-python@v4
