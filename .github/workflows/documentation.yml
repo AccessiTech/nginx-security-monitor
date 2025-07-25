@@ -78,12 +78,6 @@ jobs:
           echo "files" && echo $(ls -1) && \
           ./bin/generate-docs --config docs/docgen-config.yaml --api-docs
 
-      - name: Ensure metrics-report.json exists
-        run: |
-          if [ ! -f "docs/metrics-report.json" ]; then
-            echo '{"status": "placeholder", "message": "No metrics generated."}' > docs/metrics-report.json
-          fi
-
       - name: Upload API Documentation
         uses: actions/upload-artifact@v4
         with:
@@ -261,7 +255,7 @@ jobs:
   deploy-docs:
     runs-on: ubuntu-latest
     needs: [update-docs]
-    if: (github.ref == 'refs/heads/main' || (github.event_name == 'pull_request' && github.base_ref == 'main')) && github.event.inputs.deploy_site == 'true'
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'pull_request' && github.base_ref == 'main')
 
     permissions:
       contents: read
