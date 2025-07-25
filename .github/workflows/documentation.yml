@@ -1,11 +1,6 @@
 name: Run tests workflow
 
 on:
-  # Trigger on pushes to main branch
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-
-
   # Allow manual trigger
   workflow_dispatch:
     inputs:
@@ -72,229 +67,276 @@ jobs:
           poetry run pytest --disable-warnings
         working-directory: ${{ github.workspace }}
 
-  # # Job 1: Generate documentation
-  # generate-docs:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@v4
+  # Job 1: Generate documentation
+  generate-docs:
+    if: github.event.pull_request && github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          path: ${{ github.workspace }}
 
-  #     - name: Set up Python
-  #       uses: actions/setup-python@v4
-  #       with:
-  #         python-version: ${{ env.PYTHON_VERSION }}
-  #     - name: Install Poetry
-  #       run: |
-  #         python -m pip install --upgrade pip
-  #         pip install poetry==1.6.0
-  #         poetry config virtualenvs.create false
-  #         poetry config virtualenvs.in-project true
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
 
-  #     - name: Generate API documentation
-  #       run: |
-  #         echo "Current directory: $(pwd)" && \
-  #         echo "files" && echo $(ls -1) && \
-  #         ./bin/generate-docs --config docs/docgen-config.yaml --api-docs
+      - name: Cache Poetry dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pypoetry
+            ~/.cache/pip
+            .venv
+          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
 
-  #     - name: Upload API Documentation
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: api-documentation
-  #         path: .
-  #         retention-days: 7
+      - name: Install Poetry
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry==1.6.0
+          poetry config virtualenvs.create false
+          poetry config virtualenvs.in-project true
+        working-directory: ${{ github.workspace }}
 
-  #     - name: Upload Documentation Metrics
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: documentation-metrics
-  #         path: docs/metrics-report.json
-  #         retention-days: 7
+      - name: Install dependencies
+        run: |
+          poetry install
+        working-directory: ${{ github.workspace }}
 
-  #     - name: Upload Documentation Site
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: documentation-site
-  #         path: site/
-  #         retention-days: 7
+      - name: Install package in editable mode
+        run: |
+          poetry run pip install -e .
+        working-directory: ${{ github.workspace }}
 
-  # # Job 2: Quality assurance and reporting
-  # qa-report:
-  #   runs-on: ubuntu-latest
-  #   needs: [generate-docs]
-  #   if: success()
+      - name: Generate API documentation
+        run: |
+          echo "Current directory: $(pwd)" && \
+          echo "files" && echo $(ls -1) && \
+          ./bin/generate-docs --config docs/docgen-config.yaml --api-docs
 
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@v4
+      - name: Upload API Documentation
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-documentation
+          path: .
+          retention-days: 7
 
-  #     - name: Download metrics
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: documentation-metrics
-  #         path: docs/
-  #       continue-on-error: true
+      - name: Upload Documentation Metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-metrics
+          path: docs/metrics-report.json
+          retention-days: 7
 
-  #     - name: Generate QA report
-  #       run: |
-  #         cat > qa-report.md << 'EOF'
-  #         # Documentation Quality Assurance Report
+      - name: Upload Documentation Site
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-site
+          path: site/
+          retention-days: 7
 
-  #         **Generated**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-  #         **Workflow**: ${{ github.workflow }}
-  #         **Run**: ${{ github.run_number }}
+  # Job 2: Quality assurance and reporting
+  qa-report:
+    runs-on: ubuntu-latest
+    needs: [generate-docs]
+    if: success()
 
-  #         ## Summary
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-  #         - **Repository**: ${{ github.repository }}
-  #         - **Branch**: ${{ github.ref_name }}
-  #         - **Commit**: ${{ github.sha }}
-  #         - **Trigger**: ${{ github.event_name }}
+      - name: Download metrics
+        uses: actions/download-artifact@v4
+        with:
+          name: documentation-metrics
+          path: docs/
+        continue-on-error: true
 
-  #         ## Documentation Metrics
+      - name: Generate QA report
+        run: |
+          cat > qa-report.md << 'EOF'
+          # Documentation Quality Assurance Report
 
-  #         EOF
+          **Generated**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          **Workflow**: ${{ github.workflow }}
+          **Run**: ${{ github.run_number }}
 
-  #         if [ -f "docs/metrics-report.json" ]; then
-  #           echo "### Generated Metrics" >> qa-report.md
-  #           python3 << 'PYTHON'
-  #         import json
+          ## Summary
 
-  #         try:
-  #             with open('docs/metrics-report.json', 'r') as f:
-  #                 metrics = json.load(f)
+          - **Repository**: ${{ github.repository }}
+          - **Branch**: ${{ github.ref_name }}
+          - **Commit**: ${{ github.sha }}
+          - **Trigger**: ${{ github.event_name }}
+
+          ## Documentation Metrics
+
+          EOF
+
+          if [ -f "docs/metrics-report.json" ]; then
+            echo "### Generated Metrics" >> qa-report.md
+            python3 << 'PYTHON'
+          import json
+
+          try:
+              with open('docs/metrics-report.json', 'r') as f:
+                  metrics = json.load(f)
               
-  #             print("| Metric | Value |")
-  #             print("|--------|-------|")
+              print("| Metric | Value |")
+              print("|--------|-------|")
               
-  #             for key, value in metrics.items():
-  #                 if isinstance(value, dict):
-  #                     for subkey, subvalue in value.items():
-  #                         print(f"| {key}.{subkey} | {subvalue} |")
-  #                 else:
-  #                     print(f"| {key} | {value} |")
-  #         except:
-  #             print("Could not parse metrics file")
-  #         PYTHON
-  #         fi >> qa-report.md
+              for key, value in metrics.items():
+                  if isinstance(value, dict):
+                      for subkey, subvalue in value.items():
+                          print(f"| {key}.{subkey} | {subvalue} |")
+                  else:
+                      print(f"| {key} | {value} |")
+          except:
+              print("Could not parse metrics file")
+          PYTHON
+          fi >> qa-report.md
 
-  #         echo "" >> qa-report.md
-  #         echo "## Next Steps" >> qa-report.md
-  #         echo "" >> qa-report.md
-  #         echo "- Review any failed quality checks above" >> qa-report.md
-  #         echo "- Check the uploaded documentation artifacts" >> qa-report.md
-  #         echo "- Visit the deployed documentation site" >> qa-report.md
+          echo "" >> qa-report.md
+          echo "## Next Steps" >> qa-report.md
+          echo "" >> qa-report.md
+          echo "- Review any failed quality checks above" >> qa-report.md
+          echo "- Check the uploaded documentation artifacts" >> qa-report.md
+          echo "- Visit the deployed documentation site" >> qa-report.md
 
-  #     - name: Upload QA report
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: qa-report
-  #         path: qa-report.md
-  #         retention-days: 7
+      - name: Upload QA report
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-report
+          path: qa-report.md
+          retention-days: 7
 
-  #     - name: Comment on PR (if applicable)
-  #       if: github.event_name == 'pull_request'
-  #       uses: actions/github-script@v6
-  #       with:
-  #         script: |
-  #           const fs = require('fs');
+      - name: Comment on PR (if applicable)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
 
-  #           try {
-  #             const qaReport = fs.readFileSync('qa-report.md', 'utf8');
+            try {
+              const qaReport = fs.readFileSync('qa-report.md', 'utf8');
               
-  #             github.rest.issues.createComment({
-  #               issue_number: context.issue.number,
-  #               owner: context.repo.owner,
-  #               repo: context.repo.repo,
-  #               body: `## 📚 Documentation Quality Report\n\n${qaReport}\n\n*This report was automatically generated by the documentation workflow.*`
-  #             });
-  #           } catch (error) {
-  #             console.log('Could not post QA report:', error);
-  #           }
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `## 📚 Documentation Quality Report\n\n${qaReport}\n\n*This report was automatically generated by the documentation workflow.*`
+              });
+            } catch (error) {
+              console.log('Could not post QA report:', error);
+            }
 
-  # # Job 3: Update documentation in repository
-  # update-docs:
-  #   runs-on: ubuntu-latest
-  #   needs: [qa-report]
+  # Job 3: Update documentation in repository
+  update-docs:
+    runs-on: ubuntu-latest
+    needs: [qa-report]
 
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@v4
-  #       with:
-  #         token: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ github.workspace }}
 
-  #     - name: Set up Python
-  #       uses: actions/setup-python@v4
-  #       with:
-  #         python-version: ${{ env.PYTHON_VERSION }}
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
 
-  #     # - name: Install dependencies
-  #     #   run: |
-  #     #     python -m pip install --upgrade pip
-  #     #     pip install pyyaml requests
+      - name: Cache Poetry dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pypoetry
+            ~/.cache/pip
+            .venv
+          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
 
-  #     - name: Download API documentation
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: api-documentation
-  #         path: docs/api/
+      - name: Install Poetry
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry==1.6.0
+          poetry config virtualenvs.create false
+          poetry config virtualenvs.in-project true
+        working-directory: ${{ github.workspace }}
 
-  #     - name: Download metrics
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: documentation-metrics
-  #         path: docs/
+      - name: Install dependencies
+        run: |
+          poetry install
+        working-directory: ${{ github.workspace }}
 
-  #     - name: Check for changes
-  #       id: verify-changes
-  #       run: |
-  #         git config --local user.email "action@github.com"
-  #         git config --local user.name "GitHub Action"
+      - name: Install package in editable mode
+        run: |
+          poetry run pip install -e .
+        working-directory: ${{ github.workspace }}
 
-  #         if git diff --quiet; then
-  #           echo "changes=false" >> $GITHUB_OUTPUT
-  #         else
-  #           echo "changes=true" >> $GITHUB_OUTPUT
-  #         fi
+      - name: Download API documentation
+        uses: actions/download-artifact@v4
+        with:
+          name: api-documentation
+          path: docs/api/
 
-  #     - name: Commit documentation updates
-  #       if: steps.verify-changes.outputs.changes == 'true'
-  #       run: |
-  #         git add docs/
-  #         git add README.md
-  #         git commit -m "docs: automated documentation update [skip ci]" || exit 0
-  #         git push
+      - name: Download metrics
+        uses: actions/download-artifact@v4
+        with:
+          name: documentation-metrics
+          path: docs/
 
-  # # Job 4: Deploy documentation site
-  # deploy-docs:
-  #   runs-on: ubuntu-latest
-  #   needs: [update-docs]
+      - name: Check for changes
+        id: verify-changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
 
-  #   permissions:
-  #     contents: read
-  #     pages: write
-  #     id-token: write
+          if git diff --quiet; then
+            echo "changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "changes=true" >> $GITHUB_OUTPUT
+          fi
 
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@v4
+      - name: Commit documentation updates
+        if: steps.verify-changes.outputs.changes == 'true'
+        run: |
+          git add docs/
+          git add README.md
+          git commit -m "docs: automated documentation update [skip ci]" || exit 0
+          git push
 
-  #     - name: Download documentation site
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: documentation-site
-  #         path: site/
+  # Job 4: Deploy documentation site
+  deploy-docs:
+    runs-on: ubuntu-latest
+    needs: [update-docs]
 
-  #     - name: Setup Pages
-  #       uses: actions/configure-pages@v3
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
 
-  #     - name: Upload to GitHub Pages
-  #       uses: actions/upload-pages-artifact@v3
-  #       with:
-  #         path: site/
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-  #     - name: Deploy to GitHub Pages
-  #       id: deployment
-  #       uses: actions/deploy-pages@v2
-  #       with:
-  #         branch: gh-pages
-  #         folder: docs
+      - name: Download documentation site
+        uses: actions/download-artifact@v4
+        with:
+          name: documentation-site
+          path: site/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v3
+
+      - name: Upload to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
+        with:
+          branch: gh-pages
+          folder: docs
