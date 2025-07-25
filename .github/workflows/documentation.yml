@@ -17,9 +17,13 @@ on:
   pull_request:
     branches: [ main ]
     paths:
-      - 'src/**'
+      - 'nginx_security_monitor/**'
+      - 'bin/**'
       - 'docs/**'
       - 'README.md'
+      - 'mkdocs.yml'
+      - 'scripts/generate_docs.py'
+      - 'docs/docgen-config.yaml'
   
   # Allow manual trigger
   workflow_dispatch:
