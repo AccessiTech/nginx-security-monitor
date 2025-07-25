@@ -75,7 +75,9 @@ jobs:
 
     - name: Generate API documentation
       run: |
-        cd .. && poetry run python scripts/generate_docs.py --config docs/docgen-config.yaml --output docs
+        echo "Current directory: $(pwd)" && \
+        echo "files" && echo $(ls -1) && \
+        poetry run python scripts/generate_docs.py --config docs/docgen-config.yaml --output docs
 
   # Job 2: Deploy documentation site
   deploy-docs:
