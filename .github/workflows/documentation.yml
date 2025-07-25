@@ -33,7 +33,7 @@ on:
       regenerate_all:
         description: "Regenerate all documentation"
         required: true
-        default: true
+        default: "true"
       deploy_site:
         description: "Deploy documentation site"
         required: true
