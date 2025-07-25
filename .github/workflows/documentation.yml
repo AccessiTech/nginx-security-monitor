@@ -1,4 +1,4 @@
-name: Documentation Generation and Deployment
+name: Run tests workflow
 
 on:
   # Trigger on pushes to main branch
@@ -19,13 +19,11 @@ env:
   NODE_VERSION: "16"
 
 jobs:
-  # Job 0.1: Install Dependencies
-  install-dependencies:
+
+  # Job 0: Run Tests
+  run-tests:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -51,12 +49,6 @@ jobs:
         run: |
           poetry install
 
-  # Job 0.2: Run Tests
-  run-tests:
-    runs-on: ubuntu-latest
-    needs: [install-dependencies]
-    # No if condition, run for all events
-    steps:
       - name: Run tests
         run: |
           poetry run pytest --disable-warnings
