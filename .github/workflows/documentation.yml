@@ -48,7 +48,7 @@ jobs:
   # Job 1: Generate documentation
   generate-docs:
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request' || github.event.inputs.regenerate_all ==
+    if: github.event.inputs.regenerate_all ==
       'true' || github.event_name == 'workflow_dispatch'
     steps:
     - name: Checkout repository
@@ -157,7 +157,7 @@ jobs:
   qa-report:
     runs-on: ubuntu-latest
     needs: [generate-docs]
-    if: always()
+    if: success()
     
     steps:
     - name: Checkout repository
