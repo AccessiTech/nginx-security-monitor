@@ -83,10 +83,10 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pip-docs-
           
-    - name: Install Python dependencies with Poetry
-      run: |
-        export PATH="$HOME/.local/bin:$PATH"
-        poetry install --no-interaction --no-root
+    # - name: Install Python dependencies with Poetry
+    #   run: |
+    #     export PATH="$HOME/.local/bin:$PATH"
+    #     poetry install --no-interaction --no-root
         
     - name: Install additional documentation tools
       run: |
