@@ -247,10 +247,6 @@ jobs:
           git commit -m "docs: automated documentation update [skip ci]" || exit 0
           git push
 
-
-
-
-
   # Job 4: Deploy documentation site
   deploy-docs:
     runs-on: ubuntu-latest
@@ -283,3 +279,6 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v2
+        with:
+          branch: gh-pages
+          folder: docs
