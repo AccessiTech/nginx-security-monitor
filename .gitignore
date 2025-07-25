@@ -11,6 +11,7 @@ htmlcov/
 
 # Keys and sensitive data
 keys/
+test_plugin_plugin.py
 
 # Backup files
 *.backup
