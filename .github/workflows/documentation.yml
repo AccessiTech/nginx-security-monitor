@@ -52,6 +52,7 @@ jobs:
       - name: Run tests
         run: |
           poetry run pytest --disable-warnings
+        working-directory: ${{ github.workspace }}
 
   # # Job 1: Generate documentation
   # generate-docs:
