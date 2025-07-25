@@ -77,7 +77,7 @@ jobs:
       run: |
         echo "Current directory: $(pwd)" && \
         echo "files" && echo $(ls -1) && \
-        poetry run python scripts/generate_docs.py --config docs/docgen-config.yaml --output docs
+        ./bin/generate-docs --config docs/docgen-config.yaml --output docs
 
   # Job 2: Deploy documentation site
   deploy-docs:
