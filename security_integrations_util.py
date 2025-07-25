@@ -11,13 +11,9 @@ import argparse
 import subprocess
 from pathlib import Path
 
-# Add the src directory to Python path
-script_dir = os.path.dirname(os.path.abspath(__file__))
-src_dir = os.path.join(script_dir, "src")
-sys.path.insert(0, src_dir)
 
 try:
-    from security_integrations import SecurityIntegrationManager
+    from nginx_security_monitor.security_integrations import SecurityIntegrationManager
 except ImportError as e:
     print(f"Error importing security integrations: {e}")
     print("Make sure you're running this from the project root directory")
