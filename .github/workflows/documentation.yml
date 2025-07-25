@@ -53,6 +53,7 @@ jobs:
       - name: Install dependencies
         run: |
           poetry install
+          poetry run pip install -e .
         working-directory: ${{ github.workspace }}
 
       - name: Run tests
