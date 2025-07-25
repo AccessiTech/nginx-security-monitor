@@ -71,7 +71,7 @@ jobs:
         poetry config virtualenvs.in-project true
     - name: Install dependencies
       run: |
-        poetry install --dev
+        poetry install
 
     - name: Generate API documentation
       run: |
