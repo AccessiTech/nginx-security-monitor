@@ -562,8 +562,14 @@ class SuricataIntegration:
                         }
                         alerts.append(alert)
                         continue
+                    # Parse timestamp robustly
+                    event_time = None
+                    try:
+                        event_time = parse_suricata_timestamp(timestamp)
+                    except Exception as e:
+                        self.logger.debug(f"Exception in Suricata timestamp parsing: {timestamp} ({e})")
                     # If timestamp missing or unparseable, always include
-                    if not timestamp or parse_suricata_timestamp(timestamp) is None:
+                    if not timestamp or event_time is None:
                         alert = {
                             "timestamp": timestamp if timestamp else None,
                             "src_ip": event.get("src_ip"),
@@ -574,26 +580,43 @@ class SuricataIntegration:
                         }
                         alerts.append(alert)
                         continue
-                    event_time = parse_suricata_timestamp(timestamp)
-                    # Ensure both event_time and cutoff_time are timezone-aware UTC for comparison
-                    import pytz
-                    utc = pytz.UTC
-                    if event_time.tzinfo is None:
-                        event_time = event_time.replace(tzinfo=utc)
-                    cutoff_time_aware = cutoff_time.replace(tzinfo=utc)
-                    now_aware = datetime.now(utc)
-                    # Include if event_time >= cutoff_time or event_time > now
-                    if event_time >= cutoff_time_aware or event_time > now_aware:
-                        alert = {
-                            "timestamp": timestamp,
-                            "src_ip": event.get("src_ip"),
-                            "dest_ip": event.get("dest_ip"),
-                            "signature": event.get("alert", {}).get("signature"),
-                            "category": event.get("alert", {}).get("category"),
-                            "severity": event.get("alert", {}).get("severity"),
-                        }
-                        alerts.append(alert)
-        except Exception:
+                    # Try to make both event_time and cutoff_time timezone-aware UTC
+                    try:
+                        import pytz
+                        utc = pytz.UTC
+                        if event_time.tzinfo is None:
+                            event_time = event_time.replace(tzinfo=utc)
+                        cutoff_time_aware = cutoff_time.replace(tzinfo=utc)
+                        now_aware = datetime.now(utc)
+                        # Include if event_time >= cutoff_time or event_time > now
+                        if event_time >= cutoff_time_aware or event_time > now_aware:
+                            alert = {
+                                "timestamp": timestamp,
+                                "src_ip": event.get("src_ip"),
+                                "dest_ip": event.get("dest_ip"),
+                                "signature": event.get("alert", {}).get("signature"),
+                                "category": event.get("alert", {}).get("category"),
+                                "severity": event.get("alert", {}).get("severity"),
+                            }
+                            alerts.append(alert)
+                    except Exception as tz_exc:
+                        # Fallback: compare naive datetimes
+                        self.logger.warning(f"Suricata timezone handling failed: {tz_exc}. Falling back to naive comparison.")
+                        try:
+                            if event_time >= cutoff_time or event_time > datetime.now():
+                                alert = {
+                                    "timestamp": timestamp,
+                                    "src_ip": event.get("src_ip"),
+                                    "dest_ip": event.get("dest_ip"),
+                                    "signature": event.get("alert", {}).get("signature"),
+                                    "category": event.get("alert", {}).get("category"),
+                                    "severity": event.get("alert", {}).get("severity"),
+                                }
+                                alerts.append(alert)
+                        except Exception as naive_exc:
+                            self.logger.error(f"Suricata naive datetime comparison failed: {naive_exc}")
+        except Exception as e:
+            self.logger.error(f"Suricata get_recent_alerts exception: {e}")
             return []
         return alerts
 
