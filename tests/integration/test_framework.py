@@ -29,21 +29,21 @@ import threading
 from contextlib import contextmanager
 
 # Import all the components we'll be testing integration between
-from src.config_manager import ConfigManager
-from src.alert_manager import AlertManager
-from src.threat_processor import ThreatProcessor
-from src.log_parser import parse_logs  # Import the function instead of a class
-from src.log_processor import LogProcessor
-from src.pattern_detector import PatternDetector
-from src.security_coordinator import SecurityCoordinator
-from src.mitigation import mitigate_threat  # Import the function instead of a class
-from src.service_protection import ServiceProtection
-from src.alerts.email_alert import send_email_alert  # Import the function instead of a class
-# Import security_integrations directly (not a class)
-import src.security_integrations as security_integrations
-# Import monitor_service directly (not a class)
-import src.monitor_service as monitor_service
-import security_integrations_util  # Import utility for Phase 2.2
+from nginx_security_monitor.config_manager import ConfigManager
+from nginx_security_monitor.alert_manager import AlertManager
+from nginx_security_monitor.threat_processor import ThreatProcessor
+from nginx_security_monitor.log_parser import parse_logs  # Import the function instead of a class
+from nginx_security_monitor.log_processor import LogProcessor
+from nginx_security_monitor.pattern_detector import PatternDetector
+from nginx_security_monitor.security_coordinator import SecurityCoordinator
+from nginx_security_monitor.mitigation import mitigate_threat  # Import the function instead of a class
+from nginx_security_monitor.service_protection import ServiceProtection
+from nginx_security_monitor.email_alert import send_email_alert  # Import the function instead of a class
+# import nginx_security_monitor.security_integrations as security_integrations directly (not a class)
+import nginx_security_monitor.security_integrations as security_integrations
+# import nginx_security_monitor.monitor_service as monitor_service directly (not a class)
+import nginx_security_monitor.monitor_service as monitor_service
+import nginx_security_monitor.security_integrations_util as security_integrations_util  # Import utility for Phase 2.2
 
 
 class BaseIntegrationTest(unittest.TestCase):

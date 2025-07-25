@@ -2,7 +2,7 @@ import re
 import json
 from collections import defaultdict, Counter
 from datetime import datetime, timedelta
-from src.config_manager import ConfigManager
+from nginx_security_monitor.config_manager import ConfigManager
 
 
 class PatternDetector:

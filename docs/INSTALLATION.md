@@ -281,8 +281,8 @@ source .venv/bin/activate
 
 # Test core functionality
 python -c "
-from src.log_parser import parse_logs
-from src.pattern_detector import PatternDetector
+from nginx_security_monitor.log_parser import parse_logs
+from nginx_security_monitor.pattern_detector import PatternDetector
 print('✅ Core modules working')
 "
 

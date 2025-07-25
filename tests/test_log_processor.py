@@ -4,14 +4,9 @@ Test suite for log processor functionality
 
 import unittest
 from unittest.mock import Mock, patch, mock_open
-import sys
-import os
-
-# Add src directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 try:
-    from log_processor import LogProcessor
+    from nginx_security_monitor.log_processor import LogProcessor
 except ImportError as e:
     print(f"Could not import log processor: {e}")
 

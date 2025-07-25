@@ -61,8 +61,8 @@
 </span><span id=__span-9-3><a id=__codelineno-9-3 name=__codelineno-9-3 href=#__codelineno-9-3></a>
 </span><span id=__span-9-4><a id=__codelineno-9-4 name=__codelineno-9-4 href=#__codelineno-9-4></a><span class=c1># Test the pattern detector directly</span>
 </span><span id=__span-9-5><a id=__codelineno-9-5 name=__codelineno-9-5 href=#__codelineno-9-5></a>python3<span class=w> </span>-c<span class=w> </span><span class=s2>&quot;</span>
-</span><span id=__span-9-6><a id=__codelineno-9-6 name=__codelineno-9-6 href=#__codelineno-9-6></a><span class=s2>from src.pattern_detector import PatternDetector</span>
-</span><span id=__span-9-7><a id=__codelineno-9-7 name=__codelineno-9-7 href=#__codelineno-9-7></a><span class=s2>from src.log_parser import parse_logs</span>
+</span><span id=__span-9-6><a id=__codelineno-9-6 name=__codelineno-9-6 href=#__codelineno-9-6></a><span class=s2>from nginx_security_monitor.pattern_detector import PatternDetector</span>
+</span><span id=__span-9-7><a id=__codelineno-9-7 name=__codelineno-9-7 href=#__codelineno-9-7></a><span class=s2>from nginx_security_monitor.log_parser import parse_logs</span>
 </span><span id=__span-9-8><a id=__codelineno-9-8 name=__codelineno-9-8 href=#__codelineno-9-8></a>
 </span><span id=__span-9-9><a id=__codelineno-9-9 name=__codelineno-9-9 href=#__codelineno-9-9></a><span class=s2>detector = PatternDetector()</span>
 </span><span id=__span-9-10><a id=__codelineno-9-10 name=__codelineno-9-10 href=#__codelineno-9-10></a><span class=s2>logs = parse_logs(&#39;test_access.log&#39;)</span>
@@ -130,7 +130,7 @@
 </span></code></pre></div> <h3 id=issue-email-alerts-not-working><strong>Issue: Email alerts not working</strong><a class=headerlink href=#issue-email-alerts-not-working title="Permanent link">&para;</a></h3> <div class="language-bash highlight"><pre><span></span><code><span id=__span-21-1><a id=__codelineno-21-1 name=__codelineno-21-1 href=#__codelineno-21-1></a><span class=c1># Test email configuration</span>
 </span><span id=__span-21-2><a id=__codelineno-21-2 name=__codelineno-21-2 href=#__codelineno-21-2></a>python3<span class=w> </span>-c<span class=w> </span><span class=s2>&quot;</span>
 </span><span id=__span-21-3><a id=__codelineno-21-3 name=__codelineno-21-3 href=#__codelineno-21-3></a><span class=s2>import yaml</span>
-</span><span id=__span-21-4><a id=__codelineno-21-4 name=__codelineno-21-4 href=#__codelineno-21-4></a><span class=s2>from src.alerts.email_alert import send_email_alert</span>
+</span><span id=__span-21-4><a id=__codelineno-21-4 name=__codelineno-21-4 href=#__codelineno-21-4></a><span class=s2>from nginx_security_monitor.email_alert import send_email_alert</span>
 </span><span id=__span-21-5><a id=__codelineno-21-5 name=__codelineno-21-5 href=#__codelineno-21-5></a>
 </span><span id=__span-21-6><a id=__codelineno-21-6 name=__codelineno-21-6 href=#__codelineno-21-6></a><span class=s2>with open(&#39;config/my-settings.yaml&#39;) as f:</span>
 </span><span id=__span-21-7><a id=__codelineno-21-7 name=__codelineno-21-7 href=#__codelineno-21-7></a><span class=s2>    config = yaml.safe_load(f)</span>
@@ -149,7 +149,7 @@
 </span><span id=__span-21-20><a id=__codelineno-21-20 name=__codelineno-21-20 href=#__codelineno-21-20></a><span class=s2>&quot;</span>
 </span></code></pre></div> <h3 id=issue-no-threats-detected><strong>Issue: No threats detected</strong><a class=headerlink href=#issue-no-threats-detected title="Permanent link">&para;</a></h3> <div class="language-bash highlight"><pre><span></span><code><span id=__span-22-1><a id=__codelineno-22-1 name=__codelineno-22-1 href=#__codelineno-22-1></a><span class=c1># Verify pattern detection is working</span>
 </span><span id=__span-22-2><a id=__codelineno-22-2 name=__codelineno-22-2 href=#__codelineno-22-2></a>python3<span class=w> </span>-c<span class=w> </span><span class=s2>&quot;</span>
-</span><span id=__span-22-3><a id=__codelineno-22-3 name=__codelineno-22-3 href=#__codelineno-22-3></a><span class=s2>from src.pattern_detector import PatternDetector</span>
+</span><span id=__span-22-3><a id=__codelineno-22-3 name=__codelineno-22-3 href=#__codelineno-22-3></a><span class=s2>from nginx_security_monitor.pattern_detector import PatternDetector</span>
 </span><span id=__span-22-4><a id=__codelineno-22-4 name=__codelineno-22-4 href=#__codelineno-22-4></a>
 </span><span id=__span-22-5><a id=__codelineno-22-5 name=__codelineno-22-5 href=#__codelineno-22-5></a><span class=s2>detector = PatternDetector()</span>
 </span><span id=__span-22-6><a id=__codelineno-22-6 name=__codelineno-22-6 href=#__codelineno-22-6></a><span class=s2>test_log = {</span>

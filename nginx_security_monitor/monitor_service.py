@@ -12,30 +12,27 @@ import logging
 import yaml
 from datetime import datetime
 
-# Add the src directory to Python path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-from pattern_detector import PatternDetector
-from mitigation import mitigate_threat
+from nginx_security_monitor.pattern_detector import PatternDetector
+from nginx_security_monitor.mitigation import mitigate_threat
 
 # Import alert functions for backward compatibility
-from alerts.email_alert import send_email_alert
-from alerts.sms_alert import send_sms_alert
+from nginx_security_monitor.email_alert import send_email_alert
+from nginx_security_monitor.sms_alert import send_sms_alert
 
 # Import our new modular components
-from alert_manager import AlertManager
-from log_processor import LogProcessor
-from threat_processor import ThreatProcessor
-from security_coordinator import SecurityCoordinator
+from nginx_security_monitor.alert_manager import AlertManager
+from nginx_security_monitor.log_processor import LogProcessor
+from nginx_security_monitor.threat_processor import ThreatProcessor
+from nginx_security_monitor.security_coordinator import SecurityCoordinator
 
 # Import our security modules
 try:
-    from crypto_utils import SecurityConfigManager, PatternObfuscator
-    from plugin_system import PluginManager
-    from service_protection import ServiceProtection
-    from network_security import NetworkSecurity, SecurityHardening
-    from security_integrations import SecurityIntegrationManager
-    from src.config_manager import ConfigManager
+    from nginx_security_monitor.crypto_utils import SecurityConfigManager, PatternObfuscator
+    from nginx_security_monitor.plugin_system import PluginManager
+    from nginx_security_monitor.service_protection import ServiceProtection
+    from nginx_security_monitor.network_security import NetworkSecurity, SecurityHardening
+    from nginx_security_monitor.security_integrations import SecurityIntegrationManager
+    from nginx_security_monitor.config_manager import ConfigManager
 
     SECURITY_FEATURES_AVAILABLE = True
 except ImportError as e:

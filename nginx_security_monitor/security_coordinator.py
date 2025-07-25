@@ -6,7 +6,7 @@ Coordinates security operations and manages the overall security workflow.
 
 import time
 from typing import List, Dict, Any
-from src.config_manager import ConfigManager
+from nginx_security_monitor.config_manager import ConfigManager
 
 
 config = ConfigManager.get_instance()

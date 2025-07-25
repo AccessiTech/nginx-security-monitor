@@ -1,5 +1,5 @@
 import logging
-from src.config_manager import ConfigManager
+from nginx_security_monitor.config_manager import ConfigManager
 
 
 def send_sms_alert(alert_details):

@@ -5,7 +5,7 @@ Handles log file reading and parsing for the NGINX Security Monitor.
 """
 
 import os
-from src.config_manager import ConfigManager
+from nginx_security_monitor.config_manager import ConfigManager
 
 
 config = ConfigManager.get_instance()

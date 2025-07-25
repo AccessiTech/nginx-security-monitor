@@ -11,7 +11,7 @@ from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import logging
-from src.config_manager import ConfigManager
+from nginx_security_monitor.config_manager import ConfigManager
 
 
 class SecurityConfigManager:

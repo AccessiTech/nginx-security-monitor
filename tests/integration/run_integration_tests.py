@@ -166,9 +166,6 @@ def main():
         }
     }
     
-    # Add the parent directory to the path so we can import test modules
-    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-    
     print("\n🧪 NGINX Security Monitor - Integration Test Suite")
     print(f"🕒 Start Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     

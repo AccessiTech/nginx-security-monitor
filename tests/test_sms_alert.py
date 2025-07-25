@@ -5,14 +5,9 @@ Comprehensive tests for SMS Alert module
 
 import unittest
 from unittest.mock import patch, MagicMock, call
-import sys
-import os
 import time
 
-# Add src directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from alerts.sms_alert import send_sms_alert, send_via_twilio, send_via_aws_sns
+from nginx_security_monitor.sms_alert import send_sms_alert, send_via_twilio, send_via_aws_sns
 
 
 class TestSMSAlert(unittest.TestCase):
@@ -52,7 +47,7 @@ class TestSMSAlert(unittest.TestCase):
             # Verify both print calls were attempted
             self.assertEqual(mock_print.call_count, 2)
 
-    @patch("alerts.sms_alert.ConfigManager")
+    @patch("nginx_security_monitor.sms_alert.ConfigManager")
     def test_send_sms_alert_disabled(self, mock_config_manager):
         """Test SMS alert when SMS is disabled."""
         mock_config = MagicMock()
@@ -61,7 +56,7 @@ class TestSMSAlert(unittest.TestCase):
         }.get(key, default)
         mock_config_manager.get_instance.return_value = mock_config
 
-        with patch("alerts.sms_alert.logging.getLogger") as mock_logger:
+        with patch("nginx_security_monitor.sms_alert.logging.getLogger") as mock_logger:
             mock_log = MagicMock()
             mock_logger.return_value = mock_log
 
@@ -70,7 +65,7 @@ class TestSMSAlert(unittest.TestCase):
             self.assertFalse(result)
             mock_log.info.assert_called_with("SMS alerts are disabled")
 
-    @patch("alerts.sms_alert.ConfigManager")
+    @patch("nginx_security_monitor.sms_alert.ConfigManager")
     def test_send_sms_alert_no_recipient(self, mock_config_manager):
         """Test SMS alert when no recipient is specified."""
         mock_config = MagicMock()
@@ -80,7 +75,7 @@ class TestSMSAlert(unittest.TestCase):
         }.get(key, default)
         mock_config_manager.get_instance.return_value = mock_config
 
-        with patch("alerts.sms_alert.logging.getLogger") as mock_logger:
+        with patch("nginx_security_monitor.sms_alert.logging.getLogger") as mock_logger:
             mock_log = MagicMock()
             mock_logger.return_value = mock_log
 
@@ -90,7 +85,7 @@ class TestSMSAlert(unittest.TestCase):
             self.assertFalse(result)
             mock_log.error.assert_called_with("No SMS recipient specified")
 
-    @patch("alerts.sms_alert.ConfigManager")
+    @patch("nginx_security_monitor.sms_alert.ConfigManager")
     def test_send_sms_alert_message_truncation(self, mock_config_manager):
         """Test message truncation when message exceeds max length."""
         mock_config = MagicMock()
@@ -103,7 +98,7 @@ class TestSMSAlert(unittest.TestCase):
         }.get(key, default)
         mock_config_manager.get_instance.return_value = mock_config
 
-        with patch("alerts.sms_alert.logging.getLogger") as mock_logger:
+        with patch("nginx_security_monitor.sms_alert.logging.getLogger") as mock_logger:
             mock_log = MagicMock()
             mock_logger.return_value = mock_log
 
@@ -118,7 +113,7 @@ class TestSMSAlert(unittest.TestCase):
             logged_calls = mock_log.info.call_args_list
             self.assertTrue(any("..." in str(call) for call in logged_calls))
 
-    @patch("alerts.sms_alert.ConfigManager")
+    @patch("nginx_security_monitor.sms_alert.ConfigManager")
     def test_send_sms_alert_dummy_provider(self, mock_config_manager):
         """Test SMS sending with dummy provider."""
         mock_config = MagicMock()
@@ -130,7 +125,7 @@ class TestSMSAlert(unittest.TestCase):
         }.get(key, default)
         mock_config_manager.get_instance.return_value = mock_config
 
-        with patch("alerts.sms_alert.logging.getLogger") as mock_logger:
+        with patch("nginx_security_monitor.sms_alert.logging.getLogger") as mock_logger:
             mock_log = MagicMock()
             mock_logger.return_value = mock_log
 
@@ -142,8 +137,8 @@ class TestSMSAlert(unittest.TestCase):
             logged_message = str(mock_log.info.call_args)
             self.assertIn("[DUMMY SMS]", logged_message)
 
-    @patch("alerts.sms_alert.ConfigManager")
-    @patch("alerts.sms_alert.send_via_twilio")
+    @patch("nginx_security_monitor.sms_alert.ConfigManager")
+    @patch("nginx_security_monitor.sms_alert.send_via_twilio")
     def test_send_sms_alert_twilio_provider(
         self, mock_send_twilio, mock_config_manager
     ):
@@ -172,8 +167,8 @@ class TestSMSAlert(unittest.TestCase):
             "Security breach detected in system XYZ",
         )
 
-    @patch("alerts.sms_alert.ConfigManager")
-    @patch("alerts.sms_alert.send_via_aws_sns")
+    @patch("nginx_security_monitor.sms_alert.ConfigManager")
+    @patch("nginx_security_monitor.sms_alert.send_via_aws_sns")
     def test_send_sms_alert_aws_sns_provider(self, mock_send_aws, mock_config_manager):
         """Test SMS sending with AWS SNS provider."""
         mock_config = MagicMock()
@@ -199,7 +194,7 @@ class TestSMSAlert(unittest.TestCase):
         )
 
     @patch("time.sleep")
-    @patch("alerts.sms_alert.ConfigManager")
+    @patch("nginx_security_monitor.sms_alert.ConfigManager")
     def test_send_sms_alert_retry_logic(self, mock_config_manager, mock_sleep):
         """Test SMS retry logic with exponential backoff."""
         mock_config = MagicMock()
@@ -212,7 +207,7 @@ class TestSMSAlert(unittest.TestCase):
         }.get(key, default)
         mock_config_manager.get_instance.return_value = mock_config
 
-        with patch("alerts.sms_alert.logging.getLogger") as mock_logger:
+        with patch("nginx_security_monitor.sms_alert.logging.getLogger") as mock_logger:
             mock_log = MagicMock()
             mock_logger.return_value = mock_log
 
@@ -230,7 +225,7 @@ class TestSMSAlert(unittest.TestCase):
                 mock_log.error.call_count, 4
             )  # 3 attempt errors + 1 final error
 
-    @patch("alerts.sms_alert.ConfigManager")
+    @patch("nginx_security_monitor.sms_alert.ConfigManager")
     def test_send_sms_alert_recipient_priority(self, mock_config_manager):
         """Test recipient priority: alert details > default config."""
         mock_config = MagicMock()
@@ -249,7 +244,7 @@ class TestSMSAlert(unittest.TestCase):
         result = send_sms_alert(alert_with_recipient)
         self.assertTrue(result)
 
-    @patch("alerts.sms_alert.ConfigManager")
+    @patch("nginx_security_monitor.sms_alert.ConfigManager")
     def test_send_sms_alert_default_message(self, mock_config_manager):
         """Test default message when no message provided."""
         mock_config = MagicMock()
@@ -261,7 +256,7 @@ class TestSMSAlert(unittest.TestCase):
         }.get(key, default)
         mock_config_manager.get_instance.return_value = mock_config
 
-        with patch("alerts.sms_alert.logging.getLogger") as mock_logger:
+        with patch("nginx_security_monitor.sms_alert.logging.getLogger") as mock_logger:
             mock_log = MagicMock()
             mock_logger.return_value = mock_log
 
@@ -276,7 +271,7 @@ class TestSMSAlert(unittest.TestCase):
     def test_send_via_twilio_missing_package(self):
         """Test Twilio SMS when package is not installed."""
         with patch("importlib.util.find_spec", return_value=None):
-            with patch("alerts.sms_alert.logging.getLogger") as mock_logger:
+            with patch("nginx_security_monitor.sms_alert.logging.getLogger") as mock_logger:
                 mock_log = MagicMock()
                 mock_logger.return_value = mock_log
 
@@ -308,7 +303,7 @@ class TestSMSAlert(unittest.TestCase):
             # Mock the Client class
             sys.modules["twilio.rest"].Client = MagicMock(return_value=mock_client)
 
-            with patch("alerts.sms_alert.logging.getLogger") as mock_logger:
+            with patch("nginx_security_monitor.sms_alert.logging.getLogger") as mock_logger:
                 mock_log = MagicMock()
                 mock_logger.return_value = mock_log
 
@@ -341,7 +336,7 @@ class TestSMSAlert(unittest.TestCase):
                 side_effect=Exception("Twilio API error")
             )
 
-            with patch("alerts.sms_alert.logging.getLogger") as mock_logger:
+            with patch("nginx_security_monitor.sms_alert.logging.getLogger") as mock_logger:
                 mock_log = MagicMock()
                 mock_logger.return_value = mock_log
 
@@ -355,7 +350,7 @@ class TestSMSAlert(unittest.TestCase):
     def test_send_via_aws_sns_missing_package(self):
         """Test AWS SNS SMS when boto3 package is not installed."""
         with patch("importlib.util.find_spec", return_value=None):
-            with patch("alerts.sms_alert.logging.getLogger") as mock_logger:
+            with patch("nginx_security_monitor.sms_alert.logging.getLogger") as mock_logger:
                 mock_log = MagicMock()
                 mock_logger.return_value = mock_log
 
@@ -366,7 +361,7 @@ class TestSMSAlert(unittest.TestCase):
                     "boto3 package not installed. Install with: pip install boto3"
                 )
 
-    @patch("alerts.sms_alert.ConfigManager")
+    @patch("nginx_security_monitor.sms_alert.ConfigManager")
     @patch("importlib.util.find_spec")
     def test_send_via_aws_sns_success(self, mock_find_spec, mock_config_manager):
         """Test successful AWS SNS SMS sending."""
@@ -389,7 +384,7 @@ class TestSMSAlert(unittest.TestCase):
             mock_client.publish.return_value = mock_response
             sys.modules["boto3"].client.return_value = mock_client
 
-            with patch("alerts.sms_alert.logging.getLogger") as mock_logger:
+            with patch("nginx_security_monitor.sms_alert.logging.getLogger") as mock_logger:
                 mock_log = MagicMock()
                 mock_logger.return_value = mock_log
 
@@ -418,7 +413,7 @@ class TestSMSAlert(unittest.TestCase):
                     "SMS sent via AWS SNS. Message ID: msg-123456"
                 )
 
-    @patch("alerts.sms_alert.ConfigManager")
+    @patch("nginx_security_monitor.sms_alert.ConfigManager")
     @patch("importlib.util.find_spec")
     def test_send_via_aws_sns_default_region(self, mock_find_spec, mock_config_manager):
         """Test AWS SNS with default region."""
@@ -438,7 +433,7 @@ class TestSMSAlert(unittest.TestCase):
             mock_client.publish.return_value = mock_response
             sys.modules["boto3"].client.return_value = mock_client
 
-            with patch("alerts.sms_alert.logging.getLogger"):
+            with patch("nginx_security_monitor.sms_alert.logging.getLogger"):
                 result = send_via_aws_sns("key", "secret", "+1234567890", "test")
 
                 self.assertTrue(result)
@@ -449,7 +444,7 @@ class TestSMSAlert(unittest.TestCase):
                     region_name="us-east-1",
                 )
 
-    @patch("alerts.sms_alert.ConfigManager")
+    @patch("nginx_security_monitor.sms_alert.ConfigManager")
     @patch("importlib.util.find_spec")
     def test_send_via_aws_sns_exception(self, mock_find_spec, mock_config_manager):
         """Test AWS SNS exception handling."""
@@ -466,7 +461,7 @@ class TestSMSAlert(unittest.TestCase):
             # Mock boto3 client that raises an exception during creation
             sys.modules["boto3"].client.side_effect = Exception("AWS API error")
 
-            with patch("alerts.sms_alert.logging.getLogger") as mock_logger:
+            with patch("nginx_security_monitor.sms_alert.logging.getLogger") as mock_logger:
                 mock_log = MagicMock()
                 mock_logger.return_value = mock_log
 
@@ -477,8 +472,8 @@ class TestSMSAlert(unittest.TestCase):
                     "Failed to send SMS via AWS SNS: AWS API error"
                 )
 
-    @patch("alerts.sms_alert.ConfigManager")
-    @patch("alerts.sms_alert.send_via_twilio")
+    @patch("nginx_security_monitor.sms_alert.ConfigManager")
+    @patch("nginx_security_monitor.sms_alert.send_via_twilio")
     def test_send_sms_alert_provider_exception_with_retry(
         self, mock_send_twilio, mock_config_manager
     ):
@@ -500,7 +495,7 @@ class TestSMSAlert(unittest.TestCase):
         mock_send_twilio.side_effect = [Exception("Network error"), True]
 
         with patch("time.sleep") as mock_sleep:
-            with patch("alerts.sms_alert.logging.getLogger") as mock_logger:
+            with patch("nginx_security_monitor.sms_alert.logging.getLogger") as mock_logger:
                 mock_log = MagicMock()
                 mock_logger.return_value = mock_log
 

@@ -1,5 +1,5 @@
 import re
-from src.config_manager import ConfigManager
+from nginx_security_monitor.config_manager import ConfigManager
 
 
 def parse_logs(log_file_path):

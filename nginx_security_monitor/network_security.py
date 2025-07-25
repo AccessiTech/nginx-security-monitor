@@ -22,7 +22,7 @@ except ImportError:
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
 from threading import Lock
-from src.config_manager import ConfigManager
+from nginx_security_monitor.config_manager import ConfigManager
 
 
 config = ConfigManager.get_instance()

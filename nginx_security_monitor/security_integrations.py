@@ -14,7 +14,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from collections import defaultdict, deque
 from threading import Lock, Thread
-from src.config_manager import ConfigManager
+from nginx_security_monitor.config_manager import ConfigManager
 
 
 class Fail2BanIntegration:

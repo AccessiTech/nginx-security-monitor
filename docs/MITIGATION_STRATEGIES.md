@@ -322,7 +322,7 @@ Develop custom mitigation strategies for specific threats:
 
 ```python
 # plugins/custom_mitigation.py
-from src.mitigation import MitigationPlugin
+from nginx_security_monitor.mitigation import MitigationPlugin
 
 class CustomMitigationPlugin(MitigationPlugin):
     """Custom mitigation strategy example."""

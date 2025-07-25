@@ -38,7 +38,7 @@ The NGINX Security Monitor uses a centralized configuration system with the foll
 ### Basic Usage
 
 ```python
-from src.config_manager import ConfigManager
+from nginx_security_monitor.config_manager import ConfigManager
 
 # Get the ConfigManager instance (singleton)
 config = ConfigManager.get_instance()

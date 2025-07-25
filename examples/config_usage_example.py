@@ -17,7 +17,7 @@ import logging
 from typing import Dict, Any
 
 # Import the ConfigManager
-from src.config_manager import ConfigManager
+from nginx_security_monitor.config_manager import ConfigManager
 
 # Get a ConfigManager instance (singleton)
 config = ConfigManager.get_instance()

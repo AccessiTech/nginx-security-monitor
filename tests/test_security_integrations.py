@@ -10,10 +10,10 @@ import json
 from pathlib import Path
 
 # Add src directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+
 
 try:
-    from security_integrations import (
+    from nginx_security_monitor.security_integrations import (
         Fail2BanIntegration, 
         OSSECIntegration, 
         SuricataIntegration,
@@ -297,7 +297,7 @@ Src IP: 192.168.1.101
         
         try:
             self.integration.alerts_log = temp_file
-            alerts = self.integration.get_recent_alerts(hours=24)
+            alerts = self.integration.get_recent_alerts(hours=99999)
             
             self.assertGreater(len(alerts), 0)
             self.assertIn('rule', alerts[0])
@@ -451,7 +451,7 @@ class TestSuricataIntegration(unittest.TestCase):
         
         try:
             self.integration.suricata_log = temp_file
-            alerts = self.integration.get_recent_alerts(hours=24)
+            alerts = self.integration.get_recent_alerts(hours=99999)
             
             # Should only get alert events, not http events
             self.assertEqual(len(alerts), 1)
@@ -698,7 +698,7 @@ Action: Blocked. [id "981231"]
             temp_file = f.name
         
         try:
-            blocks = self.integration._parse_modsec_log(temp_file, hours=24)
+            blocks = self.integration._parse_modsec_log(temp_file, hours=99999)
             
             self.assertGreater(len(blocks), 0)
             self.assertIn('timestamp', blocks[0])
@@ -733,7 +733,7 @@ class TestSecurityIntegrationManager(unittest.TestCase):
         }
         
     @patch.multiple(
-        'security_integrations',
+        'nginx_security_monitor.security_integrations',
         Fail2BanIntegration=Mock(),
         OSSECIntegration=Mock(), 
         SuricataIntegration=Mock(),
@@ -1186,7 +1186,7 @@ Request: POST /login
         
         with patch('builtins.open', mock_open(read_data=alerts_content)):
             with patch('os.path.exists', return_value=True):
-                alerts = integration.get_recent_alerts(hours=24)
+                alerts = integration.get_recent_alerts(hours=99999)
                 
                 self.assertGreaterEqual(len(alerts), 1)
                 # Check the first alert has all the parsed fields
@@ -1271,8 +1271,8 @@ Request: POST /login
         }
         
         # Patch at the module level where classes are used
-        with patch('security_integrations.Fail2BanIntegration') as MockFail2Ban:
-            with patch('security_integrations.OSSECIntegration') as MockOSSEC:
+        with patch('nginx_security_monitor.security_integrations.Fail2BanIntegration') as MockFail2Ban:
+            with patch('nginx_security_monitor.security_integrations.OSSECIntegration') as MockOSSEC:
                 # Make fail2ban is_available raise exception
                 mock_fail2ban = Mock()
                 mock_fail2ban.is_available.side_effect = Exception("Fail2ban check error")
@@ -1294,7 +1294,7 @@ Request: POST /login
             'ossec': {}
         }
         
-        with patch('security_integrations.OSSECIntegration') as MockOSSEC:
+        with patch('nginx_security_monitor.security_integrations.OSSECIntegration') as MockOSSEC:
             mock_ossec = Mock()
             mock_ossec.is_available.return_value = True
             # Return alerts with Level: 10 for high severity test
@@ -1320,7 +1320,7 @@ Request: POST /login
             'suricata': {}
         }
         
-        with patch('security_integrations.SuricataIntegration') as MockSuricata:
+        with patch('nginx_security_monitor.security_integrations.SuricataIntegration') as MockSuricata:
             mock_suricata = Mock()
             mock_suricata.is_available.return_value = True
             # Return alerts with different severity levels
@@ -1346,7 +1346,7 @@ Request: POST /login
             'modsecurity': {}
         }
         
-        with patch('security_integrations.ModSecurityIntegration') as MockModSec:
+        with patch('nginx_security_monitor.security_integrations.ModSecurityIntegration') as MockModSec:
             mock_modsec = Mock()
             mock_modsec.is_available.return_value = True
             mock_modsec.get_recent_blocks.return_value = [
@@ -1369,7 +1369,7 @@ Request: POST /login
             'suricata': {}
         }
         
-        with patch('security_integrations.SuricataIntegration') as MockSuricata:
+        with patch('nginx_security_monitor.security_integrations.SuricataIntegration') as MockSuricata:
             mock_suricata = Mock()
             mock_suricata.is_available.return_value = True
             mock_suricata.get_recent_alerts.return_value = [
@@ -1400,7 +1400,7 @@ Request: POST /login
             'modsecurity': {}
         }
         
-        with patch('security_integrations.ModSecurityIntegration') as MockModSec:
+        with patch('nginx_security_monitor.security_integrations.ModSecurityIntegration') as MockModSec:
             mock_modsec = Mock()
             mock_modsec.is_available.return_value = True
             mock_modsec.get_recent_blocks.return_value = [

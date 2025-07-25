@@ -5,7 +5,7 @@ Handles threat analysis and processing for the NGINX Security Monitor.
 """
 
 from typing import List, Dict, Any
-from src.config_manager import ConfigManager
+from nginx_security_monitor.config_manager import ConfigManager
 
 
 config = ConfigManager.get_instance()

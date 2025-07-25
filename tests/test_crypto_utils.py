@@ -8,10 +8,7 @@ import sys
 import os
 import tempfile
 
-# Add src directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from src.crypto_utils import (
+from nginx_security_monitor.crypto_utils import (
     SecurityConfigManager,
     PatternObfuscator,
     generate_master_key,
@@ -315,7 +312,7 @@ class TestCryptoUtilsFunctions(unittest.TestCase):
 
     def test_generate_master_key(self):
         """Test master key generation"""
-        from crypto_utils import generate_master_key
+        from nginx_security_monitor import crypto_utils
 
         key1 = generate_master_key()
         key2 = generate_master_key()
@@ -339,14 +336,14 @@ class TestCryptoUtilsFunctions(unittest.TestCase):
 
     def test_create_encrypted_pattern_file_with_existing_key(self):
         """Test create_encrypted_pattern_file when master key exists"""
-        from crypto_utils import create_encrypted_pattern_file
+        from nginx_security_monitor import crypto_utils
 
         test_patterns = {"sql_injection": ["test_pattern"], "thresholds": {"test": 10}}
 
         with patch.dict(
             os.environ, {"NGINX_MONITOR_KEY": "test_key_1234567890123456"}
         ), patch("tempfile.NamedTemporaryFile") as mock_temp, patch(
-            "crypto_utils.SecurityConfigManager"
+            "nginx_security_monitor.crypto_utils.SecurityConfigManager"
         ) as mock_manager_class:
 
             mock_temp.return_value.__enter__.return_value.name = (
@@ -364,13 +361,13 @@ class TestCryptoUtilsFunctions(unittest.TestCase):
 
     def test_create_encrypted_pattern_file_generate_key(self):
         """Test create_encrypted_pattern_file when no master key exists"""
-        from crypto_utils import create_encrypted_pattern_file
+        from nginx_security_monitor import crypto_utils
 
         test_patterns = {"test": "data"}
 
         with patch.dict(os.environ, {}, clear=True), patch(
-            "crypto_utils.generate_master_key", return_value="generated_key"
-        ), patch("crypto_utils.SecurityConfigManager") as mock_manager_class:
+            "nginx_security_monitor.crypto_utils.generate_master_key", return_value="generated_key"
+        ), patch("nginx_security_monitor.crypto_utils.SecurityConfigManager") as mock_manager_class:
 
             mock_manager = mock_manager_class.return_value
             mock_manager.encrypt_file.return_value = True
@@ -390,12 +387,12 @@ class TestCryptoUtilsFunctions(unittest.TestCase):
 
     def test_create_encrypted_pattern_file_encryption_failure(self):
         """Test create_encrypted_pattern_file when encryption fails"""
-        from crypto_utils import create_encrypted_pattern_file
+        from nginx_security_monitor import crypto_utils
 
         test_patterns = {"test": "data"}
 
         with patch.dict(os.environ, {"NGINX_MONITOR_KEY": "test_key"}), patch(
-            "crypto_utils.SecurityConfigManager"
+            "nginx_security_monitor.crypto_utils.SecurityConfigManager"
         ) as mock_manager_class:
 
             mock_manager = mock_manager_class.return_value
@@ -416,9 +413,9 @@ class TestCryptoUtilsFunctions(unittest.TestCase):
 
                 # Set up mocks for the main execution
                 with patch.dict(os.environ, {}, clear=True), patch(
-                    "crypto_utils.generate_master_key", return_value="test_key"
+                    "nginx_security_monitor.crypto_utils.generate_master_key", return_value="test_key"
                 ), patch(
-                    "crypto_utils.create_encrypted_pattern_file", return_value=True
+                    "nginx_security_monitor.crypto_utils.create_encrypted_pattern_file", return_value=True
                 ), patch(
                     "builtins.open", mock_open()
                 ), patch(
@@ -437,7 +434,7 @@ class TestCryptoUtilsFunctions(unittest.TestCase):
                         # Execute the main block by importing as __main__
                         import importlib.util
 
-                        spec = importlib.util.find_spec("crypto_utils")
+                        spec = importlib.util.find_spec("nginx_security_monitor.crypto_utils")
                         module_path = spec.origin
 
                         # Load and execute the module

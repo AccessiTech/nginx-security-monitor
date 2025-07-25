@@ -170,7 +170,7 @@ alerts:
 
    ```bash
    python -c "
-   from src.alerts.sms_alert import SmsAlert
+   from nginx_security_monitor.sms_alert import SmsAlert
    sms = SmsAlert({'provider': 'twilio', 'config': {...}})
    sms.send_test_message()
    "
@@ -399,10 +399,10 @@ Use the built-in test commands:
 
 ```bash
 # Test email alerts
-python -m src.alerts.email_alert test --config config/settings.yaml
+python -m nginx_sercurity_monitor.email_alert test --config config/settings.yaml
 
 # Test SMS alerts
-python -m src.alerts.sms_alert test --config config/settings.yaml
+python -m nginx_sercurity_monitor.sms_alert test --config config/settings.yaml
 
 # Test all alert channels
 python -m src.alert_manager test_all --config config/settings.yaml
@@ -416,7 +416,7 @@ Create a test script (`test_alerts.py`):
 #!/usr/bin/env python3
 """Test alert system configuration."""
 
-from src.alert_manager import AlertManager
+from nginx_security_monitor.alert_manager import AlertManager
 import yaml
 
 def test_alerts():

@@ -117,7 +117,7 @@ Test that encryption is working:
 python -c "
 import os
 os.environ['NGINX_MONITOR_KEY'] = 'test_key'
-from src.crypto_utils import CryptoUtils
+from nginx_security_monitor.crypto_utils import CryptoUtils
 crypto = CryptoUtils()
 test_data = 'Hello, World!'
 encrypted = crypto.encrypt_data(test_data)

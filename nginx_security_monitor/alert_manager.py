@@ -6,9 +6,9 @@ Handles all alert generation and sending logic for the NGINX Security Monitor.
 
 import socket
 from datetime import datetime
-from src.alerts.email_alert import send_email_alert
-from src.alerts.sms_alert import send_sms_alert
-from src.config_manager import ConfigManager
+from nginx_security_monitor.email_alert import send_email_alert
+from nginx_security_monitor.sms_alert import send_sms_alert
+from nginx_security_monitor.config_manager import ConfigManager
 
 
 config = ConfigManager.get_instance()

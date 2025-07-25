@@ -9,7 +9,7 @@ import importlib.util
 import logging
 from typing import Dict, Any, Callable, List
 from abc import ABC, abstractmethod
-from src.config_manager import ConfigManager
+from nginx_security_monitor.config_manager import ConfigManager
 
 
 class MitigationPlugin(ABC):
@@ -230,7 +230,7 @@ This is your private mitigation strategy that won't be visible in the public cod
 import logging
 from typing import Dict, Any, List
 from plugin_system import MitigationPlugin
-from src.config_manager import ConfigManager
+from nginx_security_monitor.config_manager import ConfigManager
 
 
 config = ConfigManager.get_instance()

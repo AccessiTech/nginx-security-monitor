@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Configuration Encryption Utility
 Helps create and manage encrypted configuration files for NGINX Security Monitor.
@@ -12,15 +11,23 @@ import argparse
 from getpass import getpass
 
 try:
-    from crypto_utils import SecurityConfigManager, generate_master_key
+    from nginx_security_monitor.crypto_utils import SecurityConfigManager, generate_master_key
 
     CRYPTO_AVAILABLE = True
 except ImportError:
     print(
         "Error: cryptography library not installed. Install with: pip install cryptography"
     )
+
     CRYPTO_AVAILABLE = False
-    sys.exit(1)
+
+__all__ = [
+    "encrypt_patterns_file",
+    "encrypt_config_section",
+    "decrypt_and_view",
+    "create_plugin_template",
+    "main"
+]
 
 
 def encrypt_patterns_file():
@@ -241,10 +248,10 @@ def create_plugin_template():
 
     # Import plugin system to create template
     try:
-        from plugin_system import create_plugin_template
+        from nginx_security_monitor.plugin_system import create_plugin_template as plugin_create_template
 
         output_file = f"{plugin_name}_plugin.py"
-        create_plugin_template(plugin_name, output_file)
+        plugin_create_template(plugin_name, output_file)
 
         print(f"\n✅ Plugin template created: {output_file}")
         print("\nNext steps:")
@@ -312,6 +319,14 @@ def main():
             else:
                 print("Invalid choice")
 
+
+
+# Expose functions for test discovery
+encrypt_patterns_file = encrypt_patterns_file
+encrypt_config_section = encrypt_config_section
+decrypt_and_view = decrypt_and_view
+create_plugin_template = create_plugin_template
+main = main
 
 if __name__ == "__main__":
     main()
