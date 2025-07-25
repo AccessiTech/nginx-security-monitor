@@ -31,7 +31,7 @@ on:
       regenerate_all:
         description: 'Regenerate all documentation'
         required: true
-        default: 'true'
+        default: true
       deploy_site:
         description: 'Deploy documentation site'
         required: true
@@ -53,8 +53,6 @@ jobs:
   # Job 1: Generate documentation
   generate-docs:
     runs-on: ubuntu-latest
-    if: github.event.inputs.regenerate_all ==
-      'true' || github.event_name == 'workflow_dispatch'
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -72,6 +70,11 @@ jobs:
     - name: Install dependencies
       run: |
         poetry install --dev
+
+    - name: Generate API documentation
+      run: |
+        poetry run python scripts/generate_docs.py --config docs/docgen-config.yaml --output docs
+
   # Job 2: Deploy documentation site
   deploy-docs:
     runs-on: ubuntu-latest
