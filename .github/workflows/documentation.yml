@@ -61,7 +61,7 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Download documentation site
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: documentation-site
         path: site/
@@ -100,13 +100,13 @@ jobs:
         pip install pyyaml requests
         
     - name: Download API documentation
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: api-documentation
         path: docs/api/
         
     - name: Download metrics
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: documentation-metrics
         
@@ -141,7 +141,7 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Download metrics
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: documentation-metrics
       continue-on-error: true
