@@ -65,229 +65,229 @@ jobs:
         run: |
           poetry run pytest --disable-warnings
 
-  # Job 1: Generate documentation
-  generate-docs:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+  # # Job 1: Generate documentation
+  # generate-docs:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: Install Poetry
-        run: |
-          python -m pip install --upgrade pip
-          pip install poetry==1.6.0
-          poetry config virtualenvs.create false
-          poetry config virtualenvs.in-project true
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v4
+  #       with:
+  #         python-version: ${{ env.PYTHON_VERSION }}
+  #     - name: Install Poetry
+  #       run: |
+  #         python -m pip install --upgrade pip
+  #         pip install poetry==1.6.0
+  #         poetry config virtualenvs.create false
+  #         poetry config virtualenvs.in-project true
 
-      - name: Generate API documentation
-        run: |
-          echo "Current directory: $(pwd)" && \
-          echo "files" && echo $(ls -1) && \
-          ./bin/generate-docs --config docs/docgen-config.yaml --api-docs
+  #     - name: Generate API documentation
+  #       run: |
+  #         echo "Current directory: $(pwd)" && \
+  #         echo "files" && echo $(ls -1) && \
+  #         ./bin/generate-docs --config docs/docgen-config.yaml --api-docs
 
-      - name: Upload API Documentation
-        uses: actions/upload-artifact@v4
-        with:
-          name: api-documentation
-          path: .
-          retention-days: 7
+  #     - name: Upload API Documentation
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: api-documentation
+  #         path: .
+  #         retention-days: 7
 
-      - name: Upload Documentation Metrics
-        uses: actions/upload-artifact@v4
-        with:
-          name: documentation-metrics
-          path: docs/metrics-report.json
-          retention-days: 7
+  #     - name: Upload Documentation Metrics
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: documentation-metrics
+  #         path: docs/metrics-report.json
+  #         retention-days: 7
 
-      - name: Upload Documentation Site
-        uses: actions/upload-artifact@v4
-        with:
-          name: documentation-site
-          path: site/
-          retention-days: 7
+  #     - name: Upload Documentation Site
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: documentation-site
+  #         path: site/
+  #         retention-days: 7
 
-  # Job 2: Quality assurance and reporting
-  qa-report:
-    runs-on: ubuntu-latest
-    needs: [generate-docs]
-    if: success()
+  # # Job 2: Quality assurance and reporting
+  # qa-report:
+  #   runs-on: ubuntu-latest
+  #   needs: [generate-docs]
+  #   if: success()
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
 
-      - name: Download metrics
-        uses: actions/download-artifact@v4
-        with:
-          name: documentation-metrics
-          path: docs/
-        continue-on-error: true
+  #     - name: Download metrics
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: documentation-metrics
+  #         path: docs/
+  #       continue-on-error: true
 
-      - name: Generate QA report
-        run: |
-          cat > qa-report.md << 'EOF'
-          # Documentation Quality Assurance Report
+  #     - name: Generate QA report
+  #       run: |
+  #         cat > qa-report.md << 'EOF'
+  #         # Documentation Quality Assurance Report
 
-          **Generated**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-          **Workflow**: ${{ github.workflow }}
-          **Run**: ${{ github.run_number }}
+  #         **Generated**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+  #         **Workflow**: ${{ github.workflow }}
+  #         **Run**: ${{ github.run_number }}
 
-          ## Summary
+  #         ## Summary
 
-          - **Repository**: ${{ github.repository }}
-          - **Branch**: ${{ github.ref_name }}
-          - **Commit**: ${{ github.sha }}
-          - **Trigger**: ${{ github.event_name }}
+  #         - **Repository**: ${{ github.repository }}
+  #         - **Branch**: ${{ github.ref_name }}
+  #         - **Commit**: ${{ github.sha }}
+  #         - **Trigger**: ${{ github.event_name }}
 
-          ## Documentation Metrics
+  #         ## Documentation Metrics
 
-          EOF
+  #         EOF
 
-          if [ -f "docs/metrics-report.json" ]; then
-            echo "### Generated Metrics" >> qa-report.md
-            python3 << 'PYTHON'
-          import json
+  #         if [ -f "docs/metrics-report.json" ]; then
+  #           echo "### Generated Metrics" >> qa-report.md
+  #           python3 << 'PYTHON'
+  #         import json
 
-          try:
-              with open('docs/metrics-report.json', 'r') as f:
-                  metrics = json.load(f)
+  #         try:
+  #             with open('docs/metrics-report.json', 'r') as f:
+  #                 metrics = json.load(f)
               
-              print("| Metric | Value |")
-              print("|--------|-------|")
+  #             print("| Metric | Value |")
+  #             print("|--------|-------|")
               
-              for key, value in metrics.items():
-                  if isinstance(value, dict):
-                      for subkey, subvalue in value.items():
-                          print(f"| {key}.{subkey} | {subvalue} |")
-                  else:
-                      print(f"| {key} | {value} |")
-          except:
-              print("Could not parse metrics file")
-          PYTHON
-          fi >> qa-report.md
+  #             for key, value in metrics.items():
+  #                 if isinstance(value, dict):
+  #                     for subkey, subvalue in value.items():
+  #                         print(f"| {key}.{subkey} | {subvalue} |")
+  #                 else:
+  #                     print(f"| {key} | {value} |")
+  #         except:
+  #             print("Could not parse metrics file")
+  #         PYTHON
+  #         fi >> qa-report.md
 
-          echo "" >> qa-report.md
-          echo "## Next Steps" >> qa-report.md
-          echo "" >> qa-report.md
-          echo "- Review any failed quality checks above" >> qa-report.md
-          echo "- Check the uploaded documentation artifacts" >> qa-report.md
-          echo "- Visit the deployed documentation site" >> qa-report.md
+  #         echo "" >> qa-report.md
+  #         echo "## Next Steps" >> qa-report.md
+  #         echo "" >> qa-report.md
+  #         echo "- Review any failed quality checks above" >> qa-report.md
+  #         echo "- Check the uploaded documentation artifacts" >> qa-report.md
+  #         echo "- Visit the deployed documentation site" >> qa-report.md
 
-      - name: Upload QA report
-        uses: actions/upload-artifact@v4
-        with:
-          name: qa-report
-          path: qa-report.md
-          retention-days: 7
+  #     - name: Upload QA report
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: qa-report
+  #         path: qa-report.md
+  #         retention-days: 7
 
-      - name: Comment on PR (if applicable)
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const fs = require('fs');
+  #     - name: Comment on PR (if applicable)
+  #       if: github.event_name == 'pull_request'
+  #       uses: actions/github-script@v6
+  #       with:
+  #         script: |
+  #           const fs = require('fs');
 
-            try {
-              const qaReport = fs.readFileSync('qa-report.md', 'utf8');
+  #           try {
+  #             const qaReport = fs.readFileSync('qa-report.md', 'utf8');
               
-              github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: `## 📚 Documentation Quality Report\n\n${qaReport}\n\n*This report was automatically generated by the documentation workflow.*`
-              });
-            } catch (error) {
-              console.log('Could not post QA report:', error);
-            }
+  #             github.rest.issues.createComment({
+  #               issue_number: context.issue.number,
+  #               owner: context.repo.owner,
+  #               repo: context.repo.repo,
+  #               body: `## 📚 Documentation Quality Report\n\n${qaReport}\n\n*This report was automatically generated by the documentation workflow.*`
+  #             });
+  #           } catch (error) {
+  #             console.log('Could not post QA report:', error);
+  #           }
 
-  # Job 3: Update documentation in repository
-  update-docs:
-    runs-on: ubuntu-latest
-    needs: [qa-report]
+  # # Job 3: Update documentation in repository
+  # update-docs:
+  #   runs-on: ubuntu-latest
+  #   needs: [qa-report]
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
+  #       with:
+  #         token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v4
+  #       with:
+  #         python-version: ${{ env.PYTHON_VERSION }}
 
-      # - name: Install dependencies
-      #   run: |
-      #     python -m pip install --upgrade pip
-      #     pip install pyyaml requests
+  #     # - name: Install dependencies
+  #     #   run: |
+  #     #     python -m pip install --upgrade pip
+  #     #     pip install pyyaml requests
 
-      - name: Download API documentation
-        uses: actions/download-artifact@v4
-        with:
-          name: api-documentation
-          path: docs/api/
+  #     - name: Download API documentation
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: api-documentation
+  #         path: docs/api/
 
-      - name: Download metrics
-        uses: actions/download-artifact@v4
-        with:
-          name: documentation-metrics
-          path: docs/
+  #     - name: Download metrics
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: documentation-metrics
+  #         path: docs/
 
-      - name: Check for changes
-        id: verify-changes
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+  #     - name: Check for changes
+  #       id: verify-changes
+  #       run: |
+  #         git config --local user.email "action@github.com"
+  #         git config --local user.name "GitHub Action"
 
-          if git diff --quiet; then
-            echo "changes=false" >> $GITHUB_OUTPUT
-          else
-            echo "changes=true" >> $GITHUB_OUTPUT
-          fi
+  #         if git diff --quiet; then
+  #           echo "changes=false" >> $GITHUB_OUTPUT
+  #         else
+  #           echo "changes=true" >> $GITHUB_OUTPUT
+  #         fi
 
-      - name: Commit documentation updates
-        if: steps.verify-changes.outputs.changes == 'true'
-        run: |
-          git add docs/
-          git add README.md
-          git commit -m "docs: automated documentation update [skip ci]" || exit 0
-          git push
+  #     - name: Commit documentation updates
+  #       if: steps.verify-changes.outputs.changes == 'true'
+  #       run: |
+  #         git add docs/
+  #         git add README.md
+  #         git commit -m "docs: automated documentation update [skip ci]" || exit 0
+  #         git push
 
-  # Job 4: Deploy documentation site
-  deploy-docs:
-    runs-on: ubuntu-latest
-    needs: [update-docs]
+  # # Job 4: Deploy documentation site
+  # deploy-docs:
+  #   runs-on: ubuntu-latest
+  #   needs: [update-docs]
 
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
+  #   permissions:
+  #     contents: read
+  #     pages: write
+  #     id-token: write
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
 
-      - name: Download documentation site
-        uses: actions/download-artifact@v4
-        with:
-          name: documentation-site
-          path: site/
+  #     - name: Download documentation site
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: documentation-site
+  #         path: site/
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v3
+  #     - name: Setup Pages
+  #       uses: actions/configure-pages@v3
 
-      - name: Upload to GitHub Pages
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: site/
+  #     - name: Upload to GitHub Pages
+  #       uses: actions/upload-pages-artifact@v3
+  #       with:
+  #         path: site/
 
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v2
-        with:
-          branch: gh-pages
-          folder: docs
+  #     - name: Deploy to GitHub Pages
+  #       id: deployment
+  #       uses: actions/deploy-pages@v2
+  #       with:
+  #         branch: gh-pages
+  #         folder: docs
