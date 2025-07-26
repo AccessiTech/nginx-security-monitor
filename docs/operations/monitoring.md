@@ -94,7 +94,7 @@ processing_time = Histogram(
 active_integrations = Gauge(
     'nsm_active_integrations',
     'Number of active integrations',
-    ['integration_type']
+    []
 )
 
 memory_usage = Gauge(
@@ -177,7 +177,7 @@ groups:
           severity: warning
         annotations:
           summary: "High processing time detected"
-          description: "Average processing time is {{ $value }}s (threshold: 1.0s)"
+          description: "Average processing time is {{ value }}s (threshold: 1.0s)"
 
       - alert: NSMHighMemoryUsage
         expr: nsm_memory_usage_bytes > 1073741824  # 1GB
@@ -186,7 +186,7 @@ groups:
           severity: warning
         annotations:
           summary: "High memory usage"
-          description: "Memory usage is {{ $value | humanizeBytes }} (threshold: 1GB)"
+          description: "Memory usage is {{ value }} bytes (threshold: 1GB)"
 
       # Security Alerts
       - alert: NSMHighThreatRate
@@ -196,7 +196,7 @@ groups:
           severity: high
         annotations:
           summary: "High threat detection rate"
-          description: "Detecting {{ $value }} threats per second (threshold: 10/s)"
+          description: "Detecting {{ value }} threats per second (threshold: 10/s)"
 
       - alert: NSMCriticalThreatDetected
         expr: increase(nsm_threat_detections_total{severity="critical"}[1m]) > 0
@@ -205,7 +205,7 @@ groups:
           severity: critical
         annotations:
           summary: "Critical threat detected"
-          description: "{{ $value }} critical threats detected in the last minute"
+          description: "{{ value }} critical threats detected in the last minute"
 
       # Integration Alerts
       - alert: NSMIntegrationDown
@@ -215,7 +215,7 @@ groups:
           severity: warning
         annotations:
           summary: "Security integration down"
-          description: "No active {{ $labels.integration_type }} integrations"
+          description: "No active integrations detected"
 
       # System Resource Alerts
       - alert: NSMHighCPUUsage
@@ -225,7 +225,7 @@ groups:
           severity: warning
         annotations:
           summary: "High CPU usage"
-          description: "CPU usage is {{ $value }}% (threshold: 80%)"
+          description: "CPU usage is {{ value }}% (threshold: 80%)"
 
       - alert: NSMDiskSpaceLow
         expr: (node_filesystem_avail_bytes{mountpoint="/var/log"} / node_filesystem_size_bytes{mountpoint="/var/log"}) * 100 < 20
@@ -234,7 +234,7 @@ groups:
           severity: warning
         annotations:
           summary: "Low disk space on /var/log"
-          description: "Disk space is {{ $value }}% available (threshold: 20%)"
+          description: "Disk space is {{ value }}% available (threshold: 20%)"
 ```
 
 <!-- markdownlint-enable MD013 -->
@@ -272,23 +272,23 @@ receivers:
   - name: 'critical-alerts'
     email_configs:
       - to: 'security-team@example.com'
-        subject: 'CRITICAL: NSM Alert - {{ .GroupLabels.alertname }}'
+        subject: 'CRITICAL: NSM Alert - NSM Alert'
         body: |
-          {{ range .Alerts }}
-          Alert: {{ .Annotations.summary }}
-          Description: {{ .Annotations.description }}
-          Labels: {{ .Labels }}
-          {{ end }}
+          {% for alert in Alerts %}
+          Alert: {{ alert.Annotations.summary }}
+          Description: {{ alert.Annotations.description }}
+          Labels: {{ alert.Labels }}
+          {% endfor %}
     slack_configs:
       - api_url: 'YOUR_SLACK_WEBHOOK_URL'
         channel: '#security-alerts'
         title: 'Critical NSM Alert'
-        text: '{{ .CommonAnnotations.summary }}'
+        text: 'Critical NSM Alert triggered.'
 
   - name: 'high-priority-alerts'
     email_configs:
       - to: 'operations@example.com'
-        subject: 'HIGH: NSM Alert - {{ .GroupLabels.alertname }}'
+        subject: 'HIGH: NSM Alert - NSM Alert'
 ```
 
 ## Log Management

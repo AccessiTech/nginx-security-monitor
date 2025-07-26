@@ -328,7 +328,7 @@ Load patterns securely at runtime:
 
 ```python
 # src/encrypted_patterns.py
-from src.crypto_utils import CryptoUtils
+from nginx_security_monitor.crypto_utils import CryptoUtils
 import json
 
 class EncryptedPatternLoader:
@@ -411,7 +411,7 @@ Encrypt sensitive data in database:
 
 ```python
 # src/encrypted_storage.py
-from src.crypto_utils import CryptoUtils
+from nginx_security_monitor.crypto_utils import CryptoUtils
 import json
 from typing import Any, Dict
 
@@ -553,7 +553,7 @@ Implement automated key rotation:
 import os
 import shutil
 from datetime import datetime, timedelta
-from src.crypto_utils import CryptoUtils
+from nginx_security_monitor.crypto_utils import CryptoUtils
 
 class KeyRotationManager:
     """Manage automatic key rotation."""
@@ -957,7 +957,7 @@ performance:
 # scripts/benchmark_encryption.py
 import time
 import statistics
-from src.crypto_utils import CryptoUtils
+from nginx_security_monitor.crypto_utils import CryptoUtils
 
 def benchmark_encryption_performance():
     """Benchmark encryption performance."""

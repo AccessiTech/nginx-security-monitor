@@ -36,17 +36,9 @@ import logging
 from unittest.mock import patch, MagicMock, mock_open
 from pathlib import Path
 
-# Add the src directory to the path
-src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src"))
-if src_path not in sys.path:
-    sys.path.insert(0, src_path)
-
-try:
-    from src.config_manager import ConfigManager, SecureString
-except ImportError as e:
-    raise ImportError(
-        f"Could not import 'config_manager'. Make sure 'src/config_manager.py' exists and is accessible. Original error: {e}"
-    )
+# Import ConfigManager for tests
+from nginx_security_monitor.config_manager import ConfigManager
+from nginx_security_monitor.config_manager import SecureString
 
 
 class TestConfigManagerFinalCoverage(unittest.TestCase):

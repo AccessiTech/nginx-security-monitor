@@ -1,12 +1,7 @@
 import unittest
-import os
-import sys
 from unittest.mock import patch, mock_open
 
-# Add src directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from log_parser import parse_logs
+from nginx_security_monitor.log_parser import parse_logs
 
 
 class TestLogParser(unittest.TestCase):

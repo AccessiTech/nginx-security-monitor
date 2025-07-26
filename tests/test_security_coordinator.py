@@ -5,14 +5,9 @@ Tests for SecurityCoordinator module
 
 import unittest
 from unittest.mock import patch, MagicMock, call
-import sys
-import os
 import time
 
-# Add src directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from security_coordinator import SecurityCoordinator
+from nginx_security_monitor.security_coordinator import SecurityCoordinator
 
 
 class TestSecurityCoordinator(unittest.TestCase):
@@ -37,7 +32,9 @@ class TestSecurityCoordinator(unittest.TestCase):
         self.mock_config_manager.get.return_value = 30  # Set default interval to 30
 
         # Create coordinator with mocked ConfigManager
-        with patch("src.config_manager.ConfigManager") as mock_cm_class:
+        with patch(
+            "nginx_security_monitor.config_manager.ConfigManager"
+        ) as mock_cm_class:
             mock_cm_class.get_instance.return_value = self.mock_config_manager
             self.coordinator = SecurityCoordinator(
                 config=self.config,
@@ -78,7 +75,9 @@ class TestSecurityCoordinator(unittest.TestCase):
         mock_cm = MagicMock()
         mock_cm.get.return_value = 60
 
-        with patch("src.config_manager.ConfigManager") as mock_cm_class:
+        with patch(
+            "nginx_security_monitor.config_manager.ConfigManager"
+        ) as mock_cm_class:
             mock_cm_class.get_instance.return_value = mock_cm
             coordinator = SecurityCoordinator(
                 config=None,
@@ -102,7 +101,9 @@ class TestSecurityCoordinator(unittest.TestCase):
         mock_cm = MagicMock()
         mock_cm.get.return_value = 60
 
-        with patch("src.config_manager.ConfigManager") as mock_cm_class:
+        with patch(
+            "nginx_security_monitor.config_manager.ConfigManager"
+        ) as mock_cm_class:
             mock_cm_class.get_instance.return_value = mock_cm
             coordinator = SecurityCoordinator(
                 config=config_no_interval,

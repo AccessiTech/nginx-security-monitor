@@ -30,6 +30,9 @@ if [[ "$OSTYPE" == "linux-gnu"* ]]; then
                 fi
                 ;;
             centos|rhel)
+<!-- Check required system packages -->
+REQUIRED_PACKAGES=("curl" "wget" "git" "build-essential")
+MISSING_PACKAGES=()
                 if [[ "${VERSION_ID%%.*}" -lt 7 ]]; then
                     echo "⚠️  CentOS/RHEL 7+ recommended"
                 fi
@@ -83,7 +86,7 @@ for package in "${REQUIRED_PACKAGES[@]}"; do
     fi
 done
 
-if [ ${#MISSING_PACKAGES[@]} -eq 0 ]; then
+if [ ${#MISSING_PACKAGES[@]} -eq 0 ]; then #}
     echo "✅ All required system packages available"
 else
     echo "❌ Missing packages: ${MISSING_PACKAGES[*]}"

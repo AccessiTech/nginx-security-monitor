@@ -280,7 +280,7 @@ def test_fail2ban_integration(self, mock_run):
 ```python
 import unittest
 from unittest.mock import Mock, patch
-from src.your_module import YourClass
+from nginx_security_monitor.your_module import YourClass
 
 class TestYourClass(unittest.TestCase):
     def setUp(self):

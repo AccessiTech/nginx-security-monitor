@@ -40,7 +40,7 @@ Create a simple detection plugin:
 
 ```python
 # plugins/custom_detector.py
-from src.plugin_system import DetectionPlugin
+from nginx_security_monitor.plugin_system import DetectionPlugin
 from typing import Dict, List, Any
 import re
 
@@ -171,7 +171,7 @@ More sophisticated detection with machine learning:
 
 ```python
 # plugins/ml_detector.py
-from src.plugin_system import DetectionPlugin
+from nginx_security_monitor.plugin_system import DetectionPlugin
 import joblib
 import numpy as np
 from typing import Dict, List, Any
@@ -254,7 +254,7 @@ ______________________________________________________________________
 
 ```python
 # plugins/custom_mitigation.py
-from src.plugin_system import MitigationPlugin
+from nginx_security_monitor.plugin_system import MitigationPlugin
 from typing import Dict, Any
 import requests
 import subprocess
@@ -385,7 +385,7 @@ ______________________________________________________________________
 
 ```python
 # plugins/custom_alert.py
-from src.plugin_system import AlertPlugin
+from nginx_security_monitor.plugin_system import AlertPlugin
 import requests
 from typing import Dict, Any
 
@@ -462,7 +462,7 @@ ______________________________________________________________________
 
 ```python
 # plugins/custom_parser.py
-from src.plugin_system import ParserPlugin
+from nginx_security_monitor.plugin_system import ParserPlugin
 import re
 from datetime import datetime
 from typing import Dict, Any, Optional
@@ -708,8 +708,8 @@ Test plugins within the full system:
 ```python
 # tests/test_plugin_integration.py
 import unittest
-from src.plugin_system import PluginManager
-from src.monitor_service import MonitorService
+from nginx_security_monitor.plugin_system import PluginManager
+from nginx_security_monitor.monitor_service import MonitorService
 
 class TestPluginIntegration(unittest.TestCase):
     """Test plugin integration with main system."""

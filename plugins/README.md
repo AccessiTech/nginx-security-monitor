@@ -23,10 +23,10 @@ import sys
 import os
 
 # Add the src directory to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from src.plugin_system import MitigationPlugin
-from src.config_manager import ConfigManager
+
+from nginx_security_monitor.plugin_system import MitigationPlugin
+from nginx_security_monitor.config_manager import ConfigManager
 
 class YourPluginNamePlugin(MitigationPlugin):
     """Custom mitigation plugin."""

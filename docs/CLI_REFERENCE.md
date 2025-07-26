@@ -530,6 +530,7 @@ For comprehensive documentation:
 
 See also:
 
-- [bin/README.md](../bin/README.md) - Detailed command documentation
+<!-- bin/README.md link removed: file not found -->
+
 - [OPERATIONS_GUIDE.md](OPERATIONS_GUIDE.md) - Day-to-day operations
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Problem resolution

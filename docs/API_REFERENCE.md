@@ -57,7 +57,7 @@ def start(self) -> None:
 **Example:**
 
 ```python
-from src.monitor_service import MonitorService
+from nginx_security_monitor.monitor_service import MonitorService
 
 monitor = MonitorService('/path/to/config.yaml')
 monitor.start()
@@ -133,7 +133,7 @@ def parse_line(self, line: str) -> Dict[str, Any]:
 **Example:**
 
 ```python
-from src.log_parser import LogParser
+from nginx_security_monitor.log_parser import LogParser
 
 parser = LogParser('nginx')
 log_entry = parser.parse_line('192.168.1.1 - - [01/Jan/2024:12:00:00 +0000] "GET / HTTP/1.1" 200 1234')
@@ -203,7 +203,7 @@ def detect_threats(self, log_entry: Dict[str, Any]) -> List[Dict[str, Any]]:
 **Example:**
 
 ```python
-from src.pattern_detector import PatternDetector
+from nginx_security_monitor.pattern_detector import PatternDetector
 
 detector = PatternDetector('/path/to/patterns.json')
 threats = detector.detect_threats({
@@ -288,7 +288,7 @@ def send_alert(self, alert: Dict[str, Any]) -> bool:
 **Example:**
 
 ```python
-from src.alert_manager import AlertManager
+from nginx_security_monitor.alert_manager import AlertManager
 
 alert_mgr = AlertManager({
     'email': {'enabled': True, 'smtp_server': 'localhost'},
@@ -363,7 +363,7 @@ def mitigate_threat(self, threat: Dict[str, Any]) -> Dict[str, Any]:
 **Example:**
 
 ```python
-from src.mitigation import MitigationEngine
+from nginx_security_monitor.mitigation import MitigationEngine
 
 mitigation = MitigationEngine({
     'auto_block': True,
@@ -482,7 +482,7 @@ def generate_key() -> bytes:
 **Example:**
 
 ```python
-from src.crypto_utils import CryptoUtils
+from nginx_security_monitor.crypto_utils import CryptoUtils
 
 # Generate encryption key
 key = CryptoUtils.generate_key()
@@ -625,10 +625,10 @@ ______________________________________________________________________
 ### **Basic Monitoring Setup**
 
 ```python
-from src.monitor_service import MonitorService
-from src.log_parser import LogParser
-from src.pattern_detector import PatternDetector
-from src.alert_manager import AlertManager
+from nginx_security_monitor.monitor_service import MonitorService
+from nginx_security_monitor.log_parser import LogParser
+from nginx_security_monitor.pattern_detector import PatternDetector
+from nginx_security_monitor.alert_manager import AlertManager
 
 # Initialize components
 monitor = MonitorService('/etc/nginx-security/config.yaml')
@@ -646,7 +646,7 @@ monitor.start()
 ### **Custom Plugin Development**
 
 ```python
-from src.plugin_system import PluginManager, DetectionPlugin
+from nginx_security_monitor.plugin_system import PluginManager, DetectionPlugin
 
 class CustomThreatDetector(DetectionPlugin):
     """Custom threat detection plugin."""
@@ -710,7 +710,7 @@ class AlertError(Exception):
 ### **Error Handling Example**
 
 ```python
-from src.monitor_service import MonitorService, ConfigurationError
+from nginx_security_monitor.monitor_service import MonitorService, ConfigurationError
 
 try:
     monitor = MonitorService('/path/to/config.yaml')

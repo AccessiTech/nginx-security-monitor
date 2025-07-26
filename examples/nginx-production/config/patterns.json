@@ -1,0 +1,53 @@
+{
+  "patterns": {
+    "sql_injection": {
+      "enabled": true,
+      "severity": "high",
+      "description": "Detects SQL injection attempts",
+      "patterns": [
+        "(?i)(union.*select|select.*from|insert.*into|delete.*from)",
+        "(?i)(or\\s+1=1|and\\s+1=1|'\\s*or\\s*')",
+        "(?i)(exec\\s*\\(|sp_|xp_)"
+      ],
+      "threshold": 1,
+      "window": 60
+    },
+    
+    "xss_attacks": {
+      "enabled": true,
+      "severity": "medium",
+      "description": "Cross-site scripting detection",
+      "patterns": [
+        "(?i)<script[^>]*>.*?</script>",
+        "(?i)javascript:",
+        "(?i)on(load|click|mouseover|error)\\s*="
+      ],
+      "threshold": 1,
+      "window": 60
+    },
+    
+    "ddos_detection": {
+      "enabled": true,
+      "severity": "high",
+      "description": "DDoS and high-volume attacks",
+      "type": "frequency",
+      "threshold": 100,
+      "window": 60,
+      "per_ip": true
+    },
+    
+    "brute_force": {
+      "enabled": true,
+      "severity": "medium",
+      "description": "Brute force login attempts",
+      "patterns": [
+        "POST.*/(login|signin|auth)",
+        "401.*Unauthorized",
+        "403.*Forbidden"
+      ],
+      "threshold": 5,
+      "window": 300,
+      "per_ip": true
+    }
+  }
+}

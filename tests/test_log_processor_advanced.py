@@ -6,16 +6,11 @@ This test file targets the remaining 3 uncovered lines to push coverage from 94%
 Missing lines: 122-124 (exception handling in parse_log_line)
 """
 
-import os
-import sys
 import unittest
 from unittest.mock import Mock, patch
 
-# Add the src directory to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
 try:
-    from src.log_processor import LogProcessor
+    from nginx_security_monitor.log_processor import LogProcessor
 except ImportError as e:
     raise ImportError(f"Could not import log_processor. Error: {e}")
 

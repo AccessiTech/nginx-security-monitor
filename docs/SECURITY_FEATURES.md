@@ -47,7 +47,7 @@ pip install cryptography
 # Interactive encryption wizard
 ./bin/encrypt-config interactive
 # or
-export NGINX_MONITOR_KEY=$(python3 -c "from src.crypto_utils import generate_master_key; print(generate_master_key())")
+export NGINX_MONITOR_KEY=$(python3 -c "from nginx_security_monitor.crypto_utils import generate_master_key; print(generate_master_key())")
 ````
 
 **Important**: Save this key securely! You'll need it to decrypt your patterns.

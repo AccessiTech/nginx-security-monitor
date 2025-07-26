@@ -85,18 +85,21 @@ install_dependencies() {
 # Setup Python virtual environment
 setup_python_env() {
     print_status "Setting up Python virtual environment..."
-    
+
     cd "$INSTALL_DIR"
     python3 -m venv venv
     source venv/bin/activate
-    
-    # Upgrade pip
-    pip install --upgrade pip
-    
-    # Install required packages
-    pip install pyyaml requests
-    
-    print_status "Python environment setup complete"
+
+    # Install Poetry if not already installed
+    if ! command -v poetry > /dev/null; then
+        curl -sSL https://install.python-poetry.org | python3 -
+        export PATH="$HOME/.local/bin:$PATH"
+    fi
+
+    # Install project dependencies with Poetry
+    poetry install --no-interaction
+
+    print_status "Python environment setup complete (Poetry)"
 }
 
 # Copy application files
@@ -173,18 +176,27 @@ EOF
 
 # Main installation function
 main() {
+    DEV_MODE=0
+    for arg in "$@"; do
+        if [[ "$arg" == "--dev" ]]; then
+            DEV_MODE=1
+        fi
+    done
+
     print_status "Starting NGINX Security Monitor installation..."
-    
+
     check_root
     create_service_user
     create_directories
     install_dependencies
-    setup_python_env
+
+    # Pass dev mode to setup_python_env
+    setup_python_env $DEV_MODE
     copy_application
     install_systemd_service
     set_permissions
     setup_log_rotation
-    
+
     print_status "Installation completed successfully!"
     echo
     print_warning "Next steps:"
@@ -194,6 +206,30 @@ main() {
     echo "4. Check service status: systemctl status $SERVICE_NAME"
     echo "5. View logs: journalctl -u $SERVICE_NAME -f"
     echo
+}
+
+# Update setup_python_env to accept dev mode
+setup_python_env() {
+    print_status "Setting up Python virtual environment..."
+
+    cd "$INSTALL_DIR"
+    python3 -m venv venv
+    source venv/bin/activate
+
+    # Install Poetry if not already installed
+    if ! command -v poetry > /dev/null; then
+        curl -sSL https://install.python-poetry.org | python3 -
+        export PATH="$HOME/.local/bin:$PATH"
+    fi
+
+    # Install project dependencies with Poetry
+    if [[ "$1" == "1" ]]; then
+        poetry install --no-interaction --with dev
+    else
+        poetry install --no-interaction
+    fi
+
+    print_status "Python environment setup complete (Poetry)"
 }
 
 # Run main function
