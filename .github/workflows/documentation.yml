@@ -1,4 +1,6 @@
 name: Run tests workflow
+permissions:
+  contents: read
 
 on:
   # Allow manual trigger
@@ -138,6 +140,9 @@ jobs:
 
   # Job 2: Quality assurance and reporting
   qa-report:
+    permissions:
+      contents: read
+      issues: write
     runs-on: ubuntu-latest
     needs: [generate-docs]
     if: success()
