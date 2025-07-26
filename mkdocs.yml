@@ -180,7 +180,6 @@ nav:
     - Testing: TESTING.md
     - Style Guide: STYLE_GUIDE.md
     - Architecture Decisions:
-      - Overview: architecture/decisions/README.md
       - ADR Template: architecture/decisions/template.md
   
   - API Reference:
@@ -201,7 +200,7 @@ nav:
     - Troubleshooting Guide: TROUBLESHOOTING.md
   
   - About:
-    - License: LICENSE.md
+    # - License: LICENSE.md
     - Code of Conduct: CODE_OF_CONDUCT.md
     - Testing Keys: TESTING_KEYS.md
 
