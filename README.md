@@ -138,97 +138,44 @@ After installation, configure the service by editing:
 sudo nano /etc/nginx-security-monitor/settings.yaml
 ```
 
-Key configuration sections:
+enabled: true
 
-#### Email Alerts
+### Installation (Development & Production)
 
-```yaml
-email_service:
-  enabled: true
-  smtp_server: smtp.gmail.com
-  smtp_port: 587
-  use_tls: true
-  username: your_email@gmail.com
-  password: your_app_password
-  from_address: your_email@gmail.com
-  to_address: security@yourdomain.com
-```
-
-#### Monitoring Settings
-
-```yaml
-monitoring:
-  check_interval: 10  # seconds between log checks
-  
-log_file_path: /var/log/nginx/access.log
-error_log_file_path: /var/log/nginx/error.log
-```
-
-#### Detection Thresholds
-
-```yaml
-patterns:
-  thresholds:
-    failed_requests_per_minute: 50
-    requests_per_ip_per_minute: 100
-    error_rate_threshold: 0.1
-```
-
-### Legacy Configuration
-
-For standalone usage, configure these files:
-
-- `config/patterns.json`: Define the attack patterns to be detected.
-- `config/settings.yaml`: Set up your email and SMS service credentials, alert thresholds, and log file paths.
-
-## Advanced Security Features (Optional)
-
-For production environments where you want to keep your specific detection patterns and countermeasures private, the system supports:
-
-### Security Framework Integrations
-
-Leverage your existing security infrastructure with native integrations:
+Clone the repository and run the installation script. The script will set up all dependencies using Poetry and configure the service for production use.
 
 ```bash
-# Check available security framework integrations
-python3 security_integrations_util.py check
-
-# Test integrations
-python3 security_integrations_util.py test
-```
-
-**Supported frameworks:**
-
-- **fail2ban**: Automatic IP blocking and jail management
-- **OSSEC/Wazuh**: Host intrusion detection and SIEM integration
-- **Suricata**: Network intrusion detection/prevention
-- **ModSecurity**: Web application firewall integration
-
-See [Security Integrations](SECURITY_INTEGRATIONS.md) for complete setup guide.
-
-### Encrypted Pattern Storage
-
-Store your custom detection rules in encrypted files that only your system can decrypt:
-
-```bash
-# Install cryptography for encryption features
-pip install cryptography
-
-# Generate master key and create encrypted patterns
-python3 encrypt_config.py interactive
-```
-
-### Custom Mitigation Plugins
-
-Keep your actual countermeasures private with the plugin system:
-
-```bash
-# Create custom plugin template
-python3 encrypt_config.py create-plugin
-
-# Edit the generated plugin with your secret mitigation logic
+# Clone the repository
 # Place in /etc/nginx-security-monitor/plugins/
+cd nginx-security-monitor
+
+# Make installation script executable
+chmod +x install.sh
+
+# For production install (default: only runtime dependencies)
 ```
+
+# For development install (includes dev dependencies)
+
+````
+
+This will:
+- Create a dedicated system user and group
+- Install all Python dependencies in a virtual environment using Poetry
+- Copy files to `/opt/nginx-security-monitor`
+- Create configuration files in `/etc/nginx-security-monitor`
+- Install and configure the systemd service
+- Set up log rotation
+- Apply basic security hardening
+
+**Note:**
+- For development or testing, you can also use Poetry directly:
+  ```bash
+  poetry install --with dev
+  poetry shell
+````
+
+**Typical workflow:** Start with `sudo ./install.sh --dev` for development, then use `sudo ./install.sh` for production deployment.
 
 ### Obfuscation Features
 
@@ -329,11 +276,11 @@ To use the NGINX Security Monitor as a standalone script, ensure that you have t
 Example usage:
 
 ```python
-from src.log_parser import parse_logs
-from src.pattern_detector import PatternDetector
-from src.mitigation import mitigate_threat
-from src.alerts.email_alert import send_email_alert
-from src.alerts.sms_alert import send_sms_alert
+from nginx_security_monitor.log_parser import parse_logs
+from nginx_security_monitor.pattern_detector import PatternDetector
+from nginx_security_monitor.mitigation import mitigate_threat
+from nginx_security_monitor.email_alert import send_email_alert
+from nginx_security_monitor.sms_alert import send_sms_alert
 
 # Parse logs
 logs = parse_logs('path/to/nginx.log')

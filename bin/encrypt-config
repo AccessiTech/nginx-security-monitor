@@ -11,9 +11,6 @@ import yaml
 import argparse
 from getpass import getpass
 
-# Add the src directory to Python path
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
-
 try:
     from crypto_utils import SecurityConfigManager, generate_master_key
 

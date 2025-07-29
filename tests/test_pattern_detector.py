@@ -1,12 +1,8 @@
 import unittest
 import os
-import sys
 from unittest.mock import patch
 
-# Add src directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from pattern_detector import PatternDetector
+from nginx_security_monitor.pattern_detector import PatternDetector
 
 
 class TestPatternDetector(unittest.TestCase):

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nginx-security-monitor"
-version = "1.0.0"
+version = "1.1.0"
 description = "A simple set of Python scripts to monitor NGINX logs, detect attack patterns, mitigate intrusion tactics, and trigger alerts through email and SMS."
 authors = ["AccessiTech <accessit3ch@gmail.com>"]
 license = "MIT"
@@ -10,10 +10,29 @@ repository = "https://github.com/AccessiTech/nginx-security-monitor"
 keywords = ["nginx", "security", "monitoring", "logs", "alerts"]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = ">=3.9"
+
 requests = "^2.25.1"
 pyyaml = "^6.0"
+psutil = "^7.0.0"
+python-dateutil = "^2.9.0.post0"
+pytz = "^2025.2"
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.0.0"
+pytest-cov = ">=6.0.0"
+pytest-mock = ">=3.10.0"
+coverage = ">=7.0.0"
+black = ">=23.0.0"
+flake8 = ">=6.0.0"
+mypy = ">=1.0.0"
+pre-commit = ">=3.0.0"
+coverage-badge = "*"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+
+[[tool.poetry.packages]]
+include = "nginx_security_monitor"

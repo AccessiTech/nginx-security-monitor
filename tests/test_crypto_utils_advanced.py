@@ -15,13 +15,8 @@ import json
 from unittest.mock import patch, MagicMock, mock_open
 from pathlib import Path
 
-# Add the src directory to the path
-src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src"))
-if src_path not in sys.path:
-    sys.path.insert(0, src_path)
-
 try:
-    from src.crypto_utils import (
+    from nginx_security_monitor.crypto_utils import (
         SecurityConfigManager,
         PatternObfuscator,
         generate_master_key,
@@ -48,7 +43,9 @@ class TestCryptoUtilsAdvanced(unittest.TestCase):
         """Test line 53-54: Warning when using default test key."""
         # Clear environment to force default key usage
         with patch.dict(os.environ, {}, clear=True):
-            with patch("src.crypto_utils.SecurityConfigManager") as mock_manager:
+            with patch(
+                "nginx_security_monitor.crypto_utils.SecurityConfigManager"
+            ) as mock_manager:
                 # Mock the config manager to avoid dependencies
                 mock_config = MagicMock()
                 mock_config.get.side_effect = lambda key, default: default
@@ -72,7 +69,7 @@ class TestCryptoUtilsAdvanced(unittest.TestCase):
             manager = SecurityConfigManager()
 
             # Mock PBKDF2HMAC to raise exception
-            with patch("src.crypto_utils.PBKDF2HMAC") as mock_kdf:
+            with patch("nginx_security_monitor.crypto_utils.PBKDF2HMAC") as mock_kdf:
                 mock_kdf.side_effect = Exception("KDF generation failed")
 
                 with patch.object(manager, "logger") as mock_logger:
@@ -178,11 +175,11 @@ class TestCryptoUtilsAdvanced(unittest.TestCase):
         with patch.dict(os.environ, {}, clear=True):
             with patch("builtins.print") as mock_print:
                 with patch(
-                    "src.crypto_utils.generate_master_key",
+                    "nginx_security_monitor.crypto_utils.generate_master_key",
                     return_value="generated_test_key",
                 ):
                     with patch(
-                        "src.crypto_utils.SecurityConfigManager"
+                        "nginx_security_monitor.crypto_utils.SecurityConfigManager"
                     ) as mock_manager:
                         mock_instance = MagicMock()
                         mock_instance.encrypt_file.return_value = True
@@ -205,7 +202,9 @@ class TestCryptoUtilsAdvanced(unittest.TestCase):
         output_file = os.path.join(self.temp_dir, "test_fail.enc")
 
         with patch.dict(os.environ, {"NGINX_MONITOR_KEY": "test_key"}):
-            with patch("src.crypto_utils.SecurityConfigManager") as mock_manager:
+            with patch(
+                "nginx_security_monitor.crypto_utils.SecurityConfigManager"
+            ) as mock_manager:
                 mock_instance = MagicMock()
                 mock_instance.encrypt_file.return_value = False  # Encryption fails
                 mock_manager.return_value = mock_instance
@@ -218,22 +217,26 @@ class TestCryptoUtilsAdvanced(unittest.TestCase):
     def test_main_module_execution_coverage(self):
         """Test line 275-293: Main module execution block."""
         # Mock the main execution environment
-        with patch("src.crypto_utils.__name__", "__main__"):
+        with patch("nginx_security_monitor.crypto_utils.__name__", "__main__"):
             with patch.dict(os.environ, {}, clear=True):
                 with patch("builtins.print") as mock_print:
                     with patch("builtins.open", mock_open()) as mock_file:
                         with patch("json.dump") as mock_json_dump:
                             with patch(
-                                "src.crypto_utils.generate_master_key",
+                                "nginx_security_monitor.crypto_utils.generate_master_key",
                                 return_value="test_master_key",
                             ):
                                 with patch(
-                                    "src.crypto_utils.create_encrypted_pattern_file",
+                                    "nginx_security_monitor.crypto_utils.create_encrypted_pattern_file",
                                     return_value=True,
                                 ):
                                     # Import to trigger main execution
                                     try:
-                                        exec(open("src/crypto_utils.py").read())
+                                        exec(
+                                            open(
+                                                "nginx_security_monitor/crypto_utils.py"
+                                            ).read()
+                                        )
                                     except SystemExit:
                                         pass  # Expected for main execution
                                     except Exception:

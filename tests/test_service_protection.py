@@ -4,20 +4,14 @@ Test suite for service protection functionality
 
 import unittest
 from unittest.mock import Mock, patch, MagicMock, mock_open
-import sys
 import os
 import tempfile
 import hashlib
 from datetime import datetime, timedelta
 from collections import deque
 
-# Add src directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-try:
-    from service_protection import ServiceProtection
-except ImportError as e:
-    print(f"Could not import service protection: {e}")
+from nginx_security_monitor.service_protection import ServiceProtection
 
 
 class TestServiceProtection(unittest.TestCase):

@@ -344,8 +344,8 @@ jobs:
       - name: Login to DockerHub
         uses: docker/login-action@v2
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: <DOCKERHUB_USERNAME>
+          password: <DOCKERHUB_TOKEN>
           
       - name: Extract version
         id: extract_version
@@ -357,7 +357,7 @@ jobs:
           context: .
           push: true
           tags: |
-            nginx-security-monitor/nsm:${{ steps.extract_version.outputs.VERSION }}
+            nginx-security-monitor/nsm:<VERSION>
             nginx-security-monitor/nsm:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -382,15 +382,15 @@ jobs:
         
       - name: Generate release notes
         run: |
-          python scripts/generate_release_notes.py ${{ steps.extract_version.outputs.VERSION }} > release_notes.md
+          python scripts/generate_release_notes.py <VERSION> > release_notes.md
           
       - name: Create Release
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: <GITHUB_TOKEN>
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ steps.extract_version.outputs.VERSION }}
+          tag_name: <TAG_NAME>
+          release_name: Release <VERSION>
           body_path: release_notes.md
           draft: false
           prerelease: false
@@ -398,15 +398,15 @@ jobs:
       - name: Upload Release Assets
         run: |
           for file in dist/*; do
-            gh release upload ${{ github.ref_name }} "$file"
+            gh release upload <TAG_NAME> "$file"
           done
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: <GITHUB_TOKEN>
           
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
+          password: <PYPI_API_TOKEN>
 ```
 
 ### 2. Manual Release Steps

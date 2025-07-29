@@ -80,4 +80,4 @@ Key features include:
 - **Advanced Security**: Includes encrypted pattern storage and a plugin system for custom rules (see [Security Features](SECURITY_FEATURES.md)).
 - **Production-Ready**: Can run as a Linux systemd service with security hardening (see [Service Protection](SERVICE_PROTECTION.md)).
 
-For a complete list of topics, check the [README](../README.md) or navigate through the sidebar.
+For a complete list of topics, use the sidebar navigation.
