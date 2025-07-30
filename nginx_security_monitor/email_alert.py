@@ -14,10 +14,12 @@ def load_email_config(config_path=None):
     """Load email configuration from YAML file."""
     config_manager = ConfigManager.get_instance()
 
-    # Get config path from ConfigManager or use default
+    # Use main config path if not provided
     if not config_path:
-        config_path = config_manager.get(
-            "alert_system.email.config_path", "/etc/nginx-security-monitor/config.yaml"
+        # Try to get the main config path from ConfigManager
+        main_config_path = config_manager.config_path if hasattr(config_manager, "config_path") else None
+        config_path = main_config_path or config_manager.get(
+            "alert_system.email.config_path", "config/settings.yaml"
         )
 
     try:
