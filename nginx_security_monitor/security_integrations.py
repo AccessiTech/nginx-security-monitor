@@ -801,6 +801,15 @@ class SecurityIntegrationManager:
         # Track which integrations are available
         self.available_integrations = self._check_available_integrations()
 
+        # List of all integration instances for iteration
+        self.integrations = [
+            self.fail2ban,
+            self.ossec,
+            self.suricata,
+            self.wazuh,
+            self.modsecurity,
+        ]
+
     def _check_available_integrations(self):
         """Check which security tools are available on the system."""
         available = {}
