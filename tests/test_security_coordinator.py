@@ -440,13 +440,13 @@ class TestSecurityCoordinator(unittest.TestCase):
             {"type": "high_load", "service": "nginx"},
         ]
 
-        self.mock_service_protection.check_for_threats.return_value = service_threats
+        self.mock_service_protection.perform_self_check.return_value = service_threats
         self.mock_alert_manager.send_service_threat_alert.return_value = True
 
         self.coordinator._check_service_protection()
 
         # Verify service protection was checked
-        self.mock_service_protection.check_for_threats.assert_called_once()
+        self.mock_service_protection.perform_self_check.assert_called_once()
 
         # Verify alerts were sent
         self.assertEqual(
@@ -466,7 +466,7 @@ class TestSecurityCoordinator(unittest.TestCase):
 
     def test_check_service_protection_no_threats(self):
         """Test service protection check with no threats."""
-        self.mock_service_protection.check_for_threats.return_value = []
+        self.mock_service_protection.perform_self_check.return_value = []
 
         self.coordinator._check_service_protection()
 
@@ -475,7 +475,7 @@ class TestSecurityCoordinator(unittest.TestCase):
 
     def test_check_service_protection_with_exception(self):
         """Test service protection check with exception."""
-        self.mock_service_protection.check_for_threats.side_effect = Exception(
+        self.mock_service_protection.perform_self_check.side_effect = Exception(
             "Service error"
         )
 

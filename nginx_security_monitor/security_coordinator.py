@@ -214,7 +214,7 @@ class SecurityCoordinator:
     def _check_service_protection(self) -> None:
         """Check service protection status and handle threats."""
         try:
-            service_threats = self.service_protection.check_for_threats()
+            service_threats = self.service_protection.perform_self_check()
 
             if service_threats:
                 for threat in service_threats:
