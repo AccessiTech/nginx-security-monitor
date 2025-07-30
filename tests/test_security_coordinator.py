@@ -448,10 +448,8 @@ class TestSecurityCoordinator(unittest.TestCase):
         # Verify service protection was checked
         self.mock_service_protection.perform_self_check.assert_called_once()
 
-        # Verify alerts were sent
-        self.assertEqual(
-            self.mock_alert_manager.send_service_threat_alert.call_count, 2
-        )
+        # Verify alert was sent once with the list of threats
+        self.mock_alert_manager.send_service_threat_alert.assert_called_once_with(service_threats)
 
         # Verify threats were logged
         self.mock_logger.warning.assert_any_call(
