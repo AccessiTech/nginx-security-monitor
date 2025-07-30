@@ -233,13 +233,18 @@ class SecurityCoordinator:
                         and threat.get("severity", "").upper() == "CRITICAL"
                         and threat.get("status", "unknown") == "unknown"
                     ):
-                        service_name = self.config.get("service_name", "nginx-security-monitor")
-                        try:
-                            import subprocess
-                            subprocess.run(["systemctl", "restart", service_name], check=True)
-                            self.logger.info(f"Automated remediation: Restarted service '{service_name}' due to critical status.")
-                        except Exception as restart_exc:
-                            self.logger.error(f"Automated remediation failed: Could not restart service '{service_name}': {restart_exc}")
+                        import subprocess
+                        service_names = [
+                            self.config.get("service_name", "nginx-security-monitor"),
+                            "nginx"
+                        ]
+                        for service_name in service_names:
+                            try:
+                                subprocess.run(["systemctl", "restart", service_name], check=True)
+                                self.logger.info(f"Automated remediation: Restarted service '{service_name}' due to critical status.")
+                                break
+                            except Exception as restart_exc:
+                                self.logger.error(f"Automated remediation failed: Could not restart service '{service_name}': {restart_exc}")
 
         except Exception as e:
             self.logger.error(f"Error checking service protection: {e}")
