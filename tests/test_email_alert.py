@@ -91,6 +91,7 @@ class TestEmailAlert(unittest.TestCase):
 
             with patch("nginx_security_monitor.email_alert.ConfigManager") as mock_cm:
                 mock_cm.get_instance.return_value.get.return_value = config_file
+                mock_cm.get_instance.return_value.config_path = config_file
 
                 # Call without config_path parameter to trigger default path logic
                 result = load_email_config()
