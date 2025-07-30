@@ -14,11 +14,23 @@ def load_email_config(config_path=None):
     """Load email configuration from YAML file."""
     config_manager = ConfigManager.get_instance()
 
-    # Get config path from ConfigManager or use default
+    # Use main config path if not provided, handle None robustly
+    import os
     if not config_path:
-        config_path = config_manager.get(
-            "alert_system.email.config_path", "/etc/nginx-security-monitor/config.yaml"
-        )
+        main_config_path = None
+        if config_manager:
+            main_config_path = getattr(config_manager, "config_path", None)
+            if not main_config_path:
+                try:
+                    main_config_path = config_manager.get("alert_system.email.config_path", None)
+                except Exception:
+                    main_config_path = None
+        # Use the first valid path that exists
+        candidate_paths = [main_config_path, "config/settings.yaml", "config/service-settings.yaml"]
+        config_path = next((p for p in candidate_paths if p and os.path.exists(p)), None)
+        if not config_path:
+            # Fallback to the first candidate if none exist
+            config_path = candidate_paths[0]
 
     try:
         with open(config_path, "r") as file:

@@ -23,22 +23,20 @@ from nginx_security_monitor.sms_alert import send_sms_alert
 from nginx_security_monitor.alert_manager import AlertManager
 from nginx_security_monitor.log_processor import LogProcessor
 from nginx_security_monitor.threat_processor import ThreatProcessor
-from nginx_security_monitor.security_coordinator import SecurityCoordinator
 
-# Import our security modules
+from nginx_security_monitor.security_coordinator import SecurityCoordinator
+from nginx_security_monitor.config_manager import ConfigManager
+# Import our security modules (optional)
 try:
     from nginx_security_monitor.crypto_utils import SecurityConfigManager, PatternObfuscator
     from nginx_security_monitor.plugin_system import PluginManager
     from nginx_security_monitor.service_protection import ServiceProtection
     from nginx_security_monitor.network_security import NetworkSecurity, SecurityHardening
     from nginx_security_monitor.security_integrations import SecurityIntegrationManager
-    from nginx_security_monitor.config_manager import ConfigManager
-
     SECURITY_FEATURES_AVAILABLE = True
 except ImportError as e:
     logging.warning(f"Security features not available (install dependencies): {e}")
     SECURITY_FEATURES_AVAILABLE = False
-
 
 config = ConfigManager.get_instance()
 

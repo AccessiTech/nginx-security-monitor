@@ -214,20 +214,37 @@ class SecurityCoordinator:
     def _check_service_protection(self) -> None:
         """Check service protection status and handle threats."""
         try:
-            service_threats = self.service_protection.check_for_threats()
+            service_threats = self.service_protection.perform_self_check()
 
             if service_threats:
-                for threat in service_threats:
-                    # Send service threat alert
-                    alert_sent = self.alert_manager.send_service_threat_alert(threat)
-                    if alert_sent:
-                        # Use configurable alert_increment for statistics
-                        alert_increment = self.config_manager.get(
-                            "statistics.alert_increment", 1
-                        )
-                        self.stats["alerts_sent"] += alert_increment
+                alert_sent = self.alert_manager.send_service_threat_alert(service_threats)
+                if alert_sent:
+                    # Use configurable alert_increment for statistics
+                    alert_increment = self.config_manager.get(
+                        "statistics.alert_increment", 1
+                    )
+                    self.stats["alerts_sent"] += len(service_threats) * alert_increment
 
+                for threat in service_threats:
                     self.logger.warning(f"Service threat detected: {threat}")
+                    # Automated remediation for service not running
+                    if (
+                        threat.get("type") == "Service Status"
+                        and threat.get("severity", "").upper() == "CRITICAL"
+                        and threat.get("status", "unknown") == "unknown"
+                    ):
+                        import subprocess
+                        service_names = [
+                            self.config.get("service_name", "nginx-security-monitor"),
+                            "nginx"
+                        ]
+                        for service_name in service_names:
+                            try:
+                                subprocess.run(["systemctl", "restart", service_name], check=True)
+                                self.logger.info(f"Automated remediation: Restarted service '{service_name}' due to critical status.")
+                                break
+                            except Exception as restart_exc:
+                                self.logger.error(f"Automated remediation failed: Could not restart service '{service_name}': {restart_exc}")
 
         except Exception as e:
             self.logger.error(f"Error checking service protection: {e}")
