@@ -583,6 +583,8 @@ class TestServiceProtection(unittest.TestCase):
     @patch("os.path.exists")
     def test_check_service_availability_inactive(self, mock_exists, mock_run):
         """Test service availability check when service is inactive."""
+        # Ensure NSM_ENV is set to 'production' so systemctl check is performed
+        os.environ["NSM_ENV"] = "production"
         with patch.object(ServiceProtection, "_initialize_protection"):
             protection = ServiceProtection(self.config)
 

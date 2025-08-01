@@ -240,9 +240,13 @@ class SecurityCoordinator:
                         ]
                         for service_name in service_names:
                             try:
-                                subprocess.run(["systemctl", "restart", service_name], check=True)
-                                self.logger.info(f"Automated remediation: Restarted service '{service_name}' due to critical status.")
-                                break
+                                import os
+                                if os.getenv("NSM_ENV", "development") == "production":
+                                    subprocess.run(["systemctl", "restart", service_name], check=True)
+                                    self.logger.info(f"Automated remediation: Restarted service '{service_name}' due to critical status.")
+                                    break
+                                else:
+                                    self.logger.info(f"Skipping systemctl restart for '{service_name}': not in production environment")
                             except Exception as restart_exc:
                                 self.logger.error(f"Automated remediation failed: Could not restart service '{service_name}': {restart_exc}")
 

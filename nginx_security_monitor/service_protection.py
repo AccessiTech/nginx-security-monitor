@@ -399,24 +399,28 @@ class ServiceProtection:
         """Check if the service is functioning correctly."""
         threats = []
 
-        try:
-            # Check if systemd service is active
-            result = subprocess.run(
-                ["systemctl", "is-active", "nginx-security-monitor"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
 
-            if result.returncode != 0:
-                threats.append(
-                    {
-                        "type": "Service Status",
-                        "severity": "CRITICAL",
-                        "description": "Service is not active according to systemd",
-                        "status": result.stdout.strip(),
-                    }
+        try:
+            # Only check systemctl in production environment
+            if os.getenv("NSM_ENV", "development") == "production":
+                result = subprocess.run(
+                    ["systemctl", "is-active", "nginx-security-monitor"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
                 )
+
+                if result.returncode != 0:
+                    threats.append(
+                        {
+                            "type": "Service Status",
+                            "severity": "CRITICAL",
+                            "description": "Service is not active according to systemd",
+                            "status": result.stdout.strip(),
+                        }
+                    )
+            else:
+                self.logger.info("Skipping systemctl service check: not in production environment")
 
             # Check if log file is being written to (indicates active monitoring)
             log_file = self.config.get("logging", {}).get(
