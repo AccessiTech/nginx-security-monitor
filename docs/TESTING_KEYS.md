@@ -131,7 +131,14 @@ print(f'Success: {test_data == decrypted}')
 1. **For Contributors**: Use `test_key` for all development work
 1. **For Testing**: Run `pytest tests/test_*_util.py` to verify utility coverage
 1. **For Production**: Generate secure keys with `encrypt_config.py` utility
-1. **For Documentation**: Update this guide when adding new utilities
+
+### For full production security
+
+Set the following environment variable before starting the service:
+
+```bash
+export NSM_ENV=production
+```
 
 ______________________________________________________________________
 

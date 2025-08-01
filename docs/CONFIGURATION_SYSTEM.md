@@ -53,7 +53,7 @@ print(f"Monitoring {log_file} every {check_interval} seconds")
 
 ### Configuration Files
 
-The default configuration file is `/etc/nginx-security-monitor/settings.yaml`. You can specify
+The default configuration file is `/opt/nginx-security-monitor/settings.yaml`. You can specify
 a different path when initializing the ConfigManager:
 
 ```python

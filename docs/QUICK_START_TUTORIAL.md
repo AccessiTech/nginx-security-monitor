@@ -321,7 +321,7 @@ sudo python3 -m src.monitor_service config/my-settings.yaml
 
 ### **Issue: Email alerts not working**
 
-```bash
+````bash
 # Test email configuration
 python3 -c "
 import yaml
@@ -337,10 +337,18 @@ test_alert = {
 }
 
 try:
-    send_email_alert(test_alert)
-    print('✅ Test email sent successfully')
+## To activate production-only features, set the following environment variable before starting the service:
+
+```sh
+export NSM_ENV=production
+````
+
+```text
+send_email_alert(test_alert)
+print('✅ Test email sent successfully')
+
 except Exception as e:
-    print(f'❌ Email test failed: {e}')
+print(f'❌ Email test failed: {e}')
 "
 ```
 

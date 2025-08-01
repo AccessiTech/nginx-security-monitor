@@ -38,7 +38,7 @@ This configuration documentation is split into two parts:
 config/
 ├── settings.yaml          # Main configuration file
 ├── patterns.json          # Detection patterns
-├── schema.yaml            # Configuration schema
+├── schema.yml            # Configuration schema
 └── service-settings.yaml  # Service-specific settings
 ```
 
@@ -57,8 +57,8 @@ config/
 - **Purpose**: Production-ready service configuration with security best practices
 - **Contains**: Streamlined settings focused on runtime service operation
 - **Values**: Environment variable references (e.g., `"${SMTP_SERVER}"`, `"${API_KEY}"`)
-- **Use Case**: Production deployment with proper secret management
-- **Security**: Built-in encryption support, obfuscation, and self-protection features
+  **Use Case**: Production deployment with proper secret management
+  **Security**: Built-in encryption support, obfuscation, and self-protection features
 
 #### **When to Use Which File**
 
@@ -206,7 +206,7 @@ security:
     
   plugin_security:
     enabled: true
-    allowed_plugins_dir: "/etc/nginx-security-monitor/plugins"
+    allowed_plugins_dir: "/opt/nginx-security-monitor/plugins"
     signature_verification: false
 ```
 
@@ -389,8 +389,8 @@ storage:
 
 ```bash
 # Set proper permissions
-sudo chmod 600 /etc/nginx-security-monitor/settings.yaml
-sudo chown nginx-monitor:nginx-monitor /etc/nginx-security-monitor/settings.yaml
+sudo chmod 600 /opt/nginx-security-monitor/settings.yaml
+sudo chown nginx-monitor:nginx-monitor /opt/nginx-security-monitor/settings.yaml
 
 # Encrypt sensitive data
 python encrypt_config.py --encrypt-file settings.yaml
@@ -408,7 +408,7 @@ alerts:
 # Or use external secret management
 alerts:
   email:
-    password_file: "/etc/nginx-security-monitor/secrets/email_password"
+    password_file: "/opt/nginx-security-monitor/secrets/email_password"
 ```
 
 ### **Network Security**
@@ -498,12 +498,12 @@ sudo ./nginx-security-monitor.sh reload
 
 ```bash
 # Backup current configuration
-sudo cp /etc/nginx-security-monitor/settings.yaml \
-       /etc/nginx-security-monitor/settings.yaml.backup.$(date +%Y%m%d)
+sudo cp /opt/nginx-security-monitor/settings.yaml \
+       /opt/nginx-security-monitor/settings.yaml.backup.$(date +%Y%m%d)
 
 # Automated backup script
 #!/bin/bash
-CONFIG_DIR="/etc/nginx-security-monitor"
+CONFIG_DIR="/opt/nginx-security-monitor"
 BACKUP_DIR="/var/backups/nginx-security-monitor"
 DATE=$(date +%Y%m%d_%H%M%S)
 
@@ -560,8 +560,8 @@ detection:
 
 ```bash
 # Check file location and permissions
-ls -la /etc/nginx-security-monitor/settings.yaml
-sudo chmod 644 /etc/nginx-security-monitor/settings.yaml
+ls -la /opt/nginx-security-monitor/settings.yaml
+sudo chmod 644 /opt/nginx-security-monitor/settings.yaml
 ```
 
 #### Issue: Invalid YAML syntax

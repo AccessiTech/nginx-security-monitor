@@ -473,7 +473,7 @@ ______________________________________________________________________
 
 #### **Diagnostic Script:**
 
-```python
+````python
 # scripts/config_diagnostics.py
 #!/usr/bin/env python3
 """Comprehensive configuration diagnostics."""
@@ -508,139 +508,140 @@ class ConfigDiagnostics:
                 "logging": {
                     "type": "object",
                     "required": ["level", "file"],
-                    "properties": {
-                        "level": {"type": "string", "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]},
-                        "file": {"type": "string"}
-                    }
-                },
-                "monitoring": {
-                    "type": "object",
-                    "required": ["log_files"],
-                    "properties": {
-                        "log_files": {"type": "array", "items": {"type": "string"}}
-                    }
-                },
-                "patterns": {
-                    "type": "object",
-                    "required": ["file"],
-                    "properties": {
-                        "file": {"type": "string"}
-                    }
+**Note:** For correct production behavior and support, set the following environment variable before starting the service:
+```sh
+export NSM_ENV=production
+````
+
+```python
+                "properties": {
+                    "level": {"type": "string", "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]},
+                    "file": {"type": "string"}
+                "required": ["log_files"],
+                "properties": {
+                    "log_files": {"type": "array", "items": {"type": "string"}}
+                }
+            },
+                "properties": {
+                    "file": {"type": "string"}
                 }
             }
         }
-        
-        try:
-            with open(self.config_path, 'r') as f:
-                config = yaml.safe_load(f)
-            
-            jsonschema.validate(config, schema)
-            return {'valid': True, 'message': 'Configuration schema is valid'}
-        except jsonschema.ValidationError as e:
-            return {'valid': False, 'message': f'Schema validation error: {e.message}'}
-        except Exception as e:
-            return {'valid': False, 'message': f'Validation error: {e}'}
+    }
     
-    def check_file_paths(self) -> Dict[str, Any]:
-        """Check if referenced files exist."""
-        try:
-            with open(self.config_path, 'r') as f:
-                config = yaml.safe_load(f)
-        except Exception as e:
-            return {'valid': False, 'message': f'Cannot load config: {e}'}
+    try:
+        with open(self.config_path, 'r') as f:
+            config = yaml.safe_load(f)
         
-        issues = []
-        
-        # Check log files
-        log_files = config.get('monitoring', {}).get('log_files', [])
-        for log_file in log_files:
-            if not os.path.exists(log_file):
-                issues.append(f'Log file not found: {log_file}')
-        
-        # Check patterns file
-        patterns_file = config.get('patterns', {}).get('file', '')
-        if patterns_file and not os.path.exists(patterns_file):
-            issues.append(f'Patterns file not found: {patterns_file}')
-        
-        # Check SSL certificates
-        ssl_config = config.get('web_interface', {}).get('ssl', {})
-        if ssl_config.get('enabled'):
-            cert_file = ssl_config.get('cert_file')
-            key_file = ssl_config.get('key_file')
-            
-            if cert_file and not os.path.exists(cert_file):
-                issues.append(f'SSL certificate not found: {cert_file}')
-            if key_file and not os.path.exists(key_file):
-                issues.append(f'SSL key file not found: {key_file}')
-        
-        return {
-            'valid': len(issues) == 0,
-            'issues': issues,
-            'message': f'Found {len(issues)} file path issues' if issues else 'All file paths are valid'
-        }
-    
-    def check_permissions(self) -> Dict[str, Any]:
-        """Check file permissions."""
-        try:
-            with open(self.config_path, 'r') as f:
-                config = yaml.safe_load(f)
-        except Exception as e:
-            return {'valid': False, 'message': f'Cannot load config: {e}'}
-        
-        issues = []
-        
-        # Check log directory permissions
-        log_files = config.get('monitoring', {}).get('log_files', [])
-        for log_file in log_files:
-            log_dir = os.path.dirname(log_file)
-            if os.path.exists(log_dir):
-                stat = os.stat(log_dir)
-                if not (stat.st_mode & 0o200):  # Check write permission
-                    issues.append(f'No write permission for log directory: {log_dir}')
-        
-        # Check patterns file permissions
-        patterns_file = config.get('patterns', {}).get('file', '')
-        if patterns_file and os.path.exists(patterns_file):
-            stat = os.stat(patterns_file)
-            if not (stat.st_mode & 0o400):  # Check read permission
-                issues.append(f'No read permission for patterns file: {patterns_file}')
-        
-        return {
-            'valid': len(issues) == 0,
-            'issues': issues,
-            'message': f'Found {len(issues)} permission issues' if issues else 'All permissions are correct'
-        }
-    
-    def run_full_diagnostics(self) -> Dict[str, Any]:
-        """Run all diagnostic checks."""
-        results = {
-            'config_file': self.config_path,
-            'checks': {
-                'yaml_syntax': self.validate_yaml_syntax(),
-                'schema_validation': self.validate_schema(),
-                'file_paths': self.check_file_paths(),
-                'permissions': self.check_permissions()
-            }
-        }
-        
-        # Overall status
-        all_valid = all(check['valid'] for check in results['checks'].values())
-        results['overall_status'] = 'valid' if all_valid else 'invalid'
-        
-        return results
+        jsonschema.validate(config, schema)
+        return {'valid': True, 'message': 'Configuration schema is valid'}
+    except jsonschema.ValidationError as e:
+        return {'valid': False, 'message': f'Schema validation error: {e.message}'}
+    except Exception as e:
+        return {'valid': False, 'message': f'Validation error: {e}'}
 
+def check_file_paths(self) -> Dict[str, Any]:
+    """Check if referenced files exist."""
+    try:
+        with open(self.config_path, 'r') as f:
+            config = yaml.safe_load(f)
+    except Exception as e:
+        return {'valid': False, 'message': f'Cannot load config: {e}'}
+    
+    issues = []
+    
+    # Check log files
+    log_files = config.get('monitoring', {}).get('log_files', [])
+    for log_file in log_files:
+        if not os.path.exists(log_file):
+            issues.append(f'Log file not found: {log_file}')
+    
+    # Check patterns file
+    patterns_file = config.get('patterns', {}).get('file', '')
+    if patterns_file and not os.path.exists(patterns_file):
+        issues.append(f'Patterns file not found: {patterns_file}')
+    
+    # Check SSL certificates
+    ssl_config = config.get('web_interface', {}).get('ssl', {})
+    if ssl_config.get('enabled'):
+        cert_file = ssl_config.get('cert_file')
+        key_file = ssl_config.get('key_file')
+        
+        if cert_file and not os.path.exists(cert_file):
+            issues.append(f'SSL certificate not found: {cert_file}')
+        if key_file and not os.path.exists(key_file):
+            issues.append(f'SSL key file not found: {key_file}')
+    
+    return {
+        'valid': len(issues) == 0,
+        'issues': issues,
+        'message': f'Found {len(issues)} file path issues' if issues else 'All file paths are valid'
+    }
+
+def check_permissions(self) -> Dict[str, Any]:
+    """Check file permissions."""
+    try:
+        with open(self.config_path, 'r') as f:
+            config = yaml.safe_load(f)
+    except Exception as e:
+        return {'valid': False, 'message': f'Cannot load config: {e}'}
+    
+    issues = []
+    
+    # Check log directory permissions
+    log_files = config.get('monitoring', {}).get('log_files', [])
+    for log_file in log_files:
+        log_dir = os.path.dirname(log_file)
+        if os.path.exists(log_dir):
+            stat = os.stat(log_dir)
+            if not (stat.st_mode & 0o200):  # Check write permission
+                issues.append(f'No write permission for log directory: {log_dir}')
+    
+    # Check patterns file permissions
+    patterns_file = config.get('patterns', {}).get('file', '')
+    if patterns_file and os.path.exists(patterns_file):
+        stat = os.stat(patterns_file)
+        if not (stat.st_mode & 0o400):  # Check read permission
+            issues.append(f'No read permission for patterns file: {patterns_file}')
+    
+    return {
+        'valid': len(issues) == 0,
+        'issues': issues,
+        'message': f'Found {len(issues)} permission issues' if issues else 'All permissions are correct'
+    }
+
+def run_full_diagnostics(self) -> Dict[str, Any]:
+    """Run all diagnostic checks."""
+    results = {
+        'config_file': self.config_path,
+        'checks': {
+            'yaml_syntax': self.validate_yaml_syntax(),
+            'schema_validation': self.validate_schema(),
+            'file_paths': self.check_file_paths(),
+            'permissions': self.check_permissions()
+        }
+    }
+    
+    # Overall status
+    all_valid = all(check['valid'] for check in results['checks'].values())
+    results['overall_status'] = 'valid' if all_valid else 'invalid'
+    
+    return results
+```
+
+```python
 if __name__ == "__main__":
-    import sys
-    
-    config_file = sys.argv[1] if len(sys.argv) > 1 else '/etc/nginx-security/settings.yaml'
-    
-    diagnostics = ConfigDiagnostics(config_file)
-    results = diagnostics.run_full_diagnostics()
-    
-    print(json.dumps(results, indent=2))
-    
-    if results['overall_status'] != 'valid':
-        sys.exit(1)
+import sys
+
+config_file = sys.argv[1] if len(sys.argv) > 1 else '/etc/nginx-security/settings.yaml'
+
+diagnostics = ConfigDiagnostics(config_file)
+results = diagnostics.run_full_diagnostics()
+
+print(json.dumps(results, indent=2))
+
+if results['overall_status'] != 'valid':
+    sys.exit(1)
 ```
 
 ### **Pattern Detection Issues**

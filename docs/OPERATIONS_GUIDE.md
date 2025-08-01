@@ -3,6 +3,14 @@
 ## 🎯 **Overview**
 
 This guide covers day-to-day operations and maintenance of the NGINX Security Monitor in production environments. It
+
+> **Note:** For all production operations, set the following environment variable to enable
+> systemd service management and production-grade security controls:
+>
+> ```sh
+> export NSM_ENV=production
+> ```
+
 includes service monitoring, health checks, log management, backup procedures, and operational best practices for
 maintaining a secure and reliable security monitoring infrastructure.
 

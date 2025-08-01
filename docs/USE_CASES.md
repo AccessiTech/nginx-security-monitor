@@ -316,7 +316,7 @@ security_integrations:
 security:
   encryption:
     enabled: true
-    key_file: "/etc/nginx-security-monitor/enterprise.key"
+    key_file: "/opt/nginx-security-monitor/enterprise.key"
   
   obfuscation:
     enabled: true
@@ -421,7 +421,7 @@ security_integrations:
 security:
   encryption:
     enabled: true
-    key_file: "/etc/nginx-security-monitor/enterprise.key"
+    key_file: "/opt/nginx-security-monitor/enterprise.key"
   obfuscation:
     enabled: true
     timing_variance_percent: 30
@@ -470,6 +470,8 @@ custom_patterns:
 site_identification:
   site_name: "production-east"
   environment: "production"
+  # For full production security, set the following environment variable before starting the service:
+  # export NSM_ENV=production
   datacenter: "us-east-1"
 
 detection:
@@ -506,7 +508,7 @@ custom_patterns:
     - name: Configure site-specific settings
       template:
         src: "{{ config_template }}"
-        dest: "/etc/nginx-security-monitor/settings.yaml"
+        dest: "/opt/nginx-security-monitor/settings.yaml"
       notify: restart_monitor
 ```
 
@@ -843,7 +845,7 @@ security:
     enabled: true
     algorithm: "AES-256-GCM"
     key_derivation: "PBKDF2-SHA256"
-    key_file: "/etc/nginx-security-monitor/fips-key"
+    key_file: "/opt/nginx-security-monitor/fips-key"
   
   # Enhanced integrity checking
   integrity:
@@ -937,7 +939,7 @@ security:
     enabled: true
     algorithm: "AES-256-GCM"
     key_derivation: "PBKDF2-SHA256"
-    key_file: "/etc/nginx-security-monitor/fips-key"
+    key_file: "/opt/nginx-security-monitor/fips-key"
   integrity:
     enabled: true
     hash_algorithm: "SHA-256"
@@ -1008,16 +1010,16 @@ air_gapped:
 # Apply STIG compliance for NGINX Security Monitor
 
 # File permissions (RHEL-08-010590)
-chmod 640 /etc/nginx-security-monitor/*.yaml
-chown nginx-monitor:nginx-monitor /etc/nginx-security-monitor/*.yaml
+chmod 640 /opt/nginx-security-monitor/*.yaml
+chown nginx-monitor:nginx-monitor /opt/nginx-security-monitor/*.yaml
 
 # Audit logging (RHEL-08-030010)
 echo "nginx-security-monitor" >> /etc/audit/rules.d/nginx-security.rules
 
 # SELinux policy (RHEL-08-010370)
 setsebool -P httpd_can_network_connect 1
-semanage fcontext -a -t admin_home_t "/etc/nginx-security-monitor(/.*)?"
-restorecon -R /etc/nginx-security-monitor
+semanage fcontext -a -t admin_home_t "/opt/nginx-security-monitor(/.*)?"
+restorecon -R /opt/nginx-security-monitor
 
 # FIPS mode verification (RHEL-08-010020)
 if [ ! -f /proc/sys/crypto/fips_enabled ] || [ "$(cat /proc/sys/crypto/fips_enabled)" != "1" ]; then
