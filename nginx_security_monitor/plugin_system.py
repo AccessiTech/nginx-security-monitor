@@ -60,7 +60,7 @@ class PluginManager:
         self.logger = logging.getLogger("nginx-security-monitor.plugins")
         self.plugins = {}
         self.plugin_dirs = plugin_dirs or [
-            "/etc/nginx-security-monitor/plugins",
+            "/opt/nginx-security-monitor/plugins",
             "/opt/nginx-security-monitor/custom_plugins",
             os.path.expanduser("~/.nginx-security-monitor/plugins"),
         ]

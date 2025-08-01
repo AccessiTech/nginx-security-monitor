@@ -44,7 +44,7 @@ logging:
 # Security and obfuscation settings
 security:
   # Path to encrypted custom patterns file
-  encrypted_patterns_file: /etc/nginx-security-monitor/custom_patterns.enc
+  encrypted_patterns_file: /opt/nginx-security-monitor/custom_patterns.enc
   
   # Self-protection settings
   self_check_interval: 300  # seconds between self-protection checks
@@ -152,7 +152,7 @@ security_integrations:
 plugins:
   directories:
     - "plugins"                                    # Local development plugins
-    - /etc/nginx-security-monitor/plugins
+    - /opt/nginx-security-monitor/plugins
     - /opt/nginx-security-monitor/custom_plugins
     - ~/.nginx-security-monitor/plugins
   

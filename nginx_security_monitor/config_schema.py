@@ -20,7 +20,7 @@ SCHEMA = {
     "service": {
         "config_path": {
             "__type": "string",
-            "__default": "/etc/nginx-security-monitor/settings.yaml",
+            "__default": "/opt/nginx-security-monitor/settings.yaml",
             "__description": "Path to the configuration file",
             "__env": "NGINX_MONITOR_CONFIG_PATH",
         },
@@ -225,7 +225,7 @@ SCHEMA = {
             "__type": "array",
             "__default": [
                 "/opt/nginx-security-monitor/src/",
-                "/etc/nginx-security-monitor/",
+                "/opt/nginx-security-monitor/",
                 "/etc/systemd/system/nginx-security-monitor.service",
             ],
             "__description": "Files and directories to monitor for integrity",
@@ -341,11 +341,11 @@ SCHEMA = {
         "file_permissions": {
             "__type": "object",
             "__description": "File permissions in octal format",
-            "/etc/nginx-security-monitor/settings.yaml": {
+            "/opt/nginx-security-monitor/settings.yaml": {
                 "__type": "string",
                 "__default": "0640",
             },
-            "/etc/nginx-security-monitor/.salt": {
+            "/opt/nginx-security-monitor/.salt": {
                 "__type": "string",
                 "__default": "0600",
             },
@@ -360,7 +360,7 @@ SCHEMA = {
         },
         "salt_file": {
             "__type": "string",
-            "__default": "/etc/nginx-security-monitor/.salt",
+            "__default": "/opt/nginx-security-monitor/.salt",
             "__description": "Path to the salt file",
             "__env": "NGINX_MONITOR_SALT_FILE",
         },
@@ -390,7 +390,7 @@ SCHEMA = {
         "plugin_dirs": {
             "__type": "array",
             "__default": [
-                "/etc/nginx-security-monitor/plugins",
+                "/opt/nginx-security-monitor/plugins",
                 "/opt/nginx-security-monitor/custom_plugins",
                 "~/.nginx-security-monitor/plugins",
             ],
@@ -503,7 +503,7 @@ SCHEMA = {
             },
             "config_path": {
                 "__type": "string",
-                "__default": "/etc/nginx-security-monitor/settings.yaml",
+                "__default": "/opt/nginx-security-monitor/settings.yaml",
                 "__description": "Path to email configuration file",
                 "__env": "NGINX_MONITOR_EMAIL_CONFIG_PATH",
             },
@@ -662,7 +662,7 @@ SCHEMA = {
             },
             "config_path": {
                 "__type": "string",
-                "__default": "/etc/nginx-security-monitor/settings.yaml",
+                "__default": "/opt/nginx-security-monitor/settings.yaml",
                 "__description": "Path to the email configuration file",
                 "__env": "NGINX_MONITOR_EMAIL_CONFIG_PATH",
             },
@@ -847,7 +847,7 @@ SCHEMA = {
 }
 
 
-def save_schema_to_file(schema_path="/etc/nginx-security-monitor/schema.yaml"):
+def save_schema_to_file(schema_path="/opt/nginx-security-monitor/schema.yml"):
     """
     Save the schema to a YAML file.
 

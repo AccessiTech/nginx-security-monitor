@@ -73,7 +73,7 @@ This will:
 - Create a dedicated system user and group
 - Install Python dependencies in a virtual environment
 - Copy files to `/opt/nginx-security-monitor`
-- Create configuration files in `/etc/nginx-security-monitor`
+- Create configuration files in `/opt/nginx-security-monitor`
 - Install and configure the systemd service
 - Set up log rotation
 - Apply basic security hardening
@@ -135,7 +135,7 @@ This additional hardening includes:
 After installation, configure the service by editing:
 
 ```bash
-sudo nano /etc/nginx-security-monitor/settings.yaml
+sudo nano /opt/nginx-security-monitor/settings.yaml
 ```
 
 enabled: true
@@ -146,7 +146,7 @@ Clone the repository and run the installation script. The script will set up all
 
 ```bash
 # Clone the repository
-# Place in /etc/nginx-security-monitor/plugins/
+# Place in /opt/nginx-security-monitor/plugins/
 cd nginx-security-monitor
 
 # Make installation script executable
@@ -163,7 +163,7 @@ This will:
 - Create a dedicated system user and group
 - Install all Python dependencies in a virtual environment using Poetry
 - Copy files to `/opt/nginx-security-monitor`
-- Create configuration files in `/etc/nginx-security-monitor`
+- Create configuration files in `/opt/nginx-security-monitor`
 - Install and configure the systemd service
 - Set up log rotation
 - Apply basic security hardening
@@ -397,7 +397,7 @@ sudo ./nginx-security-monitor.sh update
 
 ```bash
 # Configuration is automatically backed up when edited
-sudo cp /etc/nginx-security-monitor/settings.yaml /path/to/backup/
+sudo cp /opt/nginx-security-monitor/settings.yaml /path/to/backup/
 ```
 
 ### Uninstalling
@@ -417,7 +417,7 @@ sudo ./nginx-security-monitor.sh uninstall
 
 ### Debug Mode
 
-Enable debug logging in `/etc/nginx-security-monitor/settings.yaml`:
+Enable debug logging in `/opt/nginx-security-monitor/settings.yaml`:
 
 ```yaml
 logging:

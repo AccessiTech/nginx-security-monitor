@@ -20,7 +20,7 @@ except ImportError as e:
     sys.exit(1)
 
 
-def load_config(config_path="/etc/nginx-security-monitor/service-settings.yaml"):
+def load_config(config_path="/opt/nginx-security-monitor/service-settings.yaml"):
     """Load configuration from YAML file."""
     try:
         if os.path.exists(config_path):

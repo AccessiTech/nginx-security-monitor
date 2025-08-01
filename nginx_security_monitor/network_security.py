@@ -477,12 +477,12 @@ class SecurityHardening:
         self.critical_files = self.config_manager.get(
             "security.critical_files",
             {
-                "/etc/nginx-security-monitor/settings.yaml": {
+                "/opt/nginx-security-monitor/settings.yaml": {
                     "mode": 0o640,
                     "owner": "root",
                     "group": "nginx",
                 },
-                "/etc/nginx-security-monitor/.salt": {
+                "/opt/nginx-security-monitor/.salt": {
                     "mode": 0o600,
                     "owner": "root",
                     "group": "root",

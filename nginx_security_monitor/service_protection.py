@@ -38,7 +38,7 @@ class ServiceProtection:
             "service_protection.protected_files",
             [
                 "/opt/nginx-security-monitor/src/",
-                "/etc/nginx-security-monitor/",
+                "/opt/nginx-security-monitor/",
                 "/etc/systemd/system/nginx-security-monitor.service",
             ],
         )

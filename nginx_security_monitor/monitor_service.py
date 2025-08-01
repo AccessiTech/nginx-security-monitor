@@ -52,7 +52,7 @@ class NginxSecurityMonitor:
 
         # Get config path from config manager if not provided
         default_config_path = self.config_manager.get(
-            "service.default_config_path", "/etc/nginx-security-monitor/settings.yaml"
+            "service.default_config_path", "/opt/nginx-security-monitor/settings.yaml"
         )
         self.config_path = config_path or default_config_path
 

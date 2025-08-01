@@ -119,7 +119,7 @@ class ConfigManager:
             )
 
         # Default paths
-        self.schema_path = schema_path or "/etc/nginx-security-monitor/schema.yaml"
+        self.schema_path = schema_path or "/opt/nginx-security-monitor/schema.yml"
 
         # Verify schema integrity before loading
         if not self._verify_config_integrity(self.schema_path):
@@ -152,7 +152,7 @@ class ConfigManager:
             elif isinstance(config_path_schema, str):
                 config_path = config_path_schema
 
-        self.config_path = config_path or "/etc/nginx-security-monitor/settings.yaml"
+        self.config_path = config_path or "/opt/nginx-security-monitor/settings.yaml"
 
         # Initialize configuration with defaults from schema
         self.config = self._extract_defaults(self.schema)

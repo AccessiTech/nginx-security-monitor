@@ -67,7 +67,7 @@ class YourPluginNamePlugin(MitigationPlugin):
 The plugin system automatically discovers plugins in these directories:
 
 - `plugins/` (this directory, for development)
-- `/etc/nginx-security-monitor/plugins` (system-wide)
+- `/opt/nginx-security-monitor/plugins` (system-wide)
 - `/opt/nginx-security-monitor/custom_plugins` (custom installations)
 - `~/.nginx-security-monitor/plugins` (user-specific)
 

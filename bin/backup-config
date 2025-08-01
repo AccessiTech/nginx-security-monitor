@@ -51,7 +51,7 @@ def get_backup_paths():
             'LICENSE'
         ],
         'system_configs': [
-            '/etc/nginx-security-monitor/',
+            '/opt/nginx-security-monitor/',
             '/etc/fail2ban/jail.d/nginx-security-monitor.conf',
             '/etc/fail2ban/filter.d/nginx-security-monitor.conf',
             '/etc/rsyslog.d/10-nginx-security-monitor.conf',
