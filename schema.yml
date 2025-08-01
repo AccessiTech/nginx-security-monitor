@@ -1,0 +1,151 @@
+# NGINX Security Monitor Configuration Schema
+# This schema defines all configurable options for validation and documentation.
+
+service:
+  type: object
+  properties:
+    initial_running_state:
+      type: boolean
+    check_interval:
+      type: integer
+    log_files:
+      type: array
+      items:
+        type: string
+
+alerts:
+  type: object
+  properties:
+    enabled:
+      type: boolean
+    channels:
+      type: array
+      items:
+        type: string
+    email:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        smtp_server:
+          type: string
+        smtp_port:
+          type: integer
+        use_tls:
+          type: boolean
+        username:
+          type: string
+        password:
+          type: string
+        from_address:
+          type: string
+        to_addresses:
+          type: array
+          items:
+            type: string
+
+mitigation:
+  type: object
+  properties:
+    enabled:
+      type: boolean
+    strategies:
+      type: array
+      items:
+        type: string
+
+service_protection:
+  type: object
+  properties:
+    protected_files:
+      type: array
+      items:
+        type: string
+    expected_processes:
+      type: array
+      items:
+        type: string
+    resource_thresholds:
+      type: object
+      properties:
+        cpu_percent:
+          type: number
+        memory_percent:
+          type: number
+        disk_usage_percent:
+          type: number
+    rate_limits:
+      type: object
+      properties:
+        default:
+          type: integer
+        self_check:
+          type: integer
+
+network_security:
+  type: object
+  properties:
+    allowed_ips:
+      type: array
+      items:
+        type: string
+    allowed_interfaces:
+      type: array
+      items:
+        type: string
+
+crypto:
+  type: object
+  properties:
+    key_path:
+      type: string
+    cert_path:
+      type: string
+
+plugins:
+  type: object
+  properties:
+    enabled:
+      type: boolean
+    plugin_paths:
+      type: array
+      items:
+        type: string
+
+security_integrations:
+  type: object
+  properties:
+    enabled:
+      type: boolean
+    integrations:
+      type: array
+      items:
+        type: string
+
+statistics:
+  type: object
+  properties:
+    initial_monitoring_cycles:
+      type: integer
+    initial_log_entries:
+      type: integer
+    initial_threats:
+      type: integer
+    initial_alerts_sent:
+      type: integer
+    cycle_increment:
+      type: integer
+    entry_increment:
+      type: integer
+    alert_increment:
+      type: integer
+    seconds_per_hour:
+      type: integer
+
+response:
+  type: object
+  properties:
+    default_success:
+      type: boolean
+    default_failure:
+      type: boolean

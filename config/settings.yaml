@@ -1,16 +1,31 @@
-email_service:
-  smtp_server: smtp.example.com
-  smtp_port: 587
-  username: your_email@example.com
-  password: your_email_password
-  from_address: your_email@example.com
-  to_address: alert_recipient@example.com
+# ============================================================================
+# Alert Settings
+# ============================================================================
+alerts:
+  enabled: true
+  channels:
+    - email
 
-sms_service:
-  provider: your_sms_provider
-  api_key: your_sms_api_key
-  from_number: +1234567890
-  to_number: +0987654321
+  email:
+    enabled: true
+    smtp_server: "smtp.example.com"
+    smtp_port: 587
+    use_tls: true
+    username: "your_email@example.com"
+    password: "your_email_password"
+    from_address: "your_email@example.com"
+    to_address: "alert_recipient@example.com"
+    
+    templates:
+      subject: "[SECURITY ALERT] {severity} - {attack_type} detected"
+      body_format: "html"  # html or text
+
+  sms:
+    enabled: false
+    provider: "your_sms_provider"
+    api_key: "your_sms_api_key"
+    from_number: "+1234567890"
+    to_number: "+0987654321"
 
 alert_thresholds:
   high: 10
@@ -97,11 +112,11 @@ network_security:
 # Security Hardening Configuration
 security:
   critical_files:
-    "/etc/nginx-security-monitor/settings.yaml":
+    "/opt/nginx-security-monitor/settings.yaml":
       mode: 0o640
       owner: "root"
       group: "nginx"
-    "/etc/nginx-security-monitor/.salt":
+    "/opt/nginx-security-monitor/.salt":
       mode: 0o600
       owner: "root"
       group: "root"
@@ -161,7 +176,7 @@ plugin_system:
   plugin_dirs:
     - "plugins"
     - "/usr/local/share/nginx-security-monitor/plugins"
-    - "/etc/nginx-security-monitor/plugins"
+    - "/opt/nginx-security-monitor/plugins"
   plugin_timeout: 30
   max_plugins: 50
   auto_reload: false
