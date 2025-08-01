@@ -48,7 +48,7 @@ class TestConfigManagerFinalCoverage(unittest.TestCase):
         """Set up test fixtures."""
         self.temp_dir = tempfile.mkdtemp()
         self.config_file = os.path.join(self.temp_dir, "test_config.yaml")
-        self.schema_file = os.path.join(self.temp_dir, "test_schema.yaml")
+        self.schema_file = os.path.join(self.temp_dir, "test_schema.yml")
 
         # Reset singleton state
         if hasattr(ConfigManager, "_instances"):
@@ -424,10 +424,10 @@ class TestConfigManagerFinalCoverage(unittest.TestCase):
             with patch("os.stat") as mock_stat:
 
                 def exists_side_effect(path):
-                    return "schema.yaml" in path  # Schema file exists
+                    return "schema.yml" in path  # Schema file exists
 
                 def stat_side_effect(path):
-                    if "schema.yaml" in path:
+                    if "schema.yml" in path:
                         raise PermissionError("Permission denied")
                     # For other files, return a mock stat result
                     return type("MockStat", (), {"st_mode": 0o640})()

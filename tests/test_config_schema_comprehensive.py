@@ -22,7 +22,7 @@ class TestConfigSchema(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.temp_dir = tempfile.mkdtemp()
-        self.schema_path = os.path.join(self.temp_dir, "test_schema.yaml")
+        self.schema_path = os.path.join(self.temp_dir, "test_schema.yml")
 
     def tearDown(self):
         """Clean up test fixtures."""
@@ -118,7 +118,7 @@ class TestConfigSchema(unittest.TestCase):
 
     def test_save_schema_to_file_directory_creation(self):
         """Test that save_schema_to_file creates directories."""
-        nested_path = os.path.join(self.temp_dir, "nested", "dir", "schema.yaml")
+        nested_path = os.path.join(self.temp_dir, "nested", "dir", "schema.yml")
 
         # Act
         save_schema_to_file(nested_path)
@@ -181,7 +181,7 @@ class TestConfigSchema(unittest.TestCase):
 
     def test_save_schema_to_file_default_path(self):
         """Test save_schema_to_file with default path."""
-        default_path = "/etc/nginx-security-monitor/schema.yaml"
+        default_path = "/opt/nginx-security-monitor/schema.yml"
 
         with patch("os.makedirs") as mock_makedirs:
             with patch("builtins.open", mock_open()) as mock_file:
@@ -194,7 +194,7 @@ class TestConfigSchema(unittest.TestCase):
 
                         # Assert
                         mock_makedirs.assert_called_once_with(
-                            "/etc/nginx-security-monitor", exist_ok=True
+                            "/opt/nginx-security-monitor", exist_ok=True
                         )
                         mock_file.assert_called_once_with(default_path, "w")
                         mock_chmod.assert_called_once_with(default_path, 0o640)
