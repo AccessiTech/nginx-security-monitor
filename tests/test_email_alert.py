@@ -32,6 +32,36 @@ from nginx_security_monitor.email_alert import (
 
 
 class TestEmailAlert(unittest.TestCase):
+    @patch.dict('os.environ', {'SMTP_PASSWORD': 'env_secret', 'SMTP_SERVER': 'env.smtp.com', 'SMTP_PORT': '2525', 'SMTP_USERNAME': 'envuser@example.com'})
+    def test_load_email_config_env_override(self):
+        """Test email config loads environment variable overrides and placeholder password."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_file = os.path.join(temp_dir, "email_config.yaml")
+            config_data = {
+                "alerts": {
+                    "email": {
+                        "enabled": True,
+                        "smtp_server": "smtp.example.com",
+                        "smtp_port": 587,
+                        "username": "alerts@example.com",
+                        "password": "<REPLACE_WITH_ENV_VARIABLE>",
+                        "from_address": "alerts@example.com",
+                        "to_address": "admin@example.com",
+                        "use_tls": True,
+                    }
+                }
+            }
+            with open(config_file, "w") as f:
+                yaml.dump(config_data, f)
+            with patch("nginx_security_monitor.email_alert.ConfigManager") as mock_cm:
+                mock_cm.get_instance.return_value.get.return_value = config_file
+                result = load_email_config(config_file)
+                # Should use env vars for password, server, port, username, from_address
+                self.assertEqual(result["password"], "env_secret")
+                self.assertEqual(result["smtp_server"], "env.smtp.com")
+                self.assertEqual(str(result["smtp_port"]), "2525")
+                self.assertEqual(result["username"], "envuser@example.com")
+                self.assertEqual(result["from_address"], "envuser@example.com")
     """Test email alert functionality."""
 
     def setUp(self):
