@@ -2,12 +2,46 @@ import smtplib
 import yaml
 import logging
 import random
+import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 from datetime import datetime
 from nginx_security_monitor.config_manager import ConfigManager
+
+# Load environment variables from .env file conditionally
+def _load_env_if_needed():
+    """Load environment variables from .env file if not in test environment."""
+    try:
+        import os
+        import sys
+        
+        # Don't load .env during tests to avoid interference with test configurations
+        # However, still allow explicit environment variable overrides that tests set
+        if (os.getenv('PYTEST_CURRENT_TEST') or 
+            'pytest' in os.getenv('_', '') or
+            'pytest' in sys.modules):
+            return
+            
+        from dotenv import load_dotenv, find_dotenv
+        # Try to find .env file in current directory or parent directories
+        dotenv_path = find_dotenv()
+        if dotenv_path:
+            load_dotenv(dotenv_path, override=False)  # Don't override existing env vars
+        else:
+            # Fallback: try common locations
+            possible_paths = ['.env', '../.env', '../../.env']
+            for path in possible_paths:
+                if os.path.exists(path):
+                    load_dotenv(path, override=False)
+                    break
+    except ImportError:
+        # python-dotenv not available, skip auto-loading
+        pass
+
+# Load environment variables on module import (unless testing)
+_load_env_if_needed()
 
 
 def load_email_config(config_path=None):
@@ -35,7 +69,31 @@ def load_email_config(config_path=None):
     try:
         with open(config_path, "r") as file:
             config = yaml.safe_load(file)
-            return config.get("email_service", {})
+            # Support both 'email_service' and 'alerts'->'email' keys
+            email_config = config.get("email_service")
+            if not email_config:
+                alerts = config.get("alerts", {})
+                email_config = alerts.get("email", {})
+            # Environment variable override logic
+            import os
+            # If password is a placeholder, use env var
+            if email_config.get("password", "") == "<REPLACE_WITH_ENV_VARIABLE>":
+                env_password = os.getenv("SMTP_PASSWORD")
+                if env_password:
+                    email_config["password"] = env_password
+            # Always override with env vars if present
+            for key, env_var in [
+                ("smtp_server", "SMTP_SERVER"),
+                ("smtp_port", "SMTP_PORT"),
+                ("username", "SMTP_USERNAME"),
+                ("password", "SMTP_PASSWORD"),
+                ("from_address", "SMTP_USERNAME"),
+                ("to_address", "SMTP_TO_ADDRESS"),
+            ]:
+                env_val = os.getenv(env_var)
+                if env_val:
+                    email_config[key] = env_val
+            return email_config
     except Exception as e:
         logging.error(f"Failed to load email config: {e}")
         return {}
