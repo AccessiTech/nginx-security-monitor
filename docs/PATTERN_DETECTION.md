@@ -8,6 +8,37 @@ The pattern detection system is the core of NGINX Security Monitor, analyzing NG
 to identify potential security threats. It uses a combination of regex patterns, frequency analysis,
 and behavioral detection to identify various attack types.
 
+## 🔄 **Pattern Detection Pipeline**
+
+The NGINX Security Monitor uses an integrated pipeline for attack detection:
+
+```text
+NGINX Logs → LogProcessor → PatternDetector → ThreatProcessor → PluginManager → AlertManager
+```
+
+1. **LogProcessor**: Reads log entries from NGINX log files specified in `monitoring.log_files` configuration
+1. **PatternDetector**: Applies regex patterns to identify potential threats
+1. **ThreatProcessor**: Analyzes identified threats and determines appropriate actions
+1. **PluginManager**: Executes threat detection plugins for additional analysis
+1. **AlertManager**: Generates and sends alerts based on detected threats
+
+### **Key Configuration Requirements**
+
+For the pattern detection pipeline to function correctly:
+
+- The `monitoring.log_files` configuration must include valid paths to NGINX log files
+- The SecurityCoordinator must be properly integrated with all components
+- The PluginManager must implement the required methods for threat detection
+
+### **Integration Details**
+
+The pattern detection system relies on several integrated components:
+
+- **PatternDetector** maintains separate collections for different attack types (SQL injection, XSS, path traversal, etc.)
+- **SecurityCoordinator** orchestrates the complete monitoring flow
+- **PluginManager** provides extensibility through the `run_threat_detection_plugins` method
+- **AlertManager** handles alert generation and delivery with proper mitigation results
+
 ## 🎯 **Built-in Detection Patterns**
 
 ### **SQL Injection Detection**
@@ -567,7 +598,46 @@ python -m src.load_test --pattern-stress-test
 python -m src.analytics --false-positive-report
 ```
 
-## 🆘 **Troubleshooting Pattern Issues**
+## 🔧 **Troubleshooting Pattern Detection**
+
+### **Common Issues**
+
+1. **No Attacks Detected**
+
+   - Verify that `monitoring.log_files` is correctly configured in settings.yaml
+   - Check that SecurityCoordinator is properly initializing LogProcessor
+   - Ensure NGINX is actually logging to the specified files
+
+1. **Integration Issues**
+
+   - Verify that PluginManager implements `run_threat_detection_plugins`
+   - Check that AlertManager receives proper parameters including `mitigation_results`
+   - Ensure all components are properly initialized in SecurityCoordinator
+
+1. **Testing Pattern Detection**
+
+   - Use `test_attack_detection.py` to verify end-to-end functionality
+   - Check security logs directly with `docker exec nginx-dev-nginx-1 cat /var/log/nginx-security-monitor.log`
+   - Use longer wait times (10+ seconds) for asynchronous log processing
+
+### **Diagnostic Tools**
+
+The following scripts are available for diagnosing pattern detection issues:
+
+- `debug_pattern_detection.py`: Tests pattern detection in isolation
+- `debug_log_processing.py`: Verifies log processing functionality
+- `test_attack_detection.py`: End-to-end verification of attack detection
+
+### **Log Patterns to Look For**
+
+When attacks are successfully detected, you should see log entries like:
+
+```text
+Threat detected: sql_injection - Source IP: 192.168.1.100 - URI: /?id=1%27%20OR%20%271%27=%271
+Threat detected: xss_attack - Source IP: 192.168.1.100 - URI: /?search=<script>alert(%27xss%27)</script>
+Threat detected: directory_traversal - Source IP: 192.168.1.100 - URI: /../../etc/passwd
+Threat detected: suspicious_user_agent - Source IP: 192.168.1.100 - User-Agent: sqlmap/1.4.7
+```
 
 ### **Common Issues and Solutions**
 

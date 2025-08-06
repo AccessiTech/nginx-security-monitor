@@ -423,7 +423,103 @@ Recommended Actions:
 4. Review firewall rules and access controls
 ```
 
-## 🚀 **You're Ready to Explore**
+## � **Verifying Attack Detection**
+
+Once you have NGINX Security Monitor installed and configured, you should verify that attack detection is working correctly.
+
+### **Step 1: Install Testing Tools**
+
+First, ensure you have the required testing scripts:
+
+```bash
+# Make the verification script executable
+chmod +x verify_attack_detection.sh
+```
+
+### **Step 2: Run a Quick Verification**
+
+The simplest way to verify attack detection is to use the provided script:
+
+```bash
+./verify_attack_detection.sh
+```
+
+This script will:
+
+1. Send test attacks to your NGINX server
+1. Wait for log processing to occur
+1. Check if the attacks were detected in the security logs
+
+### **Step 3: Verify Results in Security Logs**
+
+You can also manually check the security logs:
+
+```bash
+# For local installations
+cat /var/log/nginx-security-monitor.log | tail -n 100
+
+# For Docker installations
+docker exec nginx-dev-nginx-1 cat /var/log/nginx-security-monitor.log | tail -n 100
+```
+
+Look for entries like:
+
+```text
+Threat detected: sql_injection - Source IP: 192.168.1.100 - URI: /?id=1%27%20OR%20%271%27=%271
+```
+
+### **Step 4: Try Different Attack Types**
+
+Test different types of attacks to ensure comprehensive protection:
+
+#### **SQL Injection**
+
+```bash
+curl "http://localhost:8081/?id=1' OR '1'='1"
+```
+
+#### **XSS Attack**
+
+```bash
+curl "http://localhost:8081/?search=<script>alert('xss')</script>"
+```
+
+#### **Path Traversal**
+
+```bash
+curl "http://localhost:8081/../../etc/passwd"
+```
+
+#### **Suspicious User Agent**
+
+```bash
+curl -A "sqlmap/1.4.7" "http://localhost:8081/"
+```
+
+Wait 10-15 seconds after each attack, then check the logs to see if they were detected.
+
+### **Step 5: Troubleshooting**
+
+If attacks are not being detected:
+
+1. **Check Configuration**
+
+   - Verify `monitoring.log_files` is correctly set in settings.yaml
+   - Ensure the log files exist and are readable
+
+1. **Restart the Monitor**
+
+   - Restart the security monitor service to apply configuration changes
+   - For Docker: `docker restart nginx-dev-nginx-1`
+
+1. **Increase Log Detail**
+
+   - Set logging level to DEBUG in settings.yaml for more detailed information
+   - Check both NGINX logs and security monitor logs
+
+For more detailed testing information, see the [Testing Guide](TESTING.md).
+
+## �🚀 **You're Ready to Explore**
 
 Now that you have the basics working, explore these advanced features:
 

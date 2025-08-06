@@ -450,6 +450,111 @@ def test_debug_example(self):
     self.assertEqual(result, expected)
 ```
 
+## 🔒 Attack Detection Testing
+
+The NGINX Security Monitor includes automated testing tools to verify that the attack detection pipeline is functioning correctly.
+
+### 🛠️ **Available Test Scripts**
+
+#### **test_attack_detection.py**
+
+This comprehensive script tests the end-to-end attack detection pipeline by sending various attack types
+to NGINX and checking if they are properly detected in the security logs.
+
+```bash
+# Basic usage
+python3 test_attack_detection.py
+
+# With custom wait time (seconds between attack and log check)
+python3 test_attack_detection.py --wait 10
+```
+
+**Tested Attack Types:**
+
+- SQL Injection (`/?id=1%27%20OR%20%271%27=%271`)
+- XSS Attack (`/?search=<script>alert(%27xss%27)</script>`)
+- Path Traversal (`/../../etc/passwd`)
+- Suspicious User Agent (`sqlmap/1.4.7`)
+
+**Example Output:**
+
+```text
+2025-08-05 14:50:05,541 - INFO - ============================================================
+2025-08-05 14:50:05,541 - INFO - TEST RESULTS SUMMARY
+2025-08-05 14:50:05,541 - INFO - ============================================================
+2025-08-05 14:50:05,541 - INFO - ✅ PASSED: SQL Injection
+2025-08-05 14:50:05,541 - INFO - ✅ PASSED: XSS Attack
+2025-08-05 14:50:05,541 - INFO - ✅ PASSED: Path Traversal
+2025-08-05 14:50:05,541 - INFO - ✅ PASSED: Suspicious User Agent
+2025-08-05 14:50:05,541 - INFO - ------------------------------------------------------------
+2025-08-05 14:50:05,541 - INFO - Total Tests: 4
+2025-08-05 14:50:05,541 - INFO - Passed: 4
+2025-08-05 14:50:05,541 - INFO - Failed: 0
+```
+
+#### **verify_attack_detection.sh**
+
+This shell script provides a simpler interface for quickly verifying that attack detection is working:
+
+```bash
+# Make the script executable
+chmod +x verify_attack_detection.sh
+
+# Run the verification
+./verify_attack_detection.sh
+```
+
+### 🔍 **Testing Considerations**
+
+- **Docker Environment**: Tests assume NGINX is running in a Docker container named `nginx-dev-nginx-1`
+- **Log Path**: Tests check for attack patterns in `/var/log/nginx-security-monitor.log`
+- **Wait Time**: Allow sufficient time (10+ seconds) for log processing between attack and verification
+- **Log Size**: The test scripts search the last 500 log lines to find attack patterns
+
+### 🐛 **Troubleshooting Test Failures**
+
+If tests are failing, check these common issues:
+
+1. **Container Not Running**
+
+   - Verify NGINX container is running with `docker ps | grep nginx-dev-nginx-1`
+   - Start the container if needed with `./start.sh`
+
+1. **Insufficient Wait Time**
+
+   - Increase the wait time with `python3 test_attack_detection.py --wait 15`
+   - Log processing may take longer on slower systems
+
+1. **Log Path Incorrect**
+
+   - Verify the log file exists with `docker exec nginx-dev-nginx-1 ls -l /var/log/nginx-security-monitor.log`
+   - Check container logs with `docker logs nginx-dev-nginx-1`
+
+1. **Detection Pipeline Issues**
+
+   - Check component integration as described in [Pattern Detection Guide](PATTERN_DETECTION.md)
+   - Verify configuration as described in [Configuration Guide](CONFIGURATION.md)
+
+### 📋 **Adding Custom Attack Tests**
+
+You can extend `test_attack_detection.py` to include additional attack types:
+
+```python
+# Example of adding a new attack test
+NEW_ATTACK = {
+    "name": "Command Injection",
+    "curl": "curl -s \"http://localhost:8081/?cmd=cat%20/etc/passwd\"",
+    "expected_pattern": "Threat detected: command_injection"
+}
+ATTACK_TESTS.append(NEW_ATTACK)
+```
+
+Ensure that:
+
+1. The attack pattern is defined in your pattern configuration
+1. The curl command properly escapes special characters
+1. The expected_pattern matches exactly what appears in the logs
+
 ## Performance Testing
 
 ### Benchmark Tests
