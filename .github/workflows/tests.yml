@@ -65,16 +65,6 @@ jobs:
           poetry run pip install -e .
         working-directory: ${{ github.workspace }}
 
-      - name: Debug Python import
-        run: |
-          poetry run python -c "from nginx_security_monitor.config_manager import ConfigManager; print(ConfigManager)"
-        working-directory: ${{ github.workspace }}
-
-      - name: Test salt file creation specifically
-        run: |
-          poetry run pytest tests/test_salt_creation.py -v
-        working-directory: ${{ github.workspace }}
-
       - name: Run tests
         run: |
           poetry run pytest tests --test-master-key=test_key -v

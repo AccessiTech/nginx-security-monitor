@@ -46,20 +46,29 @@ class TestSaltFileCreation(unittest.TestCase):
                 # Get salt - should create the file
                 salt = manager._get_or_create_salt()
                 
-                # Verify the salt
+                # Print details about the salt for debugging
+                print(f"Salt type: {type(salt)}")
+                print(f"Salt length: {len(salt)}")
+                print(f"Salt bytes: {salt}")
+                
+                # Verify the salt - must be exactly 16 bytes
+                EXPECTED_SALT_SIZE = 16
                 self.assertIsNotNone(salt)
                 self.assertIsInstance(salt, bytes)
-                self.assertEqual(len(salt), 16)
+                self.assertEqual(len(salt), EXPECTED_SALT_SIZE, f"Salt length is {len(salt)}, expected {EXPECTED_SALT_SIZE}")
                 
                 # Check if the file was created
-                self.assertTrue(os.path.exists(salt_file_path), 
-                                f"Salt file {salt_file_path} does not exist")
+                file_exists = os.path.exists(salt_file_path)
+                print(f"File exists: {file_exists}")
+                self.assertTrue(file_exists, f"Salt file {salt_file_path} does not exist")
                 
                 # If file exists, verify its contents
-                if os.path.exists(salt_file_path):
+                if file_exists:
                     with open(salt_file_path, "rb") as f:
                         file_salt = f.read()
-                    self.assertEqual(salt, file_salt)
+                    print(f"File salt length: {len(file_salt)}")
+                    self.assertEqual(len(file_salt), EXPECTED_SALT_SIZE, "File salt has incorrect length")
+                    self.assertEqual(salt, file_salt, "Memory salt and file salt don't match")
         
         finally:
             # Clean up

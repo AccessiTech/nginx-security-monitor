@@ -27,9 +27,12 @@ class SecurityConfigManager:
 
     def _get_or_create_salt(self):
         """Get existing salt or create new one."""
+        # Always use exactly 16 bytes for salt
+        SALT_SIZE = 16
+        
         # Create a salt in memory first to ensure we always have one
         # regardless of file operations
-        in_memory_salt = os.urandom(16)
+        in_memory_salt = os.urandom(SALT_SIZE)
         
         # If we don't have a salt_file, just use in-memory salt
         if not self.salt_file:
@@ -37,35 +40,44 @@ class SecurityConfigManager:
             return in_memory_salt
             
         try:
-            # If the salt file exists, read it
+            # If the salt file exists, read it and verify length
             if os.path.exists(self.salt_file):
                 with open(self.salt_file, "rb") as f:
-                    return f.read()
+                    salt_data = f.read()
+                    # If existing salt is not the correct size, generate a new one
+                    if len(salt_data) != SALT_SIZE:
+                        self.logger.warning(f"Existing salt has incorrect size ({len(salt_data)} bytes), creating new salt")
+                        # Will continue to the code that writes a new salt file
+                    else:
+                        return salt_data
             
-            # Otherwise, create the directory if needed
-            directory = os.path.dirname(self.salt_file)
-            if directory and not os.path.exists(directory):
-                try:
-                    os.makedirs(directory, exist_ok=True)
-                except Exception as e:
-                    self.logger.error(f"Failed to create salt directory: {e}")
-                    # Continue trying to create the file even if directory creation fails
-            
-            # Now write the salt to the file
+            # Create new salt file with correct length salt
             try:
+                # Ensure parent directory exists
+                parent_dir = os.path.dirname(self.salt_file)
+                if parent_dir:
+                    os.makedirs(parent_dir, exist_ok=True)
+                    
+                # Write salt file directly
                 with open(self.salt_file, "wb") as f:
                     f.write(in_memory_salt)
-                # Set proper permissions if possible
-                try:
-                    os.chmod(self.salt_file, 0o600)  # Read only for owner
-                except Exception:
-                    pass  # Ignore permission errors
                     
-                # At this point, we should have successfully created the file
+                # Verify that file was created
+                if not os.path.exists(self.salt_file):
+                    raise IOError(f"Failed to create salt file at {self.salt_file}")
+                    
+                # Try to set secure permissions
+                try:
+                    os.chmod(self.salt_file, 0o600)
+                except Exception:
+                    # Not critical if permission change fails
+                    pass
+                
                 return in_memory_salt
+                
             except Exception as e:
                 self.logger.error(f"Failed to write salt file: {e}")
-                # Fall back to in-memory salt
+                # Fall back to in-memory salt if file operations fail
                 return in_memory_salt
                 
         except Exception as e:
