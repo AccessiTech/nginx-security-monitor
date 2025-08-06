@@ -38,51 +38,67 @@ class SecurityConfigManager:
         if not self.salt_file:
             self.logger.warning("No salt file specified, using in-memory salt")
             return in_memory_salt
-            
+        
+        # Simplify the logic to focus on reliability
         try:
-            # If the salt file exists, read it and verify length
+            # If salt file exists, try to read it
             if os.path.exists(self.salt_file):
-                with open(self.salt_file, "rb") as f:
-                    salt_data = f.read()
-                    # If existing salt is not the correct size, generate a new one
-                    if len(salt_data) != SALT_SIZE:
-                        self.logger.warning(f"Existing salt has incorrect size ({len(salt_data)} bytes), creating new salt")
-                        # Will continue to the code that writes a new salt file
-                    else:
-                        return salt_data
+                try:
+                    with open(self.salt_file, "rb") as f:
+                        salt_data = f.read()
+                        # If existing salt is not the correct size, generate a new one
+                        if len(salt_data) != SALT_SIZE:
+                            self.logger.warning(f"Existing salt has incorrect size ({len(salt_data)} bytes), creating new salt")
+                            # Will continue to creating a new salt file
+                        else:
+                            return salt_data
+                except Exception as e:
+                    self.logger.warning(f"Failed to read existing salt file: {e}")
+                    # Will continue to creating a new salt file
             
-            # Create new salt file with correct length salt
+            # Always print the path we're trying to write to for debugging
+            self.logger.info(f"Creating new salt file at: {os.path.abspath(self.salt_file)}")
+            
+            # Create directory if needed - always use absolute paths
             try:
-                # Ensure parent directory exists
-                parent_dir = os.path.dirname(self.salt_file)
-                if parent_dir:
-                    os.makedirs(parent_dir, exist_ok=True)
-                    
-                # Write salt file directly
-                with open(self.salt_file, "wb") as f:
-                    f.write(in_memory_salt)
-                    
-                # Verify that file was created
-                if not os.path.exists(self.salt_file):
-                    raise IOError(f"Failed to create salt file at {self.salt_file}")
-                    
-                # Try to set secure permissions
+                salt_dir = os.path.dirname(os.path.abspath(self.salt_file))
+                if salt_dir:
+                    os.makedirs(salt_dir, exist_ok=True)
+                    self.logger.info(f"Created directory: {salt_dir}")
+            except Exception as e:
+                self.logger.warning(f"Failed to create directory {salt_dir}: {e}")
+                # Continue anyway - maybe the directory already exists or isn't needed
+            
+            # Write the salt file directly - use try-finally to ensure file is closed
+            try:
+                # Use explicit open and close to ensure file is written
+                salt_file = open(os.path.abspath(self.salt_file), "wb")
+                try:
+                    salt_file.write(in_memory_salt)
+                    salt_file.flush()
+                    os.fsync(salt_file.fileno())  # Force write to disk
+                finally:
+                    salt_file.close()
+                
+                # Set permissions if possible
                 try:
                     os.chmod(self.salt_file, 0o600)
                 except Exception:
-                    # Not critical if permission change fails
-                    pass
-                
-                return in_memory_salt
-                
+                    pass  # Ignore permission errors
             except Exception as e:
                 self.logger.error(f"Failed to write salt file: {e}")
-                # Fall back to in-memory salt if file operations fail
-                return in_memory_salt
-                
+            
+            # Verify the file was created
+            if os.path.exists(self.salt_file):
+                self.logger.info(f"Successfully created salt file at {self.salt_file}")
+            else:
+                self.logger.error(f"Salt file creation failed - file does not exist at {self.salt_file}")
+            
+            # Always return the in-memory salt
+            return in_memory_salt
+            
         except Exception as e:
-            self.logger.error(f"Failed to manage salt file: {e}")
-            # Fallback to in-memory salt
+            self.logger.error(f"Salt file management failed: {e}")
             return in_memory_salt
 
     def _get_encryption_key(self):
