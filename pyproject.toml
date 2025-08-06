@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nginx_security_monitor"
-version = "1.1.0"
+version = "1.2.0"
 description = "A simple set of Python scripts to monitor NGINX logs, detect attack patterns, mitigate intrusion tactics, and trigger alerts through email and SMS."
 authors = ["AccessiTech <accessit3ch@gmail.com>"]
 license = "MIT"
