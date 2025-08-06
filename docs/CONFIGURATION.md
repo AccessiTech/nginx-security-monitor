@@ -1,9 +1,16 @@
 ______________________________________________________________________
 
-version: 1.0.0
-last_updated: 2025-07-20
+version: 1.1.0
+last_updated: 2025-08-01
 changelog:
 
+- version: 1.1.0
+  date: 2025-08-01
+  changes:
+  - Updated configuration examples to match current schema format
+  - Added documentation for built-in schema sections
+  - Updated schema format clarification
+  - Enhanced troubleshooting information
 - version: 1.0.0
   date: 2025-07-20
   changes:
@@ -13,7 +20,7 @@ changelog:
     maintainers:
 - nginx-security-team
   review_status: current
-  applies_to_versions: '>=1.0.0'
+  applies_to_versions: '>=1.1.0'
 
 ______________________________________________________________________
 
@@ -38,7 +45,7 @@ This configuration documentation is split into two parts:
 config/
 ├── settings.yaml          # Main configuration file
 ├── patterns.json          # Detection patterns
-├── schema.yaml            # Configuration schema
+├── schema.yml            # Configuration schema
 └── service-settings.yaml  # Service-specific settings
 ```
 
@@ -57,8 +64,8 @@ config/
 - **Purpose**: Production-ready service configuration with security best practices
 - **Contains**: Streamlined settings focused on runtime service operation
 - **Values**: Environment variable references (e.g., `"${SMTP_SERVER}"`, `"${API_KEY}"`)
-- **Use Case**: Production deployment with proper secret management
-- **Security**: Built-in encryption support, obfuscation, and self-protection features
+  **Use Case**: Production deployment with proper secret management
+  **Security**: Built-in encryption support, obfuscation, and self-protection features
 
 #### **When to Use Which File**
 
@@ -77,7 +84,7 @@ config/
 
 ### **Basic Structure**
 
-```yaml
+````yaml
 # NGINX Security Monitor Configuration
 # This file controls all aspects of the monitoring service
 
@@ -89,7 +96,7 @@ monitoring:
   check_interval: 10  # seconds between log checks
   batch_size: 1000    # number of log entries to process at once
   
-# ============================================================================  
+# ============================================================================
 # Log File Settings
 # ============================================================================
 logs:
@@ -97,118 +104,277 @@ logs:
   error_log: "/var/log/nginx/error.log"
   format: "combined"  # nginx log format
   encoding: "utf-8"
-  
+
 # ============================================================================
-# Pattern Detection Settings  
+# Monitoring Log Files
 # ============================================================================
-detection:
-  enabled_patterns:
-    - sql_injection
-    - xss_attacks
-    - ddos_detection
-    - brute_force
-    - directory_traversal
-    - suspicious_user_agents
-  
-  thresholds:
-    failed_requests_per_minute: 50
-    requests_per_ip_per_minute: 100
-    error_rate_threshold: 0.1
-    suspicious_user_agent_threshold: 5
-  
-  whitelist:
-    ips:
-      - "127.0.0.1"
-      - "::1"
-      - "192.168.1.0/24"
-    user_agents:
-      - "Googlebot"
-      - "Bingbot"
-    
-# ============================================================================
-# Alert Settings
-# ============================================================================
-alerts:
-  enabled: true
-  channels:
-    - email
-    - sms
-  
-  email:
-    enabled: true
-    smtp_server: "smtp.gmail.com"
-    smtp_port: 587
-    use_tls: true
-    username: "your_email@gmail.com"
-    password: "<REPLACE_WITH_ENV_VARIABLE>"  # Use app passwords for Gmail
-    from_address: "your_email@gmail.com"
-    to_addresses:
-      - "security@yourdomain.com"
-      - "admin@yourdomain.com"
-    
-    templates:
-      subject: "[SECURITY ALERT] {severity} - {attack_type} detected"
-      body_format: "html"  # html or text
-  
-  sms:
-    enabled: false
-    provider: "twilio"  # twilio, aws_sns, custom
-    # Add provider-specific settings here
-    
-# ============================================================================
-# Mitigation Settings
-# ============================================================================
-mitigation:
-  enabled: true
-  auto_mitigation: false  # Set to true for automatic responses
-  
-  strategies:
-    ip_blocking:
-      enabled: true
-      duration: 3600  # seconds to block IP
-      max_attempts: 10
-    
-    rate_limiting:
-      enabled: true
-      requests_per_minute: 60
-      burst_allowance: 10
-      
-# ============================================================================
-# Logging Settings
-# ============================================================================
-logging:
-  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
-  file: "/var/log/nginx-security-monitor.log"
-  max_size: "10MB"
-  backup_count: 5
-  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-  
-# ============================================================================
-# Storage Settings
-# ============================================================================
-storage:
-  database:
-    type: "sqlite"  # sqlite, postgresql, mysql
-    path: "/var/lib/nginx-security-monitor/monitor.db"
-    
-  cache:
-    type: "memory"  # memory, redis
-    max_size: 1000
-    ttl: 3600
-    
-# ============================================================================
-# Security Settings
-# ============================================================================
-security:
-  encryption:
-    enabled: false
-    key_file: "<REPLACE_WITH_ENV_VARIABLE>"
-    
-  plugin_security:
-    enabled: true
-    allowed_plugins_dir: "/etc/nginx-security-monitor/plugins"
-    signature_verification: false
+monitoring:
+  log_files:
+    - "/var/log/nginx/access.log"
+    - "/var/log/nginx/error.log"
+  check_interval: 30
+  pattern_file: "patterns.json"
+
+## 📁 **Log File Configuration**
+
+### **Important Note on Log File Paths**
+
+The NGINX Security Monitor requires proper configuration of log file paths to function correctly. 
+The **correct** configuration path is `monitoring.log_files`:
+
+```yaml
+monitoring:
+  log_files:
+    - "/var/log/nginx/access.log"
+    - "/var/log/nginx/error.log"
+````
+
+⚠️ **Common Mistake**: Using `log_files` at the root level instead of under `monitoring`
+will result in no attacks being detected.
+
+### **Verifying Log File Configuration**
+
+To verify that your log file configuration is correct, you can run:
+
+```bash
+python3 -c "from nginx_security_monitor.config_manager import ConfigManager; print(ConfigManager().get('monitoring.log_files'))"
 ```
+
+This should display a list of log file paths. If it returns an empty list (`[]`), your configuration is incorrect.# ============================================================================
+
+# Pattern Detection Settings
+
+# ============================================================================
+
+```yaml
+detection:
+enabled_patterns:
+  - sql_injection
+  - xss_attacks
+  - ddos_detection
+  - brute_force
+  - directory_traversal
+  - suspicious_user_agents
+
+thresholds:
+failed_requests_per_minute: 50
+requests_per_ip_per_minute: 100
+error_rate_threshold: 0.1
+suspicious_user_agent_threshold: 5
+
+whitelist:
+ips:
+  - "127.0.0.1"
+  - "::1"
+  - "192.168.1.0/24"
+user_agents:
+  - "Googlebot"
+  - "Bingbot"
+```
+
+# ============================================================================
+
+# Alert Settings
+
+# ============================================================================
+
+<!-- markdownlint-disable MD034 -->
+
+```yaml
+alerts:
+enabled: true
+channels:
+  - email
+  - sms
+
+email:
+enabled: true
+smtp_server: "smtp.gmail.com"
+smtp_port: 587
+use_tls: true
+username: "your_email@gmail.com"
+password: "<REPLACE_WITH_ENV_VARIABLE>" # Use app passwords for Gmail
+from_address: "your_email@gmail.com"
+to_addresses:
+  - "security@yourdomain.com"
+  - "admin@yourdomain.com"
+
+templates:
+  subject: "[SECURITY ALERT] {severity} - {attack_type} detected"
+  body_format: "html"  # html or text
+
+sms:
+enabled: false
+provider: "twilio" # twilio, aws_sns, custom
+\# Add provider-specific settings here
+```
+
+<!-- markdownlint-enable MD034 -->
+
+# ============================================================================
+
+# Mitigation Settings
+
+# ============================================================================
+
+```yaml
+mitigation:
+enabled: true
+auto_mitigation: false # Set to true for automatic responses
+
+strategies:
+ip_blocking:
+enabled: true
+duration: 3600 # seconds to block IP
+max_attempts: 10
+
+rate_limiting:
+  enabled: true
+  requests_per_minute: 60
+  burst_allowance: 10
+```
+
+# ============================================================================
+
+# Logging Settings
+
+# ============================================================================
+
+```yaml
+logging:
+level: "INFO" # DEBUG, INFO, WARNING, ERROR, CRITICAL
+file: "/var/log/nginx-security-monitor.log"
+max_size: "10MB"
+backup_count: 5
+format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+```
+
+# ============================================================================
+
+# Storage Settings
+
+# ============================================================================
+
+```yaml
+storage:
+database:
+type: "sqlite" # sqlite, postgresql, mysql
+path: "/var/lib/nginx-security-monitor/monitor.db"
+
+cache:
+type: "memory" # memory, redis
+max_size: 1000
+ttl: 3600
+```
+
+# ============================================================================
+
+# Security Settings
+
+# ============================================================================
+
+```yaml
+security:
+encryption:
+enabled: false
+key_file: "\<REPLACE_WITH_ENV_VARIABLE>"
+
+plugin_security:
+enabled: true
+allowed_plugins_dir: "/opt/nginx-security-monitor/plugins"
+signature_verification: false
+
+```
+
+## 📋 **Configuration Schema (schema.yml)**
+
+The NGINX Security Monitor uses a custom schema format for configuration validation and documentation.
+This schema defines all available configuration options, their types, defaults, and constraints.
+
+### **Schema Format**
+
+The schema uses ConfigManager's custom format with special metadata keys:
+
+```yaml
+# schema.yml - ConfigManager Custom Format
+service:
+  __type: object
+  check_interval:
+    __type: integer
+    __default: 60
+    __range: [1, 3600]
+    __description: "Interval between security checks in seconds"
+    __env: "NGINX_MONITOR_CHECK_INTERVAL"
+    __required: false
+    __security_critical: true
+    __min_secure: 30
+
+logs:
+  __type: object
+  access_log:
+    __type: string
+    __default: "/var/log/nginx/access.log"
+    __description: "Path to NGINX access log file"
+    __env: "NGINX_MONITOR_ACCESS_LOG"
+
+# Flexible sections allow arbitrary keys
+encrypted_config:
+  __type: dict
+  __default: {}
+  __description: "Encrypted configuration sections"
+  __flexible: true  # Allows any keys under this section
+```
+
+### **Schema Metadata Keys**
+
+| Key                   | Purpose                    | Example                                                   |
+| --------------------- | -------------------------- | --------------------------------------------------------- |
+| `__type`              | Data type validation       | `string`, `integer`, `boolean`, `array`, `object`, `dict` |
+| `__default`           | Default value              | `60`, `"/var/log/nginx/access.log"`                       |
+| `__range`             | Valid range for numbers    | `[1, 3600]`                                               |
+| `__description`       | Human-readable description | `"Interval between checks"`                               |
+| `__env`               | Environment variable name  | `"NGINX_MONITOR_CHECK_INTERVAL"`                          |
+| `__required`          | Whether field is mandatory | `true`, `false` (default)                                 |
+| `__security_critical` | Affects security settings  | `true`, `false`                                           |
+| `__min_secure`        | Minimum secure value       | `30`                                                      |
+| `__flexible`          | Allow arbitrary sub-keys   | `true` (for `encrypted_config`)                           |
+
+### **Built-in Schema Fallback**
+
+If `schema.yml` is missing or invalid, ConfigManager uses a comprehensive built-in schema that includes:
+
+- **Core sections**: `service`, `logs`, `monitoring`, `security`
+- **Alert sections**: `email_service`, `sms_service`
+- **Detection sections**: `pattern_detection`, `mitigation`
+- **Protection sections**: `service_protection`, `network_security`
+- **Flexible sections**: `encrypted_config` (supports arbitrary keys)
+- **Legacy compatibility**: `log_file_path` for backwards compatibility
+
+### **Schema Validation**
+
+The schema validates:
+
+1. **Type checking**: Ensures values match expected types
+1. **Range validation**: Numeric values within specified ranges
+1. **Required fields**: Mandatory configuration options
+1. **Security constraints**: Minimum secure values for critical settings
+1. **Path validation**: Prevents path traversal attacks
+1. **Command injection**: Blocks potentially dangerous command strings
+
+### **Environment Variable Overrides**
+
+Any schema field with an `__env` key can be overridden via environment variables:
+
+```bash
+# Override check interval
+export NGINX_MONITOR_CHECK_INTERVAL=30
+
+# Override log file path  
+export NGINX_MONITOR_ACCESS_LOG="/custom/nginx/access.log"
+```
+
+> **Important**: Use ConfigManager's custom schema format, **not** JSON Schema format.
+> The ConfigManager expects `__type`, `__default`, etc., not `type`, `default`.
 
 ## 🎯 **Pattern Configuration (patterns.json)**
 
@@ -389,8 +555,8 @@ storage:
 
 ```bash
 # Set proper permissions
-sudo chmod 600 /etc/nginx-security-monitor/settings.yaml
-sudo chown nginx-monitor:nginx-monitor /etc/nginx-security-monitor/settings.yaml
+sudo chmod 600 /opt/nginx-security-monitor/settings.yaml
+sudo chown nginx-monitor:nginx-monitor /opt/nginx-security-monitor/settings.yaml
 
 # Encrypt sensitive data
 python encrypt_config.py --encrypt-file settings.yaml
@@ -408,7 +574,7 @@ alerts:
 # Or use external secret management
 alerts:
   email:
-    password_file: "/etc/nginx-security-monitor/secrets/email_password"
+    password_file: "/opt/nginx-security-monitor/secrets/email_password"
 ```
 
 ### **Network Security**
@@ -498,12 +664,12 @@ sudo ./nginx-security-monitor.sh reload
 
 ```bash
 # Backup current configuration
-sudo cp /etc/nginx-security-monitor/settings.yaml \
-       /etc/nginx-security-monitor/settings.yaml.backup.$(date +%Y%m%d)
+sudo cp /opt/nginx-security-monitor/settings.yaml \
+       /opt/nginx-security-monitor/settings.yaml.backup.$(date +%Y%m%d)
 
 # Automated backup script
 #!/bin/bash
-CONFIG_DIR="/etc/nginx-security-monitor"
+CONFIG_DIR="/opt/nginx-security-monitor"
 BACKUP_DIR="/var/backups/nginx-security-monitor"
 DATE=$(date +%Y%m%d_%H%M%S)
 
@@ -552,7 +718,46 @@ detection:
     - brute_force
 ```
 
-## 🆘 **Troubleshooting Configuration**
+## 🔧 **Configuration Troubleshooting**
+
+### **Common Configuration Issues**
+
+1. **Empty log_files Configuration**
+
+   - **Symptoms**: No attacks detected, security monitor logs show "No log files configured"
+   - **Cause**: Incorrect configuration path or missing configuration
+   - **Solution**: Ensure `monitoring.log_files` is correctly defined in settings.yaml
+
+1. **Invalid Log File Paths**
+
+   - **Symptoms**: Security monitor logs show "Could not access log file"
+   - **Cause**: Log files don't exist or permissions are incorrect
+   - **Solution**: Verify file paths and permissions, check container paths for Docker deployments
+
+1. **Configuration Not Loaded**
+
+   - **Symptoms**: Default values used instead of configured values
+   - **Cause**: settings.yaml not found or not accessible
+   - **Solution**: Verify settings.yaml location and permissions
+
+### **Diagnostic Commands**
+
+Use these commands to diagnose configuration issues:
+
+<!-- markdownlint-disable MD013 -->
+
+```bash
+# Check if configuration is loaded correctly
+python3 -c "from nginx_security_monitor.config_manager import ConfigManager; print('Config loaded:' if ConfigManager().is_loaded() else 'Config NOT loaded')"
+
+# Check log file configuration
+python3 -c "from nginx_security_monitor.config_manager import ConfigManager; print('Log files:', ConfigManager().get('monitoring.log_files'))"
+
+# Check monitoring interval
+python3 -c "from nginx_security_monitor.config_manager import ConfigManager; print('Check interval:', ConfigManager().get('monitoring.check_interval'))"
+```
+
+<!-- markdownlint-enable MD013 -->
 
 ### **Common Issues**
 
@@ -560,8 +765,8 @@ detection:
 
 ```bash
 # Check file location and permissions
-ls -la /etc/nginx-security-monitor/settings.yaml
-sudo chmod 644 /etc/nginx-security-monitor/settings.yaml
+ls -la /opt/nginx-security-monitor/settings.yaml
+sudo chmod 644 /opt/nginx-security-monitor/settings.yaml
 ```
 
 #### Issue: Invalid YAML syntax

@@ -23,22 +23,20 @@ from nginx_security_monitor.sms_alert import send_sms_alert
 from nginx_security_monitor.alert_manager import AlertManager
 from nginx_security_monitor.log_processor import LogProcessor
 from nginx_security_monitor.threat_processor import ThreatProcessor
-from nginx_security_monitor.security_coordinator import SecurityCoordinator
 
-# Import our security modules
+from nginx_security_monitor.security_coordinator import SecurityCoordinator
+from nginx_security_monitor.config_manager import ConfigManager
+# Import our security modules (optional)
 try:
     from nginx_security_monitor.crypto_utils import SecurityConfigManager, PatternObfuscator
     from nginx_security_monitor.plugin_system import PluginManager
     from nginx_security_monitor.service_protection import ServiceProtection
     from nginx_security_monitor.network_security import NetworkSecurity, SecurityHardening
     from nginx_security_monitor.security_integrations import SecurityIntegrationManager
-    from nginx_security_monitor.config_manager import ConfigManager
-
     SECURITY_FEATURES_AVAILABLE = True
 except ImportError as e:
     logging.warning(f"Security features not available (install dependencies): {e}")
     SECURITY_FEATURES_AVAILABLE = False
-
 
 config = ConfigManager.get_instance()
 
@@ -47,14 +45,20 @@ class NginxSecurityMonitor:
     """Main service class for the NGINX Security Monitor."""
 
     def __init__(self, config_path=None):
-        self.config_manager = ConfigManager.get_instance()
+        # If a config_path is provided, reset the ConfigManager singleton to use the new path
+        if config_path:
+            # Reset the singleton to use the new config path
+            ConfigManager._instance = None
+            self.config_manager = ConfigManager.get_instance(config_path=config_path)
+        else:
+            self.config_manager = ConfigManager.get_instance()
 
         # Get initial running state from config
         self.running = self.config_manager.get("service.initial_running_state", True)
 
         # Get config path from config manager if not provided
         default_config_path = self.config_manager.get(
-            "service.default_config_path", "/etc/nginx-security-monitor/settings.yaml"
+            "service.default_config_path", "/opt/nginx-security-monitor/settings.yaml"
         )
         self.config_path = config_path or default_config_path
 
@@ -334,22 +338,15 @@ class NginxSecurityMonitor:
             return {"success": False, "error": "Security coordinator not initialized"}
 
     # Backward compatibility methods for tests
-    def get_new_log_entries(self, log_file_path):
+    def get_new_log_entries(self, log_file_path=None):
         """Get new log entries - delegates to log processor with state sync."""
         if hasattr(self, "log_processor"):
             # Initialize last_processed_size if not present
             if not hasattr(self, "last_processed_size"):
-                self.last_processed_size = 0
+                self.last_processed_size = {}
 
-            # Sync state with log processor
-            self.log_processor.last_processed_size = self.last_processed_size
-
-            # Get entries
-            entries = self.log_processor.get_new_log_entries(log_file_path)
-
-            # Sync state back to monitor for test compatibility
-            self.last_processed_size = self.log_processor.last_processed_size
-
+            # Call the updated LogProcessor API
+            entries = self.log_processor.get_new_log_entries()
             return entries
         return []
 

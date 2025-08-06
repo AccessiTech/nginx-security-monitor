@@ -184,8 +184,8 @@ sudo lsof -i :8080
 # Kill conflicting process or change port
 
 # Issue 2: Volume mount issues
-ls -la /etc/nginx-security-monitor/
-sudo chown -R 1000:1000 /etc/nginx-security-monitor/
+ls -la /opt/nginx-security-monitor/
+sudo chown -R 1000:1000 /opt/nginx-security-monitor/
 
 # Issue 3: Memory limits
 docker stats nginx-security-monitor
@@ -210,7 +210,7 @@ services:
       - "8080:8080"
     volumes:
       # Fix: Use absolute paths
-      - /etc/nginx-security-monitor:/etc/nsm:ro
+      - /opt/nginx-security-monitor:/etc/nsm:ro
       - /var/log/nginx:/var/log/nginx:ro
       - /var/log/nsm:/var/log/nsm
     environment:
@@ -284,7 +284,7 @@ apk add gcc musl-dev libffi-dev openssl-dev python3-dev
 
 set -e
 
-CONFIG_DIR="/etc/nginx-security-monitor"
+CONFIG_DIR="/opt/nginx-security-monitor"
 CONFIG_FILE="$CONFIG_DIR/config/settings.yaml"
 BACKUP_SUFFIX=".backup.$(date +%Y%m%d_%H%M%S)"
 
@@ -325,7 +325,7 @@ log_sources:
 
 # Pattern Detection
 patterns:
-  file: "/etc/nginx-security-monitor/config/patterns.json"
+  file: "/opt/nginx-security-monitor/config/patterns.json"
   encrypted: false
   update_interval: 300  # 5 minutes
 
@@ -502,7 +502,7 @@ Wants=network.target
 Type=exec
 User=nsm
 Group=nsm
-ExecStart=$NSM_EXEC --config /etc/nginx-security-monitor/config/settings.yaml
+ExecStart=$NSM_EXEC --config /opt/nginx-security-monitor/config/settings.yaml
 ExecReload=/bin/kill -HUP \$MAINPID
 KillMode=mixed
 Restart=on-failure
@@ -519,7 +519,7 @@ ReadOnlyPaths=/var/log/nginx
 
 # Environment
 Environment=PYTHONPATH=/usr/local/lib/python3.8/site-packages
-Environment=NSM_CONFIG_PATH=/etc/nginx-security-monitor/config/settings.yaml
+Environment=NSM_CONFIG_PATH=/opt/nginx-security-monitor/config/settings.yaml
 
 # Resource limits
 LimitNOFILE=65536
@@ -556,14 +556,14 @@ sudo journalctl -u nginx-security-monitor.service -n 20 --no-pager
 # Check configuration
 echo -e "\nConfiguration Test:"
 if command -v nginx-security-monitor >/dev/null; then
-    nginx-security-monitor --config /etc/nginx-security-monitor/config/settings.yaml --test-config
+    nginx-security-monitor --config /opt/nginx-security-monitor/config/settings.yaml --test-config
 else
     python3 -m nginx_security_monitor.main --test-config
 fi
 
 # Check permissions
 echo -e "\nPermission Check:"
-ls -la /etc/nginx-security-monitor/
+ls -la /opt/nginx-security-monitor/
 ls -la /var/log/nginx-security-monitor/
 
 # Check dependencies
@@ -577,7 +577,7 @@ sudo netstat -tlnp | grep :8080 || echo "Port 8080 not in use"
 # Suggest solutions
 echo -e "\n💡 Common Solutions:"
 echo "1. Check configuration syntax: nginx-security-monitor --test-config"
-echo "2. Fix permissions: sudo chown -R nsm:nsm /etc/nginx-security-monitor/"
+echo "2. Fix permissions: sudo chown -R nsm:nsm /opt/nginx-security-monitor/"
 echo "3. Check logs: sudo journalctl -u nginx-security-monitor -f"
 echo "4. Restart service: sudo systemctl restart nginx-security-monitor"
 ```
@@ -603,7 +603,7 @@ from typing import Dict, List, Tuple
 class InstallationTester:
     def __init__(self):
         self.test_results = []
-        self.config_path = "/etc/nginx-security-monitor/config/settings.yaml"
+        self.config_path = "/opt/nginx-security-monitor/config/settings.yaml"
         self.service_url = "http://localhost:8080"
     
     def run_all_tests(self) -> bool:
@@ -651,8 +651,8 @@ class InstallationTester:
     def test_configuration_files(self) -> bool:
         """Test configuration file existence and validity"""
         required_files = [
-            "/etc/nginx-security-monitor/config/settings.yaml",
-            "/etc/nginx-security-monitor/config/patterns.json"
+            "/opt/nginx-security-monitor/config/settings.yaml",
+            "/opt/nginx-security-monitor/config/patterns.json"
         ]
         
         for file_path in required_files:
@@ -670,7 +670,7 @@ class InstallationTester:
         
         # Test JSON syntax
         try:
-            with open("/etc/nginx-security-monitor/config/patterns.json", 'r') as f:
+            with open("/opt/nginx-security-monitor/config/patterns.json", 'r') as f:
                 json.load(f)
         except json.JSONDecodeError as e:
             print(f"     Invalid JSON: {e}")
@@ -779,7 +779,7 @@ class InstallationTester:
     def test_permissions(self) -> bool:
         """Test file and directory permissions"""
         permission_tests = [
-            ("/etc/nginx-security-monitor", "nsm", 0o750),
+            ("/opt/nginx-security-monitor", "nsm", 0o750),
             ("/var/log/nginx-security-monitor", "nsm", 0o750),
         ]
         
@@ -820,8 +820,8 @@ class InstallationTester:
         guidance = {
             "Configuration Files": [
                 "Run: python scripts/generate_initial_config.py",
-                "Check file permissions: ls -la /etc/nginx-security-monitor/",
-                "Validate syntax: python -m yaml /etc/nginx-security-monitor/config/settings.yaml"
+                "Check file permissions: ls -la /opt/nginx-security-monitor/",
+                "Validate syntax: python -m yaml /opt/nginx-security-monitor/config/settings.yaml"
             ],
             "Python Dependencies": [
                 "Install dependencies: pip install -r requirements.txt",

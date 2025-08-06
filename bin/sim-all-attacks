@@ -1,0 +1,40 @@
+#!/bin/bash
+# All-in-One Attack Simulation Script
+# Usage: ./sim-all-attacks -p 8081
+
+PORT=8081  # Default port
+
+# Parse command line arguments
+while getopts "p:" opt; do
+  case ${opt} in
+    p ) PORT=$OPTARG ;;
+    \? ) echo "Usage: $0 [-p port]" >&2; exit 1 ;;
+  esac
+done
+
+echo "=== Complete Security Attack Simulation ==="
+echo "Target: http://localhost:$PORT"
+echo "Running all attack simulations sequentially..."
+
+# Run all the individual scripts with the specified port
+echo "Running SQL Injection tests..."
+$PWD/bin/sim-sql-injection -p $PORT
+
+echo -e "\nRunning XSS tests..."
+$PWD/bin/sim-xss -p $PORT
+
+echo -e "\nRunning Path Traversal tests..."
+$PWD/bin/sim-path-traversal -p $PORT
+
+echo -e "\nRunning Command Injection tests..."
+$PWD/bin/sim-command-injection -p $PORT
+
+echo -e "\nRunning DoS simulation (reduced requests)..."
+$PWD/bin/sim-dos -p $PORT -r 20
+
+echo -e "\nRunning Scanner simulation..."
+$PWD/bin/sim-scanner -p $PORT
+
+echo -e "\nAll attack simulations completed!"
+echo "To view complete logs: docker logs nginx-dev-nginx-1"
+echo "You should see security alerts for various attack patterns in the logs."

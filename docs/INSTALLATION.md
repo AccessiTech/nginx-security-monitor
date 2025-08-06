@@ -110,9 +110,9 @@ sudo chmod +x nginx-security-monitor.sh
 sudo cp systemd/nginx-security-monitor.service /etc/systemd/system/
 
 # Create configuration directory
-sudo mkdir -p /etc/nginx-security-monitor
-sudo cp config/*.yaml /etc/nginx-security-monitor/
-sudo chown -R nginx-monitor:nginx-monitor /etc/nginx-security-monitor
+sudo mkdir -p /opt/nginx-security-monitor
+sudo cp config/*.yaml /opt/nginx-security-monitor/
+sudo chown -R nginx-monitor:nginx-monitor /opt/nginx-security-monitor
 
 # Enable and start service
 sudo systemctl daemon-reload
@@ -142,7 +142,7 @@ docker volume create nginx-security-config
 # Run container
 docker run -d \
   --name nginx-security-monitor \
-  -v nginx-security-config:/etc/nginx-security-monitor \
+  -v nginx-security-config:/opt/nginx-security-monitor \
   -v /var/log/nginx:/var/log/nginx:ro \
   --restart unless-stopped \
   nginx-security-monitor
@@ -158,7 +158,7 @@ services:
     build: .
     container_name: nginx-security-monitor
     volumes:
-      - ./config:/etc/nginx-security-monitor
+      - ./config:/opt/nginx-security-monitor
       - /var/log/nginx:/var/log/nginx:ro
     environment:
       - LOG_LEVEL=INFO

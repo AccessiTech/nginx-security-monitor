@@ -38,3 +38,17 @@ Create HTML alert body.
 **Parameters:**
 
 - **alert_details**
+
+## Gmail SMTP Configuration
+
+For Gmail SMTP to work, you need to:
+
+1. **Enable 2-Factor Authentication** on your Gmail account
+1. **Generate an App Password** for this application
+
+To generate a Gmail App Password:
+
+1. Go to your Google Account settings
+1. Navigate to Security → 2-Step Verification → App passwords
+1. Generate a new app password for "Mail"
+1. Use this 16-character app password in your SMTP configuration instead of your regular password

@@ -1,0 +1,45 @@
+#!/bin/bash
+# SQL Injection Attack Simulation Script
+# Usage: ./sim-sql-injection -p 8081
+
+PORT=8081  # Default port
+
+# Parse command line arguments
+while getopts "p:" opt; do
+  case ${opt} in
+    p ) PORT=$OPTARG ;;
+    \? ) echo "Usage: $0 [-p port]" >&2; exit 1 ;;
+  esac
+done
+
+echo "=== SQL Injection Attack Simulation ==="
+echo "Target: http://localhost:$PORT"
+echo "Sending requests..."
+
+# Basic SQL injection tests
+echo -n "Test 1 - Basic injection: "
+curl -s "http://localhost:$PORT/?id=1%20OR%201=1" > /dev/null
+echo "Done"
+
+echo -n "Test 2 - Quote breaking: "
+curl -s "http://localhost:$PORT/?id=1%27%20OR%20%271%27=%271" > /dev/null
+echo "Done"
+
+echo -n "Test 3 - Login bypass: "
+curl -s -X POST "http://localhost:$PORT/login" -d "username=admin'--&password=anything" > /dev/null
+echo "Done"
+
+echo -n "Test 4 - UNION attack: "
+curl -s "http://localhost:$PORT/?id=1%20UNION%20SELECT%201,2,3" > /dev/null
+echo "Done"
+
+echo -n "Test 5 - Blind SQL injection: "
+curl -s "http://localhost:$PORT/?id=1%20AND%20SUBSTRING(@@version,1,1)=5" > /dev/null
+echo "Done"
+
+echo -n "Test 6 - Time-based injection: "
+curl -s "http://localhost:$PORT/?id=1%20AND%20(SELECT%20SLEEP(0.1))" > /dev/null
+echo "Done"
+
+echo "All SQL injection tests completed. Check your security monitor logs for alerts."
+echo "To view logs: docker logs nginx-dev-nginx-1"

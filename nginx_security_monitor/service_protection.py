@@ -38,7 +38,7 @@ class ServiceProtection:
             "service_protection.protected_files",
             [
                 "/opt/nginx-security-monitor/src/",
-                "/etc/nginx-security-monitor/",
+                "/opt/nginx-security-monitor/",
                 "/etc/systemd/system/nginx-security-monitor.service",
             ],
         )
@@ -237,17 +237,90 @@ class ServiceProtection:
 
             # Check for suspicious child processes
             children = current_process.children(recursive=True)
+            
+            # Debug log the children processes with detailed info
+            child_info = []
             for child in children:
-                if child.name() not in ["python3", "python"]:
+                try:
+                    child_info.append({
+                        'pid': child.pid,
+                        'name': child.name(),
+                        'cmdline': child.cmdline(),
+                        'create_time': child.create_time(),
+                    })
+                except Exception as e:
+                    child_info.append({
+                        'pid': child.pid,
+                        'error': str(e)
+                    })
+            
+            self.logger.warning(f"Found children processes: {child_info}")
+            
+            # Get process whitelist from config - check primary location first, then fallback
+            whitelist_processes = self.config_manager.get(
+                "detection.whitelist.processes", []
+            )
+            
+            # If primary location is empty, try the secondary location
+            if not whitelist_processes:
+                whitelist_processes = self.config_manager.get(
+                    "service_protection.whitelist.processes", []
+                )
+                self.logger.warning(f"Using service_protection whitelist: {whitelist_processes}")
+            else:
+                self.logger.warning(f"Using detection whitelist: {whitelist_processes}")
+                
+            # Debug log the whitelist sources
+            self.logger.warning(f"Process whitelist being used: {whitelist_processes}")
+            
+            # Extract names from whitelist with fallback for improperly formatted entries
+            whitelisted_names = []
+            for proc in whitelist_processes:
+                if isinstance(proc, dict) and "name" in proc:
+                    whitelisted_names.append(proc.get("name"))
+                elif isinstance(proc, str):
+                    # Handle case where process is just a string name
+                    whitelisted_names.append(proc)
+            
+            # Debug log the extracted whitelist names
+            self.logger.debug(f"Extracted whitelisted process names: {whitelisted_names}")
+            
+            # Add default allowed processes
+            allowed_processes = ["python3", "python"] + whitelisted_names
+            self.logger.debug(f"Final allowed processes list: {allowed_processes}")
+            
+            for child in children:
+                process_name = child.name()
+                is_whitelisted = False
+                match_reason = "No match found"
+                
+                # Check exact match
+                if process_name in allowed_processes:
+                    is_whitelisted = True
+                    match_reason = f"Exact match with '{process_name}'"
+                else:
+                    # Check if any whitelisted process name is a substring of the current process
+                    for allowed in allowed_processes:
+                        if allowed in process_name:
+                            is_whitelisted = True
+                            match_reason = f"Substring match: '{allowed}' in '{process_name}'"
+                            break
+                
+                # Log detailed information about the process
+                self.logger.warning(f"Process check: {process_name} (PID: {child.pid}) - Whitelisted: {is_whitelisted} - {match_reason}")
+                
+                if not is_whitelisted:
                     threats.append(
                         {
                             "type": "Suspicious Child Process",
                             "severity": "HIGH",
-                            "description": f"Unexpected child process: {child.name()} (PID: {child.pid})",
-                            "process_name": child.name(),
+                            "description": f"Unexpected child process: {process_name} (PID: {child.pid})",
+                            "process_name": process_name,
                             "process_pid": child.pid,
                         }
                     )
+                else:
+                    self.logger.warning(f"Whitelisted process: {process_name} (PID: {child.pid}) - {match_reason}")
 
         except Exception as e:
             self.logger.error(f"Process integrity check failed: {e}")
@@ -399,24 +472,28 @@ class ServiceProtection:
         """Check if the service is functioning correctly."""
         threats = []
 
-        try:
-            # Check if systemd service is active
-            result = subprocess.run(
-                ["systemctl", "is-active", "nginx-security-monitor"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
 
-            if result.returncode != 0:
-                threats.append(
-                    {
-                        "type": "Service Status",
-                        "severity": "CRITICAL",
-                        "description": "Service is not active according to systemd",
-                        "status": result.stdout.strip(),
-                    }
+        try:
+            # Only check systemctl in production environment
+            if os.getenv("NSM_ENV", "development") == "production":
+                result = subprocess.run(
+                    ["systemctl", "is-active", "nginx-security-monitor"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
                 )
+
+                if result.returncode != 0:
+                    threats.append(
+                        {
+                            "type": "Service Status",
+                            "severity": "CRITICAL",
+                            "description": "Service is not active according to systemd",
+                            "status": result.stdout.strip(),
+                        }
+                    )
+            else:
+                self.logger.info("Skipping systemctl service check: not in production environment")
 
             # Check if log file is being written to (indicates active monitoring)
             log_file = self.config.get("logging", {}).get(

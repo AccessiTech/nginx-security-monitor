@@ -60,7 +60,7 @@ class PluginManager:
         self.logger = logging.getLogger("nginx-security-monitor.plugins")
         self.plugins = {}
         self.plugin_dirs = plugin_dirs or [
-            "/etc/nginx-security-monitor/plugins",
+            "/opt/nginx-security-monitor/plugins",
             "/opt/nginx-security-monitor/custom_plugins",
             os.path.expanduser("~/.nginx-security-monitor/plugins"),
         ]
@@ -117,6 +117,37 @@ class PluginManager:
     def get_available_plugins(self) -> List[str]:
         """Return list of available plugin names."""
         return list(self.plugins.keys())
+    
+    def run_threat_detection_plugins(self, threat_info: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute threat detection plugins for a threat.
+        This is called by ThreatProcessor to enhance detection capabilities.
+
+        Args:
+            threat_info: Dictionary containing threat details
+
+        Returns:
+            Dictionary with detection plugin results
+        """
+        # For compatibility with ThreatProcessor, we'll wrap execute_mitigation results
+        # into a format that matches what ThreatProcessor expects
+        results = self.execute_mitigation(threat_info)
+        
+        # If no results, return empty dict to avoid None issues
+        if not results:
+            return {}
+            
+        # Convert list of results to a single dictionary for the ThreatProcessor
+        combined_results = {}
+        for result in results:
+            plugin_name = result.get("plugin_name", "unknown_plugin")
+            # Remove plugin_name to avoid duplication
+            result_copy = result.copy()
+            if "plugin_name" in result_copy:
+                del result_copy["plugin_name"]
+            combined_results[plugin_name] = result_copy
+            
+        return combined_results
 
     def execute_mitigation(self, threat_info: Dict[str, Any]) -> List[Dict[str, Any]]:
         """

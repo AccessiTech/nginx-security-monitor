@@ -40,7 +40,7 @@ backup:
   targets:
     configuration:
       enabled: true
-      path: "/etc/nginx-security-monitor/"
+      path: "/opt/nginx-security-monitor/"
       encryption: true
       
     logs:
@@ -79,7 +79,7 @@ set -euo pipefail
 
 BACKUP_DATE=$(date +%Y%m%d_%H%M%S)
 BACKUP_DIR="/backup/nginx-security-monitor"
-CONFIG_DIR="/etc/nginx-security-monitor"
+CONFIG_DIR="/opt/nginx-security-monitor"
 LOG_DIR="/var/log/nginx-security-monitor"
 S3_BUCKET="nsm-backups"
 
@@ -221,20 +221,20 @@ echo "Stopping nginx-security-monitor service..."
 sudo systemctl stop nginx-security-monitor
 
 # Backup current state (if exists)
-if [ -d "/etc/nginx-security-monitor" ]; then
+if [ -d "/opt/nginx-security-monitor" ]; then
     echo "Backing up current state..."
-    sudo mv /etc/nginx-security-monitor /etc/nginx-security-monitor.recovery-backup-$(date +%Y%m%d_%H%M%S)
+    sudo mv /opt/nginx-security-monitor /opt/nginx-security-monitor.recovery-backup-$(date +%Y%m%d_%H%M%S)
 fi
 
 # Recovery based on mode
 case "$RECOVERY_MODE" in
     "full"|"config-only")
         echo "Restoring configuration..."
-        sudo mkdir -p /etc/nginx-security-monitor
-        sudo tar -xzf "$BACKUP_PATH/config.tar.gz" -C /etc/nginx-security-monitor/
-        sudo chown -R nsm:nsm /etc/nginx-security-monitor/
-        sudo chmod -R 640 /etc/nginx-security-monitor/config/
-        sudo chmod 600 /etc/nginx-security-monitor/keys/*
+        sudo mkdir -p /opt/nginx-security-monitor
+        sudo tar -xzf "$BACKUP_PATH/config.tar.gz" -C /opt/nginx-security-monitor/
+        sudo chown -R nsm:nsm /opt/nginx-security-monitor/
+        sudo chmod -R 640 /opt/nginx-security-monitor/config/
+        sudo chmod 600 /opt/nginx-security-monitor/keys/*
         ;;
 esac
 
@@ -292,7 +292,7 @@ echo "Performing configuration-only recovery..."
 sudo systemctl stop nginx-security-monitor
 
 # Restore configuration
-sudo tar -xzf "$BACKUP_PATH/config.tar.gz" -C /etc/nginx-security-monitor/
+sudo tar -xzf "$BACKUP_PATH/config.tar.gz" -C /opt/nginx-security-monitor/
 
 # Validate configuration
 python -m nginx_security_monitor.config validate
@@ -574,7 +574,7 @@ case "$SEVERITY" in
         echo "HIGH: Increasing monitoring and logging"
         
         # Enable debug logging
-        sed -i 's/level: INFO/level: DEBUG/' /etc/nginx-security-monitor/config/settings.yaml
+        sed -i 's/level: INFO/level: DEBUG/' /opt/nginx-security-monitor/config/settings.yaml
         sudo systemctl reload nginx-security-monitor
         
         # Backup current state

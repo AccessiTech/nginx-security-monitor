@@ -1,0 +1,49 @@
+#!/bin/bash
+# Rate Limiting / DoS Attack Simulation Script
+# Usage: ./sim-dos -p 8081 -r 100
+
+PORT=8081   # Default port
+REQUESTS=50 # Default number of requests
+
+# Parse command line arguments
+while getopts "p:r:" opt; do
+  case ${opt} in
+    p ) PORT=$OPTARG ;;
+    r ) REQUESTS=$OPTARG ;;
+    \? ) echo "Usage: $0 [-p port] [-r requests]" >&2; exit 1 ;;
+  esac
+done
+
+echo "=== Rate Limiting / DoS Attack Simulation ==="
+echo "Target: http://localhost:$PORT"
+echo "Sending $REQUESTS simultaneous requests..."
+
+# Function to make concurrent requests
+make_requests() {
+  for i in $(seq 1 $REQUESTS); do
+    curl -s "http://localhost:$PORT/" > /dev/null &
+  done
+  wait
+}
+
+# Run multiple batches
+echo -n "Batch 1 - Basic GET requests: "
+make_requests
+echo "Done"
+
+echo -n "Batch 2 - GET with parameters: "
+for i in $(seq 1 $REQUESTS); do
+  curl -s "http://localhost:$PORT/?id=$i" > /dev/null &
+done
+wait
+echo "Done"
+
+echo -n "Batch 3 - POST requests: "
+for i in $(seq 1 $REQUESTS); do
+  curl -s -X POST "http://localhost:$PORT/login" -d "username=user$i&password=pass$i" > /dev/null &
+done
+wait
+echo "Done"
+
+echo "All rate limiting tests completed. Check your security monitor logs for alerts."
+echo "To view logs: docker logs nginx-dev-nginx-1"

@@ -10,7 +10,7 @@ Nginx Security Monitor can be deployed in various configurations:
 - **Development**: Local testing and development
 - **Staging**: Pre-production testing environment
 - **Production**: Live production monitoring
-- **High Availability**: Multi-node production setup
+  **High Availability**: Multi-node production setup
 
 ## Quick Deployment
 
@@ -53,13 +53,13 @@ sudo systemctl status nginx-security-monitor
 
 ```bash
 # Required variables
-export NSM_CONFIG_PATH=/etc/nginx-security-monitor/config
+export NSM_CONFIG_PATH=/opt/nginx-security-monitor/config
 export NSM_LOG_LEVEL=INFO
 export NSM_NGINX_LOG_PATH=/var/log/nginx/access.log
 
 # Optional variables
 export NSM_ALERT_EMAIL=admin@example.com
-export NSM_ENCRYPTION_KEY_PATH=/etc/nginx-security-monitor/keys/encryption.key
+export NSM_ENCRYPTION_KEY_PATH=/opt/nginx-security-monitor/keys/encryption.key
 ```
 
 ### Configuration Templates
@@ -77,9 +77,9 @@ Pre-configured templates are available in `config/templates/`:
 
 ```bash
 # Set secure permissions
-sudo chown -R nsm:nsm /etc/nginx-security-monitor/
-sudo chmod 600 /etc/nginx-security-monitor/config/*.yaml
-sudo chmod 600 /etc/nginx-security-monitor/keys/*
+sudo chown -R nsm:nsm /opt/nginx-security-monitor/
+sudo chmod 600 /opt/nginx-security-monitor/config/*.yaml
+sudo chmod 600 /opt/nginx-security-monitor/keys/*
 ```
 
 ### Network Security
@@ -127,7 +127,7 @@ curl http://localhost:8080/integrations/status
 ./scripts/backup-config.sh
 
 # Manual backup
-tar -czf nsm-config-$(date +%Y%m%d).tar.gz /etc/nginx-security-monitor/
+tar -czf nsm-config-$(date +%Y%m%d).tar.gz /opt/nginx-security-monitor/
 ```
 
 ### Disaster Recovery

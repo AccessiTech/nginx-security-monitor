@@ -1,0 +1,45 @@
+#!/bin/bash
+# Command Injection Attack Simulation Script
+# Usage: ./sim-command-injection -p 8081
+
+PORT=8081  # Default port
+
+# Parse command line arguments
+while getopts "p:" opt; do
+  case ${opt} in
+    p ) PORT=$OPTARG ;;
+    \? ) echo "Usage: $0 [-p port]" >&2; exit 1 ;;
+  esac
+done
+
+echo "=== Command Injection Attack Simulation ==="
+echo "Target: http://localhost:$PORT"
+echo "Sending requests..."
+
+# Command injection tests
+echo -n "Test 1 - Basic command injection: "
+curl -s "http://localhost:$PORT/?cmd=ls%20-la" > /dev/null
+echo "Done"
+
+echo -n "Test 2 - Command separator semicolon: "
+curl -s "http://localhost:$PORT/" -d "parameter=value;cat%20/etc/passwd" > /dev/null
+echo "Done"
+
+echo -n "Test 3 - Command separator pipe: "
+curl -s "http://localhost:$PORT/?dir=|ls%20-la" > /dev/null
+echo "Done"
+
+echo -n "Test 4 - Command substitution: "
+curl -s "http://localhost:$PORT/?file=\$(cat%20/etc/passwd)" > /dev/null
+echo "Done"
+
+echo -n "Test 5 - Background command: "
+curl -s "http://localhost:$PORT/?param=test%20%26%20cat%20/etc/passwd" > /dev/null
+echo "Done"
+
+echo -n "Test 6 - Backtick execution: "
+curl -s "http://localhost:$PORT/?query=\`cat%20/etc/passwd\`" > /dev/null
+echo "Done"
+
+echo "All command injection tests completed. Check your security monitor logs for alerts."
+echo "To view logs: docker logs nginx-dev-nginx-1"

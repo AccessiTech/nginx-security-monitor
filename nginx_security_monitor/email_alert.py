@@ -2,6 +2,7 @@ import smtplib
 import yaml
 import logging
 import random
+import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
@@ -9,21 +10,90 @@ from email import encoders
 from datetime import datetime
 from nginx_security_monitor.config_manager import ConfigManager
 
+# Load environment variables from .env file conditionally
+def _load_env_if_needed():
+    """Load environment variables from .env file if not in test environment."""
+    try:
+        import os
+        import sys
+        
+        # Don't load .env during tests to avoid interference with test configurations
+        # However, still allow explicit environment variable overrides that tests set
+        if (os.getenv('PYTEST_CURRENT_TEST') or 
+            'pytest' in os.getenv('_', '') or
+            'pytest' in sys.modules):
+            return
+            
+        from dotenv import load_dotenv, find_dotenv
+        # Try to find .env file in current directory or parent directories
+        dotenv_path = find_dotenv()
+        if dotenv_path:
+            load_dotenv(dotenv_path, override=False)  # Don't override existing env vars
+        else:
+            # Fallback: try common locations
+            possible_paths = ['.env', '../.env', '../../.env']
+            for path in possible_paths:
+                if os.path.exists(path):
+                    load_dotenv(path, override=False)
+                    break
+    except ImportError:
+        # python-dotenv not available, skip auto-loading
+        pass
+
+# Load environment variables on module import (unless testing)
+_load_env_if_needed()
+
 
 def load_email_config(config_path=None):
     """Load email configuration from YAML file."""
     config_manager = ConfigManager.get_instance()
 
-    # Get config path from ConfigManager or use default
+    # Use main config path if not provided, handle None robustly
+    import os
     if not config_path:
-        config_path = config_manager.get(
-            "alert_system.email.config_path", "/etc/nginx-security-monitor/config.yaml"
-        )
+        main_config_path = None
+        if config_manager:
+            main_config_path = getattr(config_manager, "config_path", None)
+            if not main_config_path:
+                try:
+                    main_config_path = config_manager.get("alert_system.email.config_path", None)
+                except Exception:
+                    main_config_path = None
+        # Use the first valid path that exists
+        candidate_paths = [main_config_path, "config/settings.yaml", "config/service-settings.yaml"]
+        config_path = next((p for p in candidate_paths if p and os.path.exists(p)), None)
+        if not config_path:
+            # Fallback to the first candidate if none exist
+            config_path = candidate_paths[0]
 
     try:
         with open(config_path, "r") as file:
             config = yaml.safe_load(file)
-            return config.get("email_service", {})
+            # Support both 'email_service' and 'alerts'->'email' keys
+            email_config = config.get("email_service")
+            if not email_config:
+                alerts = config.get("alerts", {})
+                email_config = alerts.get("email", {})
+            # Environment variable override logic
+            import os
+            # If password is a placeholder, use env var
+            if email_config.get("password", "") == "<REPLACE_WITH_ENV_VARIABLE>":
+                env_password = os.getenv("SMTP_PASSWORD")
+                if env_password:
+                    email_config["password"] = env_password
+            # Always override with env vars if present
+            for key, env_var in [
+                ("smtp_server", "SMTP_SERVER"),
+                ("smtp_port", "SMTP_PORT"),
+                ("username", "SMTP_USERNAME"),
+                ("password", "SMTP_PASSWORD"),
+                ("from_address", "SMTP_USERNAME"),
+                ("to_address", "SMTP_TO_ADDRESS"),
+            ]:
+                env_val = os.getenv(env_var)
+                if env_val:
+                    email_config[key] = env_val
+            return email_config
     except Exception as e:
         logging.error(f"Failed to load email config: {e}")
         return {}

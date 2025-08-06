@@ -16,7 +16,7 @@ It is used by the ConfigManager for validation, type conversion, and documentati
   "service": {
     "config_path": {
       "__type": "string",
-      "__default": "/etc/nginx-security-monitor/settings.yaml",
+      "__default": "/opt/nginx-security-monitor/settings.yaml",
       "__description": "Path to the configuration file",
       "__env": "NGINX_MONITOR_CONFIG_PATH"
     },
@@ -37,7 +37,7 @@ It is used by the ConfigManager for validation, type conversion, and documentati
 
 ## Functions
 
-### save_schema_to_file(schema_path = '/etc/nginx-security-monitor/schema.yaml')
+### save_schema_to_file(schema_path = '/opt/nginx-security-monitor/schema.yml')
 
 Save the schema to a YAML file.
 
@@ -46,4 +46,4 @@ schema_path: Path to save the schema to
 
 **Parameters:**
 
-- **schema_path** = '/etc/nginx-security-monitor/schema.yaml'
+- **schema_path** = '/opt/nginx-security-monitor/schema.yml'

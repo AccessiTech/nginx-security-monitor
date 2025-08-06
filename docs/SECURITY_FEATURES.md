@@ -101,7 +101,7 @@ Update your configuration file:
 ```yaml
 # Enable security features
 security:
-  encrypted_patterns_file: /etc/nginx-security-monitor/custom_patterns.enc
+  encrypted_patterns_file: /opt/nginx-security-monitor/custom_patterns.enc
   obfuscation:
     enabled: true
     timing_variance_percent: 20
@@ -111,7 +111,7 @@ security:
 # Plugin directories
 plugins:
   directories:
-    - /etc/nginx-security-monitor/plugins
+    - /opt/nginx-security-monitor/plugins
     - /opt/nginx-security-monitor/custom_plugins
 ```
 
@@ -125,6 +125,13 @@ plugins:
 1. **Timing Obfuscation**: Makes reverse engineering detection logic harder
 
 ### For Production Environments
+
+> **Note:** The `NSM_ENV=production` flag is required for full security hardening and system integration.
+> Set this environment variable in your production deployment scripts or shell before starting the service:
+>
+> ```sh
+> export NSM_ENV=production
+> ```
 
 1. **Zero-Knowledge Architecture**: The open-source code doesn't contain your secrets
 1. **Pluggable Security**: Easy to add custom mitigations without code changes
@@ -150,7 +157,7 @@ python3 encrypt_config.py encrypt-patterns
 ## Example: Custom Plugin
 
 ```python
-# File: /etc/nginx-security-monitor/plugins/my_secret_plugin.py
+# File: /opt/nginx-security-monitor/plugins/my_secret_plugin.py
 
 from plugin_system import MitigationPlugin
 import requests

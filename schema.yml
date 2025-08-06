@@ -1,0 +1,310 @@
+# NGINX Security Monitor Configuration Schema
+# This schema defines all configurable options for validation and documentation.
+
+service:
+  __type: object
+  check_interval:
+    __type: integer
+    __default: 60
+  log_file_path:
+    __type: string
+    __default: "/var/log/nginx-security-monitor.log"
+  error_log_file_path:
+    __type: string
+    __default: "/var/log/nginx-security-monitor-error.log"
+
+alerts:
+  __type: object
+  enabled:
+    __type: boolean
+    __default: true
+  channels:
+    __type: array
+    __default: ["console"]
+  console:
+    __type: object
+    enabled:
+      __type: boolean
+      __default: true
+    color:
+      __type: boolean
+      __default: true
+    verbose:
+      __type: boolean
+      __default: false
+  email:
+    __type: object
+    enabled:
+      __type: boolean
+      __default: false
+    smtp_server:
+      __type: string
+      __default: "localhost"
+      __env: "SMTP_SERVER"
+    smtp_port:
+      __type: integer
+      __default: 587
+      __env: "SMTP_PORT"
+    use_tls:
+      __type: boolean
+      __default: true
+    username:
+      __type: string
+      __default: ""
+      __env: "SMTP_USERNAME"
+    password:
+      __type: string
+      __default: ""
+      __env: "SMTP_PASSWORD"
+      __sensitive: true
+    from_address:
+      __type: string
+      __default: "security@localhost"
+      __env: "SMTP_USERNAME"
+    to_addresses:
+      __type: array
+      __default: []
+      __env: "SMTP_TO_ADDRESS"
+
+mitigation:
+  __type: object
+  enabled:
+    __type: boolean
+    __default: true
+  auto_mitigation:
+    __type: boolean
+    __default: false
+  strategies:
+    __type: object
+    ip_blocking:
+      __type: object
+      enabled:
+        __type: boolean
+        __default: true
+      duration:
+        __type: integer
+        __default: 300
+      max_attempts:
+        __type: integer
+        __default: 5
+    rate_limiting:
+      __type: object
+      enabled:
+        __type: boolean
+        __default: true
+      requests_per_minute:
+        __type: integer
+        __default: 60
+      burst_allowance:
+        __type: integer
+        __default: 10
+
+service_protection:
+  __type: object
+  resource_thresholds:
+    __type: object
+    cpu_percent:
+      __type: number
+      __default: 80.0
+    memory_percent:
+      __type: number
+      __default: 80.0
+    disk_usage_percent:
+      __type: number
+      __default: 90.0
+  whitelist:
+    __type: object
+    processes:
+      __type: array
+      __default: []
+
+network_security:
+  __type: object
+  max_failed_attempts:
+    __type: integer
+    __default: 5
+
+crypto:
+  __type: object
+  base_delay:
+    __type: number
+    __default: 0.1
+  max_delay:
+    __type: number
+    __default: 1.0
+
+monitoring:
+  __type: object
+  enabled:
+    __type: boolean
+    __default: true
+  check_interval:
+    __type: integer
+    __default: 30
+  batch_size:
+    __type: integer
+    __default: 100
+  debug_mode:
+    __type: boolean
+    __default: false
+  logging_level:
+    __type: string
+    __default: "INFO"
+  log_tail:
+    __type: boolean
+    __default: true
+  log_files:
+    __type: array
+    __default: ["/var/log/nginx/access.log", "/var/log/nginx/error.log"]
+
+logs:
+  __type: object
+  access_log:
+    __type: string
+    __default: "/var/log/nginx/access.log"
+  error_log:
+    __type: string
+    __default: "/var/log/nginx/error.log"
+  format:
+    __type: string
+    __default: "combined"
+  encoding:
+    __type: string
+    __default: "utf-8"
+  verbose_parsing:
+    __type: boolean
+    __default: false
+
+detection:
+  __type: object
+  enabled_patterns:
+    __type: array
+    __default: ["sql_injection", "xss_attacks", "ddos_detection", "brute_force", "directory_traversal", "suspicious_user_agents"]
+  thresholds:
+    __type: object
+    failed_requests_per_minute:
+      __type: integer
+      __default: 10
+    requests_per_ip_per_minute:
+      __type: integer
+      __default: 60
+    error_rate_threshold:
+      __type: number
+      __default: 0.1
+    suspicious_user_agent_threshold:
+      __type: integer
+      __default: 5
+    sensitivity:
+      __type: string
+      __default: "medium"
+  whitelist:
+    __type: object
+    ips:
+      __type: array
+      __default: []
+    user_agents:
+      __type: array
+      __default: []
+    processes:
+      __type: array
+      __default: []
+
+pattern_detection:
+  __type: object
+  thresholds:
+    __type: object
+    sql_injection:
+      __type: integer
+      __default: 5
+    xss_attacks:
+      __type: integer
+      __default: 5
+    ddos_detection:
+      __type: integer
+      __default: 100
+    brute_force:
+      __type: integer
+      __default: 10
+    directory_traversal:
+      __type: integer
+      __default: 5
+    suspicious_user_agents:
+      __type: integer
+      __default: 5
+
+logging:
+  __type: object
+  level:
+    __type: string
+    __default: "INFO"
+  file:
+    __type: string
+    __default: "/var/log/nginx-security-monitor.log"
+  max_size:
+    __type: string
+    __default: "10MB"
+  backup_count:
+    __type: integer
+    __default: 5
+  format:
+    __type: string
+    __default: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  console:
+    __type: boolean
+    __default: true
+  stdout:
+    __type: boolean
+    __default: false
+  verbose:
+    __type: boolean
+    __default: false
+
+storage:
+  __type: object
+  database:
+    __type: object
+    type:
+      __type: string
+      __default: "sqlite"
+    path:
+      __type: string
+      __default: "/var/lib/nginx-security-monitor/monitor.db"
+  cache:
+    __type: object
+    enabled:
+      __type: boolean
+      __default: true
+    type:
+      __type: string
+      __default: "memory"
+    max_size:
+      __type: integer
+      __default: 1000
+    ttl:
+      __type: integer
+      __default: 3600
+
+security:
+  __type: object
+  encryption:
+    __type: object
+    enabled:
+      __type: boolean
+      __default: true
+    key_path:
+      __type: string
+      __default: "/etc/nginx-security-monitor/encryption.key"
+  plugin_security:
+    __type: object
+    enabled:
+      __type: boolean
+      __default: true
+    allowed_plugins_dir:
+      __type: string
+      __default: "/opt/nginx-security-monitor/plugins"
+    signature_verification:
+      __type: boolean
+      __default: true
+    whitelist:
+      __type: array
+      __default: []

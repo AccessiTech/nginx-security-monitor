@@ -1,0 +1,62 @@
+#!/bin/bash
+# Vulnerability Scanner Simulation Script
+# Usage: ./sim-scanner -p 8081
+
+PORT=8081  # Default port
+
+# Parse command line arguments
+while getopts "p:" opt; do
+  case ${opt} in
+    p ) PORT=$OPTARG ;;
+    \? ) echo "Usage: $0 [-p port]" >&2; exit 1 ;;
+  esac
+done
+
+echo "=== Vulnerability Scanner Simulation ==="
+echo "Target: http://localhost:$PORT"
+echo "Sending requests..."
+
+# Suspicious User Agent tests
+echo -n "Test 1 - SQLMap User-Agent: "
+curl -s "http://localhost:$PORT/" -H "User-Agent: sqlmap/1.4.7" > /dev/null
+echo "Done"
+
+echo -n "Test 2 - Nikto User-Agent: "
+curl -s "http://localhost:$PORT/" -H "User-Agent: Nikto/2.1.6" > /dev/null
+echo "Done"
+
+echo -n "Test 3 - Nmap User-Agent: "
+curl -s "http://localhost:$PORT/" -H "User-Agent: Nmap Scripting Engine" > /dev/null
+echo "Done"
+
+# Common vulnerability paths
+echo -n "Test 4 - WordPress login: "
+curl -s "http://localhost:$PORT/wp-login.php" > /dev/null
+echo "Done"
+
+echo -n "Test 5 - phpMyAdmin: "
+curl -s "http://localhost:$PORT/phpMyAdmin/" > /dev/null
+echo "Done"
+
+echo -n "Test 6 - .env file: "
+curl -s "http://localhost:$PORT/.env" > /dev/null
+echo "Done"
+
+echo -n "Test 7 - Git config: "
+curl -s "http://localhost:$PORT/.git/config" > /dev/null
+echo "Done"
+
+echo -n "Test 8 - XML-RPC: "
+curl -s "http://localhost:$PORT/xmlrpc.php" -d "<?xml version=\"1.0\"?>" > /dev/null
+echo "Done"
+
+echo -n "Test 9 - Admin panel: "
+curl -s "http://localhost:$PORT/admin/" > /dev/null
+echo "Done"
+
+echo -n "Test 10 - API probing: "
+curl -s "http://localhost:$PORT/api/v1/users" > /dev/null
+echo "Done"
+
+echo "All scanner simulation tests completed. Check your security monitor logs for alerts."
+echo "To view logs: docker logs nginx-dev-nginx-1"

@@ -1,8 +1,3 @@
-"""
-Security Framework Integrations for NGINX Security Monitor
-Integrates with popular security frameworks and tools like fail2ban, OSSEC, Suricata, etc.
-"""
-
 import os
 import re
 import json
@@ -152,9 +147,8 @@ class Fail2BanIntegration:
                         status["total_banned"] = int(line.split(":")[1].strip())
                     elif "Banned IP list:" in line:
                         banned_ips = line.split(":", 1)[1].strip()
-                        status["banned_ips"] = [
-                            ip.strip() for ip in banned_ips.split() if ip.strip()
-                        ]
+
+                        status["banned_ips"] = [ip.strip() for ip in banned_ips.split() if ip.strip()]
 
                 return status
 
@@ -807,6 +801,15 @@ class SecurityIntegrationManager:
         # Track which integrations are available
         self.available_integrations = self._check_available_integrations()
 
+        # List of all integration instances for iteration
+        self.integrations = [
+            self.fail2ban,
+            self.ossec,
+            self.suricata,
+            self.wazuh,
+            self.modsecurity,
+        ]
+
     def _check_available_integrations(self):
         """Check which security tools are available on the system."""
         available = {}
@@ -831,6 +834,36 @@ class SecurityIntegrationManager:
                 available[name] = False
 
         return available
+
+    def check_for_updates(self):
+        """Aggregate alerts or status updates from all integrations."""
+        alerts = []
+        for integration in self.integrations:
+            # Try to get recent alerts if available
+            if hasattr(integration, "get_recent_alerts"):
+                try:
+                    recent_alerts = integration.get_recent_alerts()
+                    if recent_alerts:
+                        alerts.extend(recent_alerts)
+                except Exception as e:
+                    alerts.append({"error": f"{integration.__class__.__name__}: {e}"})
+            # Try to get jail status for Fail2Ban
+            elif hasattr(integration, "get_jail_status"):
+                try:
+                    jail_status = integration.get_jail_status()
+                    if jail_status:
+                        alerts.append({"jail_status": jail_status})
+                except Exception as e:
+                    alerts.append({"error": f"{integration.__class__.__name__}: {e}"})
+            # Try to get recent blocks for ModSecurity
+            elif hasattr(integration, "get_recent_blocks"):
+                try:
+                    blocks = integration.get_recent_blocks()
+                    if blocks:
+                        alerts.extend(blocks)
+                except Exception as e:
+                    alerts.append({"error": f"{integration.__class__.__name__}: {e}"})
+        return alerts
 
     def get_integration_status(self):
         """Get status of all security integrations."""

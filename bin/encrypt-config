@@ -125,7 +125,7 @@ def encrypt_patterns_file():
         if manager.encrypt_file(temp_file, output_file):
             print(f"\n✅ Encrypted patterns saved to: {output_file}")
             print(
-                f"Place this file in: /etc/nginx-security-monitor/custom_patterns.enc"
+                f"Place this file in: /opt/nginx-security-monitor/custom_patterns.enc"
             )
 
             # Clean up
@@ -250,7 +250,7 @@ def create_plugin_template():
         print("\nNext steps:")
         print("1. Edit the mitigate() method with your custom logic")
         print("2. Place the file in one of your plugin directories:")
-        print("   - /etc/nginx-security-monitor/plugins/")
+        print("   - /opt/nginx-security-monitor/plugins/")
         print("   - /opt/nginx-security-monitor/custom_plugins/")
         print("3. Restart the service to load the plugin")
 

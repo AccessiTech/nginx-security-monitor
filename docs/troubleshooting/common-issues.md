@@ -23,7 +23,7 @@ from typing import Dict, List, Tuple
 class NSMDiagnostics:
     def __init__(self):
         self.issues = []
-        self.config_path = "/etc/nginx-security-monitor"
+        self.config_path = "/opt/nginx-security-monitor"
         self.log_path = "/var/log/nginx-security-monitor"
         self.service_name = "nginx-security-monitor"
     
@@ -375,9 +375,9 @@ class NSMDiagnostics:
                 'title': 'Missing Configuration File',
                 'description': 'Configuration file not found',
                 'steps': [
-                    'Copy example config: cp config/settings.yaml.example /etc/nginx-security-monitor/config/settings.yaml',
-                    'Edit configuration: sudo vim /etc/nginx-security-monitor/config/settings.yaml',
-                    'Set proper permissions: sudo chown nsm:nsm /etc/nginx-security-monitor/config/settings.yaml'
+                    'Copy example config: cp config/settings.yaml.example /opt/nginx-security-monitor/config/settings.yaml',
+                    'Edit configuration: sudo vim /opt/nginx-security-monitor/config/settings.yaml',
+                    'Set proper permissions: sudo chown nsm:nsm /opt/nginx-security-monitor/config/settings.yaml'
                 ]
             },
             'log_file_issues': {
@@ -395,9 +395,9 @@ class NSMDiagnostics:
                 'description': 'Incorrect file or directory permissions',
                 'steps': [
                     'Run permission fix script: sudo ./scripts/fix-permissions.sh',
-                    'Or manually fix: sudo chown -R nsm:nsm /etc/nginx-security-monitor',
-                    'Set directory permissions: sudo chmod 750 /etc/nginx-security-monitor',
-                    'Set file permissions: sudo chmod 640 /etc/nginx-security-monitor/config/*.yaml'
+                    'Or manually fix: sudo chown -R nsm:nsm /opt/nginx-security-monitor',
+                    'Set directory permissions: sudo chmod 750 /opt/nginx-security-monitor',
+                    'Set file permissions: sudo chmod 640 /opt/nginx-security-monitor/config/*.yaml'
                 ]
             }
         }
@@ -476,8 +476,8 @@ sudo journalctl -u nginx-security-monitor -n 50
 python -m nginx_security_monitor.config validate
 
 # 2. Permission issues
-sudo chown -R nsm:nsm /etc/nginx-security-monitor/
-sudo chmod 640 /etc/nginx-security-monitor/config/*.yaml
+sudo chown -R nsm:nsm /opt/nginx-security-monitor/
+sudo chmod 640 /opt/nginx-security-monitor/config/*.yaml
 
 # 3. Missing dependencies
 pip install -r requirements.txt
@@ -563,8 +563,8 @@ cp config/settings.yaml.example config/settings.yaml
 python encrypt_config.py --generate-key
 
 # Check key permissions
-ls -la /etc/nginx-security-monitor/keys/
-sudo chmod 600 /etc/nginx-security-monitor/keys/*
+ls -la /opt/nginx-security-monitor/keys/
+sudo chmod 600 /opt/nginx-security-monitor/keys/*
 
 # Re-encrypt patterns with new key
 python encrypt_config.py --encrypt-patterns --key-file /path/to/key
@@ -1007,9 +1007,9 @@ if ! python -m nginx_security_monitor.config validate; then
     log "Configuration validation failed"
     
     # Restore backup configuration
-    if [ -f "/etc/nginx-security-monitor/config/settings.yaml.backup" ]; then
-        cp /etc/nginx-security-monitor/config/settings.yaml.backup \
-           /etc/nginx-security-monitor/config/settings.yaml
+    if [ -f "/opt/nginx-security-monitor/config/settings.yaml.backup" ]; then
+        cp /opt/nginx-security-monitor/config/settings.yaml.backup \
+           /opt/nginx-security-monitor/config/settings.yaml
         sudo systemctl restart nginx-security-monitor
         log "Restored backup configuration"
     fi

@@ -78,7 +78,7 @@ sudo ./harden.sh
 
 ### 2. **Configure Protection Settings**
 
-Edit `/etc/nginx-security-monitor/settings.yaml`:
+Edit `/opt/nginx-security-monitor/settings.yaml`:
 
 ```yaml
 # Self-protection configuration
@@ -253,7 +253,7 @@ sudo systemctl restart nginx-security-monitor
 
 ```bash
 # Backup configuration and patterns
-sudo cp -r /etc/nginx-security-monitor /backup/location/
+sudo cp -r /opt/nginx-security-monitor /backup/location/
 
 # Backup custom plugins
 sudo cp -r /opt/nginx-security-monitor/custom_plugins /backup/location/
@@ -284,7 +284,7 @@ sudo cp -r /opt/nginx-security-monitor/custom_plugins /backup/location/
 top -p $(pgrep -f monitor_service.py)
 
 # Adjust thresholds if needed
-sudo nano /etc/nginx-security-monitor/settings.yaml
+sudo nano /opt/nginx-security-monitor/settings.yaml
 
 # Restart service
 sudo systemctl restart nginx-security-monitor
@@ -297,7 +297,7 @@ sudo systemctl restart nginx-security-monitor
 sudo grep -i "self-protection" /var/log/nginx-security-monitor.log
 
 # Adjust thresholds or whitelist IPs
-sudo nano /etc/nginx-security-monitor/settings.yaml
+sudo nano /opt/nginx-security-monitor/settings.yaml
 
 # Update allowed IPs or ports as needed
 ```
@@ -335,7 +335,7 @@ sudo iptables -F NGINX_MONITOR_CHAIN
 Create custom response plugins for specific threats:
 
 ```python
-# File: /etc/nginx-security-monitor/plugins/custom_response.py
+# File: /opt/nginx-security-monitor/plugins/custom_response.py
 from plugin_system import MitigationPlugin
 
 class CustomThreatResponsePlugin(MitigationPlugin):

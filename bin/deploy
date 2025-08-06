@@ -115,12 +115,12 @@ def setup_directories(environment):
     
     if environment == 'production':
         base_dir = '/opt/nginx-security-monitor'
-        config_dir = '/etc/nginx-security-monitor'
+        config_dir = '/opt/nginx-security-monitor'
         log_dir = '/var/log/nginx-security-monitor'
         run_dir = '/var/run/nginx-security-monitor'
     else:
         base_dir = f'/opt/nginx-security-monitor-{environment}'
-        config_dir = f'/etc/nginx-security-monitor-{environment}'
+        config_dir = f'/opt/nginx-security-monitor-{environment}'
         log_dir = f'/var/log/nginx-security-monitor-{environment}'
         run_dir = f'/var/run/nginx-security-monitor-{environment}'
     

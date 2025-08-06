@@ -1,5 +1,6 @@
 import re
 import json
+import urllib.parse
 from collections import defaultdict, Counter
 from datetime import datetime, timedelta
 from nginx_security_monitor.config_manager import ConfigManager
@@ -53,6 +54,21 @@ class PatternDetector:
 
         # Custom patterns (will be loaded from encrypted files)
         self.custom_patterns = {}
+
+    def _url_decode_request(self, request):
+        """URL decode a request string for pattern matching.
+        
+        Args:
+            request: The request string to decode
+            
+        Returns:
+            str: URL decoded request string
+        """
+        try:
+            return urllib.parse.unquote(request)
+        except Exception:
+            # If decoding fails, return original
+            return request
 
     def load_patterns_config(self, config_path):
         """Load pattern configuration from file."""
@@ -172,6 +188,59 @@ class PatternDetector:
                 # Check custom patterns if available
                 if self.custom_patterns:
                     self._detect_custom_patterns(log)
+
+    def detect_threats(self, log_entry):
+        """Detect threats in a single log entry and return list of threats.
+        
+        Args:
+            log_entry: Single parsed log entry dict
+            
+        Returns:
+            list: List of detected threat dictionaries
+        """
+        threats = []
+        current_time = datetime.now()
+        
+        if not isinstance(log_entry, dict):
+            return threats
+            
+        # SQL Injection Detection
+        if self._detect_sql_injection_single(log_entry):
+            threats.append({
+                'type': 'sql_injection',
+                'description': 'SQL injection attempt detected',
+                'confidence': 'high',
+                'pattern_matched': True
+            })
+            
+        # XSS Detection
+        if self._detect_xss_attack_single(log_entry):
+            threats.append({
+                'type': 'xss_attack', 
+                'description': 'Cross-site scripting attempt detected',
+                'confidence': 'high',
+                'pattern_matched': True
+            })
+            
+        # Suspicious User Agent Detection
+        if self._detect_suspicious_user_agent_single(log_entry):
+            threats.append({
+                'type': 'suspicious_user_agent',
+                'description': 'Suspicious user agent detected',
+                'confidence': 'medium',
+                'pattern_matched': True
+            })
+            
+        # Directory Traversal Detection  
+        if self._detect_directory_traversal_single(log_entry):
+            threats.append({
+                'type': 'directory_traversal',
+                'description': 'Directory traversal attempt detected',
+                'confidence': 'high',
+                'pattern_matched': True
+            })
+            
+        return threats
 
     def _detect_custom_patterns(self, log):
         """Detect custom patterns loaded from encrypted configuration."""
@@ -426,3 +495,87 @@ class PatternDetector:
         }
 
         return summary
+
+    def _detect_sql_injection_single(self, log):
+        """Detect SQL injection attempts in a single log entry.
+        
+        Args:
+            log: Single log entry dict
+            
+        Returns:
+            bool: True if SQL injection detected, False otherwise
+        """
+        request = log.get("request", "")
+        # URL decode the request for pattern matching
+        decoded_request = self._url_decode_request(request).lower()
+        raw_line = log.get("raw_line", "").lower()
+
+        for pattern in self.sql_injection_patterns:
+            if re.search(pattern, decoded_request, re.IGNORECASE) or re.search(
+                pattern, raw_line, re.IGNORECASE
+            ):
+                return True
+        return False
+
+    def _detect_xss_attack_single(self, log):
+        """Detect XSS attack attempts in a single log entry.
+        
+        Args:
+            log: Single log entry dict
+            
+        Returns:
+            bool: True if XSS attack detected, False otherwise
+        """
+        request = log.get("request", "")
+        # URL decode the request for pattern matching
+        decoded_request = self._url_decode_request(request)
+        raw_line = log.get("raw_line", "")
+
+        for pattern in self.xss_patterns:
+            if re.search(pattern, decoded_request, re.IGNORECASE) or re.search(
+                pattern, raw_line, re.IGNORECASE
+            ):
+                return True
+        return False
+
+    def _detect_suspicious_user_agent_single(self, log):
+        """Detect suspicious user agents in a single log entry.
+        
+        Args:
+            log: Single log entry dict
+            
+        Returns:
+            bool: True if suspicious user agent detected, False otherwise
+        """
+        user_agent = log.get("user_agent", "").lower()
+
+        for pattern in self.suspicious_user_agents:
+            if re.search(pattern, user_agent, re.IGNORECASE):
+                return True
+        return False
+
+    def _detect_directory_traversal_single(self, log):
+        """Detect directory traversal attempts in a single log entry.
+        
+        Args:
+            log: Single log entry dict
+            
+        Returns:
+            bool: True if directory traversal detected, False otherwise
+        """
+        request = log.get("request", "")
+        # URL decode the request for pattern matching
+        decoded_request = self._url_decode_request(request).lower()
+        raw_line = log.get("raw_line", "").lower()
+
+        directory_traversal_patterns = self.config_manager.get(
+            "directory_traversal.patterns", 
+            [r'\.\.\/|\.\.%2f|\.\.%5c', r'%2e%2e%2f|%2e%2e%5c', r'\.\.\\|\.\.\/']
+        )
+
+        for pattern in directory_traversal_patterns:
+            if re.search(pattern, decoded_request, re.IGNORECASE) or re.search(
+                pattern, raw_line, re.IGNORECASE
+            ):
+                return True
+        return False

@@ -627,7 +627,7 @@ sudo netstat -tlnp | grep :8080
 sudo kill -9 <PID>
 
 # Or change NSM port in configuration
-sudo vim /etc/nginx-security-monitor/config/settings.yaml
+sudo vim /opt/nginx-security-monitor/config/settings.yaml
 # Change: port: 8081
 
 # Restart NSM service
@@ -952,7 +952,7 @@ sudo systemctl edit nginx-security-monitor
 curl -x http://proxy.company.com:8080 https://api.github.com
 
 # Configure proxy in NSM config
-cat >> /etc/nginx-security-monitor/config/settings.yaml << EOF
+cat >> /opt/nginx-security-monitor/config/settings.yaml << EOF
 network:
   proxy:
     http: "http://proxy.company.com:8080"

@@ -410,9 +410,9 @@ services:
     image: nginx-security-monitor:latest
     volumes:
       - /var/log/nginx:/var/log/nginx:ro
-      - ./config:/etc/nginx-security-monitor
+      - ./config:/opt/nginx-security-monitor
     environment:
-      - MONITOR_CONFIG=/etc/nginx-security-monitor/settings.yaml
+      - MONITOR_CONFIG=/opt/nginx-security-monitor/settings.yaml
 ```
 
 ## 🔗 **Integration Architecture**
@@ -448,7 +448,7 @@ services:
 ### **Configuration Hierarchy**
 
 ```text
-/etc/nginx-security-monitor/
+/opt/nginx-security-monitor/
 ├── settings.yaml           # Main configuration
 ├── patterns.json          # Detection patterns
 ├── service-settings.yaml  # Service-specific settings

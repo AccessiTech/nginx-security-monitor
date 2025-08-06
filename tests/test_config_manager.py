@@ -250,7 +250,7 @@ class TestConfigSchema(unittest.TestCase):
         from nginx_security_monitor.config_schema import save_schema_to_file
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            schema_path = os.path.join(temp_dir, "test_schema.yaml")
+            schema_path = os.path.join(temp_dir, "test_schema.yml")
 
             # Test saving schema
             save_schema_to_file(schema_path)
@@ -277,7 +277,7 @@ class TestConfigSchema(unittest.TestCase):
         from nginx_security_monitor.config_schema import save_schema_to_file
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            nested_path = os.path.join(temp_dir, "nested", "directory", "schema.yaml")
+            nested_path = os.path.join(temp_dir, "nested", "directory", "schema.yml")
 
             # Test saving to nested path that doesn't exist
             save_schema_to_file(nested_path)
@@ -291,7 +291,7 @@ class TestConfigSchema(unittest.TestCase):
         from nginx_security_monitor.config_schema import save_schema_to_file
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            schema_path = os.path.join(temp_dir, "test_schema.yaml")
+            schema_path = os.path.join(temp_dir, "test_schema.yml")
 
             # Mock open to raise permission error
             with patch(
@@ -305,7 +305,7 @@ class TestConfigSchema(unittest.TestCase):
         from nginx_security_monitor.config_schema import save_schema_to_file
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            schema_path = os.path.join(temp_dir, "test_schema.yaml")
+            schema_path = os.path.join(temp_dir, "test_schema.yml")
 
             # Mock yaml.dump to raise an error
             with patch("yaml.dump", side_effect=OSError("Write error")):
@@ -685,7 +685,7 @@ class TestConfigManager(unittest.TestCase):
     def test_config_manager_lockdown_mode(self):
         """Test ConfigManager initialization in lockdown mode."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            schema_file = os.path.join(temp_dir, "schema.yaml")
+            schema_file = os.path.join(temp_dir, "schema.yml")
             config_file = os.path.join(temp_dir, "config.yaml")
 
             # Create comprehensive schema that will pass validation
@@ -736,7 +736,7 @@ class TestConfigManager(unittest.TestCase):
     def test_apply_security_hardening(self):
         """Test security hardening application in lockdown mode."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            schema_file = os.path.join(temp_dir, "schema.yaml")
+            schema_file = os.path.join(temp_dir, "schema.yml")
 
             # Create schema with security settings
             schema_data = {
@@ -776,7 +776,7 @@ class TestConfigManager(unittest.TestCase):
     def test_schema_integrity_verification_failure(self):
         """Test behavior when schema integrity verification fails."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            schema_file = os.path.join(temp_dir, "bad_schema.yaml")
+            schema_file = os.path.join(temp_dir, "bad_schema.yml")
 
             # Create an invalid schema file
             with open(schema_file, "w") as f:
@@ -811,7 +811,7 @@ class TestConfigManager(unittest.TestCase):
     def test_config_path_determination(self):
         """Test automatic config path determination from schema."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            schema_file = os.path.join(temp_dir, "schema.yaml")
+            schema_file = os.path.join(temp_dir, "schema.yml")
             custom_config_path = os.path.join(temp_dir, "custom_config.yaml")
 
             # Schema with config_path as dict
@@ -837,7 +837,7 @@ class TestConfigManager(unittest.TestCase):
     def test_config_path_as_string(self):
         """Test config path determination when schema has string config_path."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            schema_file = os.path.join(temp_dir, "schema.yaml")
+            schema_file = os.path.join(temp_dir, "schema.yml")
             custom_config_path = os.path.join(temp_dir, "string_config.yaml")
 
             # Schema with config_path as string
@@ -862,7 +862,7 @@ class TestConfigManager(unittest.TestCase):
     def test_variable_delay_functionality(self):
         """Test variable delay security feature."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            schema_file = os.path.join(temp_dir, "schema.yaml")
+            schema_file = os.path.join(temp_dir, "schema.yml")
             config_file = os.path.join(temp_dir, "config.yaml")
 
             schema_data = {
@@ -998,7 +998,7 @@ class TestConfigManager(unittest.TestCase):
         """Test configuration file encryption and decryption."""
         with tempfile.TemporaryDirectory() as temp_dir:
             config_file = os.path.join(temp_dir, "encrypted_config.yaml")
-            schema_file = os.path.join(temp_dir, "schema.yaml")
+            schema_file = os.path.join(temp_dir, "schema.yml")
 
             # Create schema with encryption settings
             schema_data = {
@@ -1125,7 +1125,7 @@ class TestConfigManager(unittest.TestCase):
     def test_apply_security_hardening(self):
         """Test security hardening application in lockdown mode."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            schema_file = os.path.join(temp_dir, "schema.yaml")
+            schema_file = os.path.join(temp_dir, "schema.yml")
 
             # Create schema with security settings
             schema_data = {
@@ -1165,7 +1165,7 @@ class TestConfigManager(unittest.TestCase):
     def test_environment_variable_overrides_comprehensive(self):
         """Test comprehensive environment variable override functionality."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            schema_file = os.path.join(temp_dir, "schema.yaml")
+            schema_file = os.path.join(temp_dir, "schema.yml")
             config_file = os.path.join(temp_dir, "config.yaml")
 
             # Create schema with environment variable mappings
@@ -1274,7 +1274,7 @@ class TestConfigManager(unittest.TestCase):
     def test_config_validation_comprehensive(self):
         """Test comprehensive configuration validation."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            schema_file = os.path.join(temp_dir, "schema.yaml")
+            schema_file = os.path.join(temp_dir, "schema.yml")
             config_file = os.path.join(temp_dir, "config.yaml")
 
             # Create schema with validation rules
@@ -1656,7 +1656,7 @@ class TestConfigManager(unittest.TestCase):
         """Test security monitoring for file permissions."""
         with tempfile.TemporaryDirectory() as temp_dir:
             config_file = os.path.join(temp_dir, "test_config.yaml")
-            schema_file = os.path.join(temp_dir, "test_schema.yaml")
+            schema_file = os.path.join(temp_dir, "test_schema.yml")
 
             # Create test files
             with open(config_file, "w") as f:

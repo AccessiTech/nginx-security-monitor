@@ -42,10 +42,10 @@ sudo ./scripts/security-audit.sh
 
 ```bash
 # Set proper ownership and permissions
-sudo chown -R nsm:nsm /etc/nginx-security-monitor/
-sudo chmod 750 /etc/nginx-security-monitor/
-sudo chmod 640 /etc/nginx-security-monitor/config/*.yaml
-sudo chmod 600 /etc/nginx-security-monitor/keys/*
+sudo chown -R nsm:nsm /opt/nginx-security-monitor/
+sudo chmod 750 /opt/nginx-security-monitor/
+sudo chmod 640 /opt/nginx-security-monitor/config/*.yaml
+sudo chmod 600 /opt/nginx-security-monitor/keys/*
 
 # Protect log directories
 sudo chown nsm:adm /var/log/nginx-security-monitor/
@@ -62,7 +62,7 @@ security:
   encryption:
     enabled: true
     algorithm: "AES-256-GCM"
-    key_file: "/etc/nginx-security-monitor/keys/encryption.key"
+    key_file: "/opt/nginx-security-monitor/keys/encryption.key"
     rotate_interval: "30d"
     
   patterns:
@@ -82,11 +82,11 @@ security:
 
 ```bash
 # Generate encryption keys
-python encrypt_config.py --generate-key --key-file /etc/nginx-security-monitor/keys/encryption.key
+python encrypt_config.py --generate-key --key-file /opt/nginx-security-monitor/keys/encryption.key
 
 # Set secure permissions
-sudo chown nsm:nsm /etc/nginx-security-monitor/keys/encryption.key
-sudo chmod 600 /etc/nginx-security-monitor/keys/encryption.key
+sudo chown nsm:nsm /opt/nginx-security-monitor/keys/encryption.key
+sudo chmod 600 /opt/nginx-security-monitor/keys/encryption.key
 
 # Key rotation
 python encrypt_config.py --rotate-key --backup-old-key
@@ -96,6 +96,8 @@ python encrypt_config.py --rotate-key --backup-old-key
 
 ```yaml
 # Production security configuration
+# For full production security, set the following environment variable before starting the service:
+# export NSM_ENV=production
 security:
   authentication:
     required: true
@@ -378,7 +380,7 @@ sudo iptables -A INPUT -p tcp --dport 8080 -j DROP
 # Forensic data collection
 sudo tar -czf incident-$(date +%Y%m%d-%H%M%S).tar.gz \
   /var/log/nginx-security-monitor/ \
-  /etc/nginx-security-monitor/config/ \
+  /opt/nginx-security-monitor/config/ \
   /var/log/audit/
 
 # System isolation
