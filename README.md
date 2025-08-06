@@ -7,7 +7,8 @@ NGINX Security Monitor is a Python package designed to monitor NGINX logs for po
 ## Features
 
 - Parses NGINX log files to extract structured data.
-- Detects various attack patterns based on predefined criteria (SQL injection, XSS, DDoS, brute force, etc.).
+- **Advanced Attack Detection**: Detects SQL injection, XSS, path traversal, and suspicious user agents in real time with high accuracy and low false positives.
+- **End-to-End Verification**: Includes automated test scripts to verify the complete attack detection pipeline.
 - Real-time monitoring with incremental log parsing.
 - Mitigates threats using appropriate tactics.
 - Sends alerts through email and SMS when threats are detected.
@@ -138,46 +139,23 @@ After installation, configure the service by editing:
 sudo nano /opt/nginx-security-monitor/settings.yaml
 ```
 
-enabled: true
+The NGINX Security Monitor uses a robust configuration system with:
 
-### Installation (Development & Production)
+- **Schema-based validation**: All options validated against a custom schema
+- **Built-in fallbacks**: Comprehensive built-in defaults when schema files are missing
+- **Environment variable overrides**: All settings can be overridden with environment variables
+- **Flexible encrypted sections**: Support for encrypted configuration data
+- **Test isolation**: Singleton reset capability for reliable testing
 
-Clone the repository and run the installation script. The script will set up all dependencies using Poetry and configure the service for production use.
+For detailed configuration options and troubleshooting, see:
 
-```bash
-# Clone the repository
-# Place in /opt/nginx-security-monitor/plugins/
-cd nginx-security-monitor
+- [📖 Configuration Guide](docs/CONFIGURATION.md) - Complete reference of all options
+- [🔐 Configuration System](docs/CONFIGURATION_SYSTEM.md) - Advanced usage and best practices
+- [🛠️ Configuration Troubleshooting](docs/troubleshooting/configuration-issues.md) - Common issues and solutions
 
-# Make installation script executable
-chmod +x install.sh
+## Usage
 
-# For production install (default: only runtime dependencies)
-```
-
-# For development install (includes dev dependencies)
-
-````
-
-This will:
-- Create a dedicated system user and group
-- Install all Python dependencies in a virtual environment using Poetry
-- Copy files to `/opt/nginx-security-monitor`
-- Create configuration files in `/opt/nginx-security-monitor`
-- Install and configure the systemd service
-- Set up log rotation
-- Apply basic security hardening
-
-**Note:**
-- For development or testing, you can also use Poetry directly:
-  ```bash
-  poetry install --with dev
-  poetry shell
-````
-
-**Typical workflow:** Start with `sudo ./install.sh --dev` for development, then use `sudo ./install.sh` for production deployment.
-
-### Obfuscation Features
+### Service Management
 
 - Randomized detection timing to avoid predictable patterns
 - Decoy log entries to confuse potential attackers analyzing your system
@@ -383,6 +361,20 @@ make install-core   # Core dependencies only
 - **Alert Systems**: 68% coverage (2 tests)
 
 For detailed testing information, including advanced usage, test architecture, and contribution guidelines, see [TESTING.md](TESTING.md).
+
+## Verifying Attack Detection
+
+The NGINX Security Monitor includes automated test scripts to verify that attack detection is working properly:
+
+```bash
+# Quick verification of attack detection
+./verify_attack_detection.sh
+
+# Comprehensive test of all attack types
+python3 test_attack_detection.py
+```
+
+These scripts will send test attacks to your NGINX server and verify that they are properly detected in the security logs. For more detailed testing information, see the [Testing Guide](docs/TESTING.md).
 
 ## Maintenance
 
