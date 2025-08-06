@@ -72,7 +72,7 @@ jobs:
 
       - name: Run tests
         run: |
-          poetry run pytest tests --test-master-key=test_key
+          poetry run pytest tests --test-master-key=test_key -v
         working-directory: ${{ github.workspace }}
 
   # # Job 1: Generate documentation

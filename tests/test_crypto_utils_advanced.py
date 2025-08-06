@@ -43,32 +43,25 @@ class TestCryptoUtilsAdvanced(unittest.TestCase):
         """Test line 53-54: Warning when using default test key."""
         # Clear environment to force default key usage
         with patch.dict(os.environ, {}, clear=True):
-            with patch(
-                "nginx_security_monitor.crypto_utils.SecurityConfigManager"
-            ) as mock_manager:
-                # Mock the config manager to avoid dependencies
-                mock_config = MagicMock()
-                mock_config.get.side_effect = lambda key, default: default
-                mock_manager.get_instance.return_value = mock_config
-
-                with patch("logging.getLogger") as mock_logger:
-                    mock_log = MagicMock()
-                    mock_logger.return_value = mock_log
-
-                    manager = SecurityConfigManager()
-                    manager._get_encryption_key()
-
-                    # Should log warning about using default test key
-                    mock_log.warning.assert_called_with(
-                        "Using default test key - not secure for production"
-                    )
+            # Create a direct instance without mocking ConfigManager first
+            manager = SecurityConfigManager()
+            
+            # Now patch the logger after creating the instance
+            with patch.object(manager, 'logger') as mock_log:
+                # Call the method that should trigger the warning
+                manager._get_encryption_key()
+                
+                # Should log warning about using default test key
+                mock_log.warning.assert_called_with(
+                    "Using default test key - not secure for production"
+                )
 
     def test_encryption_key_generation_exception_handling(self):
         """Test line 72-75: Exception handling during encryption key generation."""
         with patch.dict(os.environ, {"NGINX_MONITOR_KEY": "test_key"}):
             manager = SecurityConfigManager()
 
-            # Mock PBKDF2HMAC to raise exception
+            # Mock PBKDF2HMAC to raise exception with the exact expected message
             with patch("nginx_security_monitor.crypto_utils.PBKDF2HMAC") as mock_kdf:
                 mock_kdf.side_effect = Exception("KDF generation failed")
 
