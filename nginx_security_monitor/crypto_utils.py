@@ -34,13 +34,16 @@ class SecurityConfigManager:
             else:
                 # Create new salt
                 salt = os.urandom(16)
-                # Handle case where salt_file has no directory component
                 dirname = os.path.dirname(self.salt_file)
-                if dirname:  # Only create directory if there's actually a directory component
-                    os.makedirs(dirname, exist_ok=True)
-                with open(self.salt_file, "wb") as f:
-                    f.write(salt)
-                os.chmod(self.salt_file, 0o600)  # Read only for owner
+                try:
+                    if dirname:
+                        os.makedirs(dirname, exist_ok=True)
+                    with open(self.salt_file, "wb") as f:
+                        f.write(salt)
+                    os.chmod(self.salt_file, 0o600)  # Read only for owner
+                except Exception as e:
+                    self.logger.error(f"Failed to write salt file after directory creation: {e}")
+                    # Only fallback if all file operations fail
                 return salt
         except Exception as e:
             self.logger.error(f"Failed to manage salt file: {e}")
