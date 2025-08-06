@@ -1,3 +1,14 @@
+# NGINX Security Monitor Configuration
+# This configuration file matches the schema.yml structure for validation
+
+# ============================================================================
+# Service Settings
+# ============================================================================
+service:
+  check_interval: 60
+  log_file_path: "/var/log/nginx-security-monitor.log"
+  error_log_file_path: "/var/log/nginx-security-monitor-error.log"
+
 # ============================================================================
 # Alert Settings
 # ============================================================================
@@ -5,6 +16,11 @@ alerts:
   enabled: true
   channels:
     - email
+
+  console:
+    enabled: true
+    color: true
+    verbose: false
 
   email:
     enabled: true
@@ -14,185 +30,148 @@ alerts:
     username: "your_email@example.com"
     password: "your_email_password"
     from_address: "your_email@example.com"
-    to_address: "alert_recipient@example.com"
-    
-    templates:
-      subject: "[SECURITY ALERT] {severity} - {attack_type} detected"
-      body_format: "html"  # html or text
+    to_addresses:
+      - "alert_recipient@example.com"
 
-  sms:
-    enabled: false
-    provider: "your_sms_provider"
-    api_key: "your_sms_api_key"
-    from_number: "+1234567890"
-    to_number: "+0987654321"
+# ============================================================================
+# Mitigation Settings
+# ============================================================================
+mitigation:
+  enabled: true
+  auto_mitigation: false
+  strategies:
+    ip_blocking:
+      enabled: true
+      duration: 300
+      max_attempts: 5
+    rate_limiting:
+      enabled: true
+      requests_per_minute: 60
+      burst_allowance: 10
 
-alert_thresholds:
-  high: 10
-  medium: 5
-  low: 1
+# ============================================================================
+# Service Protection Settings
+# ============================================================================
+service_protection:
+  resource_thresholds:
+    cpu_percent: 80.0
+    memory_percent: 80.0
+    disk_usage_percent: 90.0
+  whitelist:
+    processes: []
 
-log_file_path: /var/log/nginx/access.log
-error_log_file_path: /var/log/nginx/error.log
-
-# Security Integrations Configuration
-security_integrations:
-  # Command execution settings
-  command_timeout: 5
-  extended_command_timeout: 10
-  capture_output: true
-  text_output: true
-  success_code: 0
-  default_availability: false
-  error_availability: false
-  success_result: true
-  failure_result: false
-  error_result: false
-  
-  # Fail2ban integration
-  fail2ban:
-    logger_name: "nginx-security-monitor.fail2ban"
-    socket: "/var/run/fail2ban/fail2ban.sock"
-    default_socket: "/var/run/fail2ban/fail2ban.sock"
-    default_jail_files:
-      - "/etc/fail2ban/jail.local"
-      - "/etc/fail2ban/jail.conf"
-      - "/etc/fail2ban/jail.d/"
-    jail_files: null  # Will use default_jail_files if null
-    min_bantime: 600  # 10 minutes minimum
-    
-  # OSSEC integration
-  ossec:
-    logger_name: "nginx-security-monitor.ossec"
-    install_dir: "/var/ossec"
-    default_dir: "/var/ossec"
-    alerts_dir: null  # Will be calculated from install_dir
-    alerts_log: null  # Will be calculated from alerts_dir
-    bin_dir: "bin"
-    control_script: "ossec-control"
-    default_alert_hours: 1
-    timestamp_pattern: "\\d{4} \\w{3} \\d{1,2} \\d{1,2}:\\d{1,2}:\\d{1,2}"
-    
-  # Suricata integration
-  suricata:
-    logger_name: "nginx-security-monitor.suricata"
-    eve_log: "/var/log/suricata/eve.json"
-    rules_dir: "/etc/suricata/rules"
-    
-  # Wazuh integration
-  wazuh:
-    logger_name: "nginx-security-monitor.wazuh"
-    install_dir: "/var/ossec"
-    syslog_facility: "LOG_LOCAL0"
-    
-  # ModSecurity integration
-  modsecurity:
-    logger_name: "nginx-security-monitor.modsecurity"
-    audit_log: "/var/log/modsec_audit.log"
-    rules_dir: "/etc/modsecurity/rules"
-    alt_log_locations:
-      - "/var/log/apache2/modsec_audit.log"
-      - "/var/log/nginx/modsec_audit.log"
-
-# Log Processing Configuration
-log_processing:
-  field_mappings:
-    ip_address: 1  # Group number for IP address extraction in regex
-    timestamp: 0   # Group number for timestamp extraction
-    status_code: 2 # Group number for status code extraction
-    user_agent: 3  # Group number for user agent extraction
-    request_uri: 4 # Group number for request URI extraction
-
-# Network Security Configuration
+# ============================================================================
+# Network Security Settings
+# ============================================================================
 network_security:
-  allowed_ips:
-    - "127.0.0.1"
-    - "::1"
-  
-# Security Hardening Configuration
-security:
-  critical_files:
-    "/opt/nginx-security-monitor/settings.yaml":
-      mode: 0o640
-      owner: "root"
-      group: "nginx"
-    "/opt/nginx-security-monitor/.salt":
-      mode: 0o600
-      owner: "root"
-      group: "root"
-    "/opt/nginx-security-monitor/src/":
-      mode: 0o755
-      owner: "root"
-      group: "root"
-    "/var/log/nginx-security-monitor.log":
-      mode: 0o640
-      owner: "nginx"
-      group: "nginx"
-      
-  sensitive_env_vars:
-    - "NGINX_MONITOR_KEY"
-    - "SMTP_PASSWORD"
-    - "API_KEY"
-    - "DB_PASSWORD"
-    - "SECRET_KEY"
-    
-  min_password_length: 16
-  unsafe_file_modes:
-    - 0o777
-    - 0o666
-    - 0o755
-    
-  weak_values:
-    - "test"
-    - "default"
-    - "password"
-    - "123456"
-    - "admin"
-    - "secret"
-    - "changeme"
-    - "letmein"
-    - "please"
-    
-  vulnerable_packages:
-    cryptography:
-      - "2.9.0"
-      - "2.8.0"
-      - "2.7.0"
-    requests:
-      - "2.19.0"
-      - "2.18.0"
-    urllib3:
-      - "1.24.0"
-      - "1.23.0"
-      
-  unsafe_attributes:
-    - "system"
-    - "exec"
-    - "eval"
-    - "compile"
+  max_failed_attempts: 5
 
-# Plugin System Configuration  
-plugin_system:
-  plugin_dirs:
-    - "plugins"
-    - "/usr/local/share/nginx-security-monitor/plugins"
-    - "/opt/nginx-security-monitor/plugins"
-  plugin_timeout: 30
-  max_plugins: 50
-  auto_reload: false
-  reload_interval: 300  # 5 minutes
-  
-  # Plugin security settings
-  sandbox_enabled: true
-  allowed_imports:
-    - "os"
-    - "sys"
-    - "json"
-    - "re"
-    - "datetime"
-    - "logging"
-    
-# Pattern Detection Configuration
+# ============================================================================
+# Cryptographic Settings
+# ============================================================================
+crypto:
+  base_delay: 0.1
+  max_delay: 1.0
+
+# ============================================================================
+# Monitoring Settings
+# ============================================================================
+monitoring:
+  enabled: true
+  check_interval: 30
+  batch_size: 100
+  debug_mode: false
+  logging_level: "INFO"
+  log_tail: true
+  log_files:
+    - "/var/log/nginx/access.log"
+    - "/var/log/nginx/error.log"
+
+# ============================================================================
+# Log File Settings
+# ============================================================================
+logs:
+  access_log: "/var/log/nginx/access.log"
+  error_log: "/var/log/nginx/error.log"
+  format: "combined"
+  encoding: "utf-8"
+  verbose_parsing: false
+
+# ============================================================================
+# Detection Settings
+# ============================================================================
+detection:
+  enabled_patterns:
+    - "sql_injection"
+    - "xss_attacks" 
+    - "ddos_detection"
+    - "brute_force"
+    - "directory_traversal"
+    - "suspicious_user_agents"
+  thresholds:
+    failed_requests_per_minute: 10
+    requests_per_ip_per_minute: 60
+    error_rate_threshold: 0.1
+    suspicious_user_agent_threshold: 5
+    sensitivity: "medium"
+  whitelist:
+    ips: []
+    user_agents: []
+    processes:
+      - name: "nginx"
+        description: "NGINX worker processes"
+      - name: "nginx: master process nginx"
+        description: "NGINX master process"
+      - name: "nginx: worker process"
+        description: "NGINX worker process"
+
+# ============================================================================
+# Pattern Detection Settings
+# ============================================================================
 pattern_detection:
   thresholds:
-    requests_per_ip_per_minute: 50
+    sql_injection: 5
+    xss_attacks: 5
+    ddos_detection: 100
+    brute_force: 10
+    directory_traversal: 5
+    suspicious_user_agents: 5
+
+# ============================================================================
+# Logging Settings
+# ============================================================================
+logging:
+  level: "INFO"
+  file: "/var/log/nginx-security-monitor.log"
+  max_size: "10MB"
+  backup_count: 5
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  console: true
+  stdout: false
+  verbose: false
+
+# ============================================================================
+# Storage Settings
+# ============================================================================
+storage:
+  database:
+    type: "sqlite"
+    path: "/var/lib/nginx-security-monitor/monitor.db"
+  cache:
+    enabled: true
+    type: "memory"
+    max_size: 1000
+    ttl: 3600
+
+# ============================================================================
+# Security Settings
+# ============================================================================
+security:
+  encryption:
+    enabled: true
+    key_path: "/etc/nginx-security-monitor/encryption.key"
+  plugin_security:
+    enabled: true
+    allowed_plugins_dir: "/opt/nginx-security-monitor/plugins"
+    signature_verification: true
+    whitelist: []
