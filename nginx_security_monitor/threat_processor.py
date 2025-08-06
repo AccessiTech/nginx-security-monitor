@@ -55,12 +55,13 @@ class ThreatProcessor:
                     # Enrich threat with additional context
                     enriched_threat = self._enrich_threat(threat, entry)
 
-                    # Process through plugins
-                    plugin_result = self.plugin_system.run_threat_detection_plugins(
-                        enriched_threat
-                    )
-                    if plugin_result:
-                        enriched_threat.update(plugin_result)
+                    # Process through plugins if available
+                    if self.plugin_system:
+                        plugin_result = self.plugin_system.run_threat_detection_plugins(
+                            enriched_threat
+                        )
+                        if plugin_result:
+                            enriched_threat.update(plugin_result)
 
                     threats.append(enriched_threat)
 

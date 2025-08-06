@@ -144,30 +144,30 @@ class SecurityCoordinator:
             list: Detected threats
         """
         all_threats = []
-        log_files = self.config.get("log_files", [])
 
-        for log_file in log_files:
-            try:
-                # Get new log entries
-                new_entries = self.log_processor.get_new_log_entries(log_file)
+        try:
+            # Get new log entries using the updated LogProcessor implementation
+            # This now handles the correct config path internally
+            new_entries = self.log_processor.get_new_log_entries()
 
-                # Use configurable entry_increment for statistics
-                entry_increment = self.config_manager.get(
-                    "statistics.entry_increment", 1
-                )
-                self.stats["total_log_entries"] += len(new_entries) * entry_increment
+            # Update statistics
+            entry_increment = self.config_manager.get("statistics.entry_increment", 1)
+            self.stats["total_log_entries"] += len(new_entries) * entry_increment
 
-                if new_entries:
-                    self.logger.debug(
-                        f"Processing {len(new_entries)} new entries from {log_file}"
+            if new_entries:
+                self.logger.debug(f"Processing {len(new_entries)} new log entries")
+
+                # Process entries for threats
+                threats = self.threat_processor.process_log_entries(new_entries)
+                all_threats.extend(threats)
+
+                if threats:
+                    self.logger.info(
+                        f"Detected {len(threats)} threats in {len(new_entries)} log entries"
                     )
 
-                    # Process entries for threats
-                    threats = self.threat_processor.process_log_entries(new_entries)
-                    all_threats.extend(threats)
-
-            except Exception as e:
-                self.logger.error(f"Error processing log file {log_file}: {e}")
+        except Exception as e:
+            self.logger.error(f"Error processing log files: {e}")
 
         return all_threats
 
@@ -182,7 +182,7 @@ class SecurityCoordinator:
         for threat in threats:
             try:
                 # Send threat alert
-                alert_sent = self.alert_manager.send_threat_alert(threat)
+                alert_sent = self.alert_manager.send_threat_alert(threat, mitigation_results={})
                 if alert_sent:
                     # Use configurable alert_increment for statistics
                     alert_increment = self.config_manager.get(
@@ -217,7 +217,9 @@ class SecurityCoordinator:
             service_threats = self.service_protection.perform_self_check()
 
             if service_threats:
-                alert_sent = self.alert_manager.send_service_threat_alert(service_threats)
+                alert_sent = self.alert_manager.send_service_threat_alert(
+                    service_threats
+                )
                 if alert_sent:
                     # Use configurable alert_increment for statistics
                     alert_increment = self.config_manager.get(
@@ -234,21 +236,32 @@ class SecurityCoordinator:
                         and threat.get("status", "unknown") == "unknown"
                     ):
                         import subprocess
+
                         service_names = [
                             self.config.get("service_name", "nginx-security-monitor"),
-                            "nginx"
+                            "nginx",
                         ]
                         for service_name in service_names:
                             try:
                                 import os
+
                                 if os.getenv("NSM_ENV", "development") == "production":
-                                    subprocess.run(["systemctl", "restart", service_name], check=True)
-                                    self.logger.info(f"Automated remediation: Restarted service '{service_name}' due to critical status.")
+                                    subprocess.run(
+                                        ["systemctl", "restart", service_name],
+                                        check=True,
+                                    )
+                                    self.logger.info(
+                                        f"Automated remediation: Restarted service '{service_name}' due to critical status."
+                                    )
                                     break
                                 else:
-                                    self.logger.info(f"Skipping systemctl restart for '{service_name}': not in production environment")
+                                    self.logger.info(
+                                        f"Skipping systemctl restart for '{service_name}': not in production environment"
+                                    )
                             except Exception as restart_exc:
-                                self.logger.error(f"Automated remediation failed: Could not restart service '{service_name}': {restart_exc}")
+                                self.logger.error(
+                                    f"Automated remediation failed: Could not restart service '{service_name}': {restart_exc}"
+                                )
 
         except Exception as e:
             self.logger.error(f"Error checking service protection: {e}")
