@@ -1,0 +1,45 @@
+#!/bin/bash
+# Path Traversal Attack Simulation Script
+# Usage: ./sim-path-traversal -p 8081
+
+PORT=8081  # Default port
+
+# Parse command line arguments
+while getopts "p:" opt; do
+  case ${opt} in
+    p ) PORT=$OPTARG ;;
+    \? ) echo "Usage: $0 [-p port]" >&2; exit 1 ;;
+  esac
+done
+
+echo "=== Path Traversal Attack Simulation ==="
+echo "Target: http://localhost:$PORT"
+echo "Sending requests..."
+
+# Path traversal tests
+echo -n "Test 1 - Basic path traversal: "
+curl -s "http://localhost:$PORT/../../../etc/passwd" > /dev/null
+echo "Done"
+
+echo -n "Test 2 - URL encoded traversal: "
+curl -s "http://localhost:$PORT/images/..%2f..%2f..%2fetc%2fpasswd" > /dev/null
+echo "Done"
+
+echo -n "Test 3 - Double URL encoded: "
+curl -s "http://localhost:$PORT/images/%252e%252e/%252e%252e/etc/passwd" > /dev/null
+echo "Done"
+
+echo -n "Test 4 - Absolute path bypass: "
+curl -s "http://localhost:$PORT//etc/passwd" > /dev/null
+echo "Done"
+
+echo -n "Test 5 - Path normalization: "
+curl -s "http://localhost:$PORT/images/./././../././../etc/passwd" > /dev/null
+echo "Done"
+
+echo -n "Test 6 - Null byte injection: "
+curl -s "http://localhost:$PORT/images/..%00/..%00/etc/passwd" > /dev/null
+echo "Done"
+
+echo "All path traversal tests completed. Check your security monitor logs for alerts."
+echo "To view logs: docker logs nginx-dev-nginx-1"

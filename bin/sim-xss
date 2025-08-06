@@ -1,0 +1,45 @@
+#!/bin/bash
+# XSS (Cross-Site Scripting) Attack Simulation Script
+# Usage: ./sim-xss -p 8081
+
+PORT=8081  # Default port
+
+# Parse command line arguments
+while getopts "p:" opt; do
+  case ${opt} in
+    p ) PORT=$OPTARG ;;
+    \? ) echo "Usage: $0 [-p port]" >&2; exit 1 ;;
+  esac
+done
+
+echo "=== XSS Attack Simulation ==="
+echo "Target: http://localhost:$PORT"
+echo "Sending requests..."
+
+# Basic XSS tests
+echo -n "Test 1 - Basic script tag: "
+curl -s "http://localhost:$PORT/?search=<script>alert(1)</script>" > /dev/null
+echo "Done"
+
+echo -n "Test 2 - IMG tag with onerror: "
+curl -s "http://localhost:$PORT/?input=<img%20src%3dx%20onerror%3dalert(1)>" > /dev/null
+echo "Done"
+
+echo -n "Test 3 - XSS in User-Agent: "
+curl -s "http://localhost:$PORT/" -H "User-Agent: <script>evil_code()</script>" > /dev/null
+echo "Done"
+
+echo -n "Test 4 - JavaScript event handler: "
+curl -s "http://localhost:$PORT/?input=<body%20onload=alert(1)>" > /dev/null
+echo "Done"
+
+echo -n "Test 5 - JavaScript URI: "
+curl -s "http://localhost:$PORT/?url=javascript:alert(1)" > /dev/null
+echo "Done"
+
+echo -n "Test 6 - DOM-based XSS simulation: "
+curl -s "http://localhost:$PORT/#<script>alert(1)</script>" > /dev/null
+echo "Done"
+
+echo "All XSS tests completed. Check your security monitor logs for alerts."
+echo "To view logs: docker logs nginx-dev-nginx-1"
