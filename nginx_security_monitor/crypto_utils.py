@@ -27,28 +27,51 @@ class SecurityConfigManager:
 
     def _get_or_create_salt(self):
         """Get existing salt or create new one."""
+        # Create a salt in memory first to ensure we always have one
+        # regardless of file operations
+        in_memory_salt = os.urandom(16)
+        
+        # If we don't have a salt_file, just use in-memory salt
+        if not self.salt_file:
+            self.logger.warning("No salt file specified, using in-memory salt")
+            return in_memory_salt
+            
         try:
+            # If the salt file exists, read it
             if os.path.exists(self.salt_file):
                 with open(self.salt_file, "rb") as f:
                     return f.read()
-            else:
-                # Create new salt
-                salt = os.urandom(16)
-                dirname = os.path.dirname(self.salt_file)
+            
+            # Otherwise, create the directory if needed
+            directory = os.path.dirname(self.salt_file)
+            if directory and not os.path.exists(directory):
                 try:
-                    if dirname:
-                        os.makedirs(dirname, exist_ok=True)
-                    with open(self.salt_file, "wb") as f:
-                        f.write(salt)
-                    os.chmod(self.salt_file, 0o600)  # Read only for owner
+                    os.makedirs(directory, exist_ok=True)
                 except Exception as e:
-                    self.logger.error(f"Failed to write salt file after directory creation: {e}")
-                    # Only fallback if all file operations fail
-                return salt
+                    self.logger.error(f"Failed to create salt directory: {e}")
+                    # Continue trying to create the file even if directory creation fails
+            
+            # Now write the salt to the file
+            try:
+                with open(self.salt_file, "wb") as f:
+                    f.write(in_memory_salt)
+                # Set proper permissions if possible
+                try:
+                    os.chmod(self.salt_file, 0o600)  # Read only for owner
+                except Exception:
+                    pass  # Ignore permission errors
+                    
+                # At this point, we should have successfully created the file
+                return in_memory_salt
+            except Exception as e:
+                self.logger.error(f"Failed to write salt file: {e}")
+                # Fall back to in-memory salt
+                return in_memory_salt
+                
         except Exception as e:
             self.logger.error(f"Failed to manage salt file: {e}")
-            # Fallback to session salt
-            return os.urandom(16)
+            # Fallback to in-memory salt
+            return in_memory_salt
 
     def _get_encryption_key(self):
         """Derive encryption key from master password and salt."""

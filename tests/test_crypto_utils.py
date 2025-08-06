@@ -232,8 +232,15 @@ class TestPatternObfuscator(unittest.TestCase):
     def test_salt_file_creation_success(self):
         """Test successful salt file creation when it doesn't exist"""
         with tempfile.TemporaryDirectory() as temp_dir:
+            # Print diagnostics about the temp directory
+            print(f"Temp directory created: {temp_dir}")
+            print(f"Directory exists: {os.path.exists(temp_dir)}")
+            print(f"Directory permissions: {oct(os.stat(temp_dir).st_mode)}")
+            
             salt_file_path = os.path.join(temp_dir, "test_salt")
+            print(f"Salt file path: {salt_file_path}")
 
+            # Create a manager with this salt file path
             manager = SecurityConfigManager(salt_file=salt_file_path)
 
             # File doesn't exist initially
@@ -247,11 +254,24 @@ class TestPatternObfuscator(unittest.TestCase):
             self.assertIsInstance(salt, bytes)
             self.assertEqual(len(salt), 16)
 
+            # Check if the directory is still accessible
+            print(f"After salt creation - Directory exists: {os.path.exists(temp_dir)}")
+            print(f"After salt creation - Salt file exists: {os.path.exists(salt_file_path)}")
+            
             # Verify file was created and contains the salt
-            self.assertTrue(os.path.exists(salt_file_path))
-            with open(salt_file_path, "rb") as f:
-                file_salt = f.read()
-            self.assertEqual(salt, file_salt)
+            try:
+                self.assertTrue(os.path.exists(salt_file_path), 
+                                f"Salt file {salt_file_path} was not created")
+                with open(salt_file_path, "rb") as f:
+                    file_salt = f.read()
+                self.assertEqual(salt, file_salt)
+            except AssertionError as e:
+                # Extra diagnostics if the assertion fails
+                print(f"Error: {str(e)}")
+                print(f"Salt file directory listing:")
+                if os.path.exists(os.path.dirname(salt_file_path)):
+                    print(os.listdir(os.path.dirname(salt_file_path)))
+                raise
 
     def test_salt_file_read_existing(self):
         """Test reading existing salt file"""
